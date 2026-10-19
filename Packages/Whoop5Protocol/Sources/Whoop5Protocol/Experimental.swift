@@ -51,11 +51,21 @@ public enum Whoop5Experimental {
         return s.count % 2 == 1 ? s[m] : (s[m - 1] + s[m]) / 2
     }
 
+    /// Neumaier-compensated sum: the algorithm Python's built-in sum() uses for floats since 3.12, so the
+    /// twins agree to the last bit.
+    static func fsum(_ v: [Double]) -> Double {
+        var s = 0.0, c = 0.0
+        for x in v {
+            let t = s + x
+            c += abs(s) >= abs(x) ? (s - t) + x : (x - t) + s
+            s = t
+        }
+        return s + c
+    }
+
     static func populationSD(_ v: [Double]) -> Double {
-        let mean = v.reduce(0, +) / Double(v.count)
-        var ss = 0.0
-        for x in v { ss += (x - mean) * (x - mean) }
-        return (ss / Double(v.count)).squareRoot()
+        let mean = fsum(v) / Double(v.count)
+        return (fsum(v.map { ($0 - mean) * ($0 - mean) }) / Double(v.count)).squareRoot()
     }
 
     // MARK: Sleep periods
@@ -147,9 +157,9 @@ public enum Whoop5Experimental {
                     q = min(max(q, t0), t1)
                     ys.append(t1 > t0 ? v0 + (v1 - v0) * (q - t0) / (t1 - t0) : v0)
                 }
-                let mean = ys.reduce(0, +) / Double(n), xm = Double(n - 1) / 2
-                var num = 0.0, den = 0.0
-                for (m, y) in ys.enumerated() { num += (Double(m) - xm) * (y - mean); den += (Double(m) - xm) * (Double(m) - xm) }
+                let mean = fsum(ys) / Double(n), xm = Double(n - 1) / 2
+                let num = fsum(ys.enumerated().map { (Double($0.offset) - xm) * ($0.element - mean) })
+                let den = fsum((0..<n).map { (Double($0) - xm) * (Double($0) - xm) })
                 let slope = num / den
                 for m in 0..<n {
                     let hann = 0.5 - 0.5 * cos(2 * Double.pi * Double(m) / Double(n - 1))
@@ -159,8 +169,8 @@ public enum Whoop5Experimental {
                 var bestF: Double? = nil, bestP = -1.0, total = 0.0, s = 0
                 while loHz + Double(s) * stepHz <= top + 1e-9 {
                     let f = loHz + Double(s) * stepHz, w = 2 * Double.pi * f / fs
-                    var re = 0.0, im = 0.0
-                    for (m, y) in ys.enumerated() { re += y * cos(w * Double(m)); im += y * sin(w * Double(m)) }
+                    let re = fsum(ys.enumerated().map { $0.element * cos(w * Double($0.offset)) })
+                    let im = fsum(ys.enumerated().map { $0.element * sin(w * Double($0.offset)) })
                     let p = (re * re + im * im) * f * f
                     total += p
                     if p > bestP { bestF = f; bestP = p }
@@ -198,8 +208,8 @@ public enum Whoop5Experimental {
                                          minC: nil, maxC: nil, sdC: nil, baselineC: nil, deviationC: nil))
                 continue
             }
-            let mean = v.reduce(0, +) / Double(v.count)
-            let base = baselineC ?? (means.isEmpty ? nil : means.reduce(0, +) / Double(means.count))
+            let mean = fsum(v) / Double(v.count)
+            let base = baselineC ?? (means.isEmpty ? nil : fsum(means) / Double(means.count))
             let sd = populationSD(v)
             out.append(SkinTempNight(onsetUnix: p.onsetUnix, offsetUnix: p.offsetUnix, samples: v.count, meanC: mean,
                                      minC: v.min(), maxC: v.max(), sdC: sd, baselineC: base,
