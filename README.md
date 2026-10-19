@@ -163,12 +163,6 @@ owners. None of them blocks using the library; they limit how far a client shoul
 | D9 | R22 v9 channel meaning and R26 sample units | Structure only | Captures with the related feature flags toggled |
 | D10 | Event payloads (e.g. `TEMPERATURE_LEVEL`, `STRAP_CONDITION_REPORT`) | Event numbers known, payloads opaque | Captures of each event |
 
-### Needs a developer machine
-
-| # | Item | How to verify |
-|---|---|---|
-| T1 | Swift XCTest suite | Runs in CI on macOS; the parity CLI already passes locally |
-
 ## How it compares
 
 Checked on 2026-10-19 against the source of each project. Goose and NOOP are full apps; this
