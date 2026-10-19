@@ -226,13 +226,23 @@ drop-in improvements, each small enough to land on its own:
 
 ## Contributing data
 
-The open items above are mostly a data problem. If you own a 5.0 or MG:
+The open items above are mostly a data problem. If you own a 5.0 or MG, one command turns what you
+already have into a privacy-safe donation:
 
-- Share **frames, not HCI logs**: CRC-valid frame hex as NOOP's RawHistoryArchive writes it. HCI logs
-  can contain your MAC address, serial number and identity blocks.
-- Overnight offloads with a reference (watch sleep stages, or the WHOOP data export for the same
-  nights) are the most valuable.
-- See [re/README.md](re/README.md) for the analysis workflow.
+```bash
+python3 re/prepare_donation.py rejected_history.jsonl noop-strap-log-*.txt my_whoop_data.zip --out my-donation
+```
+
+It accepts NOOP's raw history archive (`rejected_history.jsonl`), NOOP strap logs and captures, an
+iOS `.pklg` or Android `btsnoop_hci.log`, and the WHOOP data export (zip or folder). It keeps only
+CRC-valid 5/MG frames, removes identity-bearing frames (hello replies, advertising name, battery-pack
+info, serial or MAC patterns), drops the journal and every notes column of the export, and writes
+`my-donation.zip` with a `MANIFEST.json` that lists what was kept and removed. Check the zip, then
+share it in an issue.
+
+Most valuable: **one night** of data plus the WHOOP export for that same night. It lets SpO₂, HRV,
+sleep and skin temperature be compared directly with the official values. See [re/README.md](re/README.md)
+for the analysis workflow.
 
 ## Credits
 

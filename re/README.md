@@ -7,6 +7,7 @@ demand into `re/corpus/` (gitignored); only scripts and results are committed.
 |---|---|---|
 | `harvest_frames.py` | Extract every CRC-valid 5/MG frame from a tree of checked-out repos and downloads | de-duplicated JSONL with sources |
 | `organize_corpus.py` | Arrange harvested frames and original files into a local corpus with a manifest | `frames/`, `captures/`, `ground_truth/`, `MANIFEST.csv` |
+| `prepare_donation.py` | Turn your own archive, logs, HCI capture and WHOOP export into a privacy-safe donation zip | `frames.jsonl`, `whoop_export/`, `MANIFEST.json` |
 | `pklg_extract.py` | Extract 5/MG frames from an iOS PacketLogger (.pklg) or Android btsnoop capture | frames JSONL with direction and ATT handle |
 | `analyze_rr_unit.py` | Is R-R in ms or 1/1024 s? (0x2A37 vs R18, phone clock) | `results/rr_unit.txt` — milliseconds |
 | `analyze_official_sync.py` | What the official app sends, feature-flag values | `results/official_sync_ios.txt` |
@@ -33,11 +34,16 @@ never needs the data.
 
 ## Donating data
 
-Most useful, in order:
-1. One or more **overnight** history offloads (R18 + R21 + R20) with a sleep reference (a watch's
-   sleep stages, or the WHOOP data export for the same night).
-2. The same night's exported **SpO₂ / respiratory rate / skin temperature** from the WHOOP app.
-3. Frames from firmware versions other than 50.39–50.42.
+```bash
+python3 re/prepare_donation.py <archive / logs / capture / WHOOP export ...> --out my-donation
+```
 
-Share frames only (hex of CRC-valid frames, as NOOP's RawHistoryArchive writes them). Do not share
-HCI logs that contain your MAC address, serial number or identity blocks.
+Most useful, in order:
+1. One or more **overnight** history offloads (NOOP's `rejected_history.jsonl`, strap logs, or an HCI
+   capture of the official app) together with the WHOOP data export for the same nights.
+2. Sessions with R21 IMU or R22 records (none are public yet).
+3. Firmware versions other than 50.37–50.42.
+
+The tool keeps only CRC-valid 5/MG frames and strips identifiers (see its docstring for the exact
+rules). Dates stay in, because they are what lines frames up with the export. Read `MANIFEST.json`
+before you share the zip.

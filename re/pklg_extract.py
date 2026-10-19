@@ -47,13 +47,12 @@ def btsnoop_records(blob: bytes):
             yield ts / 1e6, (0x03 if flags & 1 else 0x02), data[1:]
 
 
-def main(path: str, out_path: str) -> None:
-    blob = open(path, "rb").read()
+def whoop_frames(blob: bytes):
+    """Yield (ts, direction, att_handle, frame) for every CRC-valid 5/MG frame in a capture blob."""
     source = btsnoop_records(blob) if blob[:8] == b"btsnoop\0" else records(blob)
     l2cap: dict[tuple, bytearray] = {}
     need: dict[tuple, int] = {}
     streams: dict[tuple, Reassembler] = defaultdict(Reassembler)
-    frames = []
     for ts, ptype, data in source:
         if ptype not in (0x02, 0x03) or len(data) < 4:   # 2 = ACL sent, 3 = ACL received
             continue
@@ -78,14 +77,19 @@ def main(path: str, out_path: str) -> None:
         att = pdu[4:need.pop(key)]
         if cid != 0x0004 or len(att) < 3:
             continue
-        op = att[0]
-        if op not in (ATT_NOTIFY, ATT_INDICATE, ATT_WRITE_REQ, ATT_WRITE_CMD):
+        if att[0] not in (ATT_NOTIFY, ATT_INDICATE, ATT_WRITE_REQ, ATT_WRITE_CMD):
             continue
         att_handle = struct.unpack_from("<H", att, 1)[0]
         for f in streams[(direction, conn, att_handle)].feed(att[3:]):
-            d = decode_frame(f)
-            frames.append({"ts": round(ts, 6), "dir": direction, "att_handle": att_handle, "hex": f.hex(),
-                           "packet": d["packet"], "layout": d.get("layout")})
+            yield ts, direction, att_handle, f
+
+
+def main(path: str, out_path: str) -> None:
+    frames = []
+    for ts, direction, att_handle, f in whoop_frames(open(path, "rb").read()):
+        d = decode_frame(f)
+        frames.append({"ts": round(ts, 6), "dir": direction, "att_handle": att_handle, "hex": f.hex(),
+                       "packet": d["packet"], "layout": d.get("layout")})
     with open(out_path, "w") as out:
         for r in frames:
             out.write(json.dumps(r) + "\n")
