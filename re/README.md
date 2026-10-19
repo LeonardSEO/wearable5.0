@@ -7,6 +7,15 @@ demand into `re/corpus/` (gitignored); only scripts and results are committed.
 |---|---|---|
 | `harvest_frames.py` | Extract every CRC-valid 5/MG frame from a tree of checked-out repos and downloads | de-duplicated JSONL with sources |
 | `organize_corpus.py` | Arrange harvested frames and original files into a local corpus with a manifest | `frames/`, `captures/`, `ground_truth/`, `MANIFEST.csv` |
+| `pklg_extract.py` | Extract 5/MG frames from an iOS PacketLogger (.pklg) or Android btsnoop capture | frames JSONL with direction and ATT handle |
+| `analyze_rr_unit.py` | Is R-R in ms or 1/1024 s? (0x2A37 vs R18, phone clock) | `results/rr_unit.txt` — milliseconds |
+| `analyze_official_sync.py` | What the official app sends, feature-flag values | `results/official_sync_ios.txt` |
+| `analyze_console.py` | Firmware console log reconstruction and inventory | `results/console_inventory.txt` |
+| `analyze_overnight_r18.py` | One night of R18 described | `results/overnight_r18.txt` |
+| `analyze_r18_b82_windows.py` | Byte-82 measurement windows (SpO₂ candidate) | `results/r18_b82_windows.txt` |
+| `analyze_r26.py` | R26 contiguity and heart rate vs R18 | `results/r26_analysis.txt` |
+| `analyze_r20_config.py` | R20 block configuration and two-channel bursts per session | `results/r20_config_bursts.txt` |
+| `analyze_r20_hr_sessions.py` | R20 heart rate on every session with a reference | `results/r20_hr_sessions.txt` |
 | `analyze_v20_optical.py` | Which R20 channels carry the pulse, and does derived HR track a varying reference? | `results/v20_optical_noop1992.txt`, summarised in FINDINGS §4 |
 
 ```bash
@@ -15,6 +24,12 @@ python3 -m venv .venv && .venv/bin/pip install numpy scipy
 .venv/bin/python re/analyze_v20_optical.py re/corpus/v20_frames/rejected_history.jsonl \
     re/corpus/v20_ground_truth/ground_truth_window.csv
 ```
+
+## Corpus regression
+
+`WHOOP5_CORPUS=<folder built by organize_corpus.py> python3 -m unittest tests.test_corpus` (from
+`python/`) decodes every frame of the local corpus. It is skipped when the variable is unset, so CI
+never needs the data.
 
 ## Donating data
 

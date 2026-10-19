@@ -11,6 +11,7 @@
     980
    ],
    "skin_temp_c": 34.12,
+   "spo2_candidate_percent": null,
    "step_counter": 1234,
    "temp_aux1_c": 33.1,
    "unix_s": 1790000000
@@ -30,12 +31,53 @@
     980
    ],
    "skin_temp_c": null,
+   "spo2_candidate_percent": null,
    "step_counter": 1234,
    "temp_aux1_c": 33.1,
    "unix_s": 1790000000
   },
   "hex": "aa01740001003fb12f128007000000803bb16a0000003a020004d403000000000000000000000000000ad7a33c00000000000000000000803fd204000000000000000000004b01490100000000000000002000000000000000000000000000000000000000000000000000000000000000000000000000006c2e82ed",
   "name": "synthetic_r18_cold"
+ },
+ {
+  "expected": {
+   "band_state": "SLEEP",
+   "heart_rate": 58,
+   "layout": 18,
+   "packet_type": 47,
+   "record_index": 7,
+   "rr_ms": [
+    1024,
+    980
+   ],
+   "skin_temp_c": 34.12,
+   "spo2_candidate_percent": 97,
+   "step_counter": 1234,
+   "temp_aux1_c": 33.1,
+   "unix_s": 1790000000
+  },
+  "hex": "aa01740001003fb12f128007000000803bb16a0000003a020004d403000000000000000000000000000ad7a33c00000000000000000000803fd204000000000000000000004b014901540d00000000000020610000000000000000000000000000000000000000000000000000000000000000000000000072f150a3",
+  "name": "synthetic_r18_b82_value"
+ },
+ {
+  "expected": {
+   "band_state": "SLEEP",
+   "heart_rate": 58,
+   "layout": 18,
+   "packet_type": 47,
+   "record_index": 7,
+   "rr_ms": [
+    1024,
+    980
+   ],
+   "skin_temp_c": 34.12,
+   "spo2_candidate_percent": null,
+   "step_counter": 1234,
+   "temp_aux1_c": 33.1,
+   "unix_s": 1790000000
+  },
+  "hex": "aa01740001003fb12f128007000000803bb16a0000003a020004d403000000000000000000000000000ad7a33c00000000000000000000803fd204000000000000000000004b014901540d00000000000020a00000000000000000000000000000000000000000000000000000000000000000000000000048434038",
+  "name": "synthetic_r18_b82_code"
  },
  {
   "expected": {
@@ -233,6 +275,7 @@
     613
    ],
    "skin_temp_c": 30.57,
+   "spo2_candidate_percent": null,
    "step_counter": 50,
    "temp_aux1_c": 24.7,
    "unix_s": 1780916150

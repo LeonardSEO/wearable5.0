@@ -5,10 +5,11 @@ Every claim carries an evidence tier (defined in `protocol/whoop5_protocol.json`
 **corpus** (verified here on real 5/MG frames), **apk** (static analysis of the official Android app
 5.473.0, facts only), **noop / goose / johga** (community sources), **constructed** (arithmetic only).
 
-This repository did **not** have a WHOOP 5.0 strap. Everything marked *corpus* was verified on
-frames other owners published: the v20 corpus and paired ground truth from
-[ryanbr/noop#1992](https://github.com/ryanbr/noop/issues/1992), and the real R18 / R26 / metadata
-frames that NOOP publishes as test vectors.
+This repository did **not** have a WHOOP 5.0 strap. Everything marked *corpus* was verified on frames
+other owners published: 31,489 CRC-valid 5/MG frames harvested from public repositories, issue
+attachments and two HCI captures (an iOS PacketLogger capture of the official app syncing overnight,
+and an Android btsnoop from a WHOOP MG). Raw data is not redistributed here; the tools in `re/` rebuild
+the corpus locally (see `re/README.md`). WHOOP 4.0 material was excluded file by file.
 
 ## Status at a glance
 
@@ -21,12 +22,18 @@ frames that NOOP publishes as test vectors.
 | Complete event table (58 events) and packet-type table (35–56) | ✅ | apk |
 | GET_DATA_RANGE: dual response, page cursors, newest clock | ✅ field-exact, confirmed on 589 real replies | corpus + apk |
 | History START / END / COMPLETE and the 8-byte END token | ✅ | corpus |
-| Live HR + R-R (packet 40) | ✅ | noop |
-| R18 biometric summary: HR, R-R, gravity, steps, skin temp, band state | ✅ structure; field meanings partly provisional | corpus (3 frames) + noop + johga |
+| Live HR + R-R (packet 40) | ✅ | noop + corpus |
+| **R-R unit: milliseconds, not 1/1024 s** (R18 and 0x2A37; packet 40 likely) | ✅ **new** — §8 | corpus |
+| R18 biometric summary: HR, R-R, gravity, steps, skin temp, band state | ✅ one full night described (§12) | corpus (20,274 records) + noop + johga |
+| R16/R17 MG ECG records | ✅ structure, 81 real records | corpus + noop |
+| Event header, payloads, BATTERY_LEVEL payload | ✅ | corpus |
+| Console log text | ✅ decoded and joined | corpus |
+| Official app sync cadence and feature-flag values | ✅ **new** — §10 | corpus |
 | R20 optical: which channels carry the pulse | ✅ **new** — see §4 | corpus |
 | R20 optical → heart rate that tracks a varying reference | ✅ **new**, r ≈ 0.8, MAE ≈ 2 bpm | corpus |
-| R21 six-axis IMU, R26 compact optical, R22 v9 | ✅ structure | noop |
-| SpO₂ | ⚫ not a value on the wire; candidate measurement burst located (§5) | corpus (thin) |
+| R26 compact optical: contiguity and heart rate | ✅ **new**, r = 0.95, MAE 1.4 bpm over 17 night bursts — §11 | corpus |
+| R21 six-axis IMU, R22 v9 | ✅ structure | noop |
+| SpO₂ | 🟡 **strong candidate**: R18 byte 82 in scheduled 30 s windows every 20 min during sleep — §13; not validated | corpus |
 | Sleep stages, recovery, strain | ⚫ cloud-side in the official app (§3) — must be computed locally | apk |
 
 ## 1. Device families and GATT (apk)
@@ -137,7 +144,10 @@ for derived signals.
 
 ## 5. SpO₂: what is and is not on the wire
 
-- No SpO₂ value exists in any documented record, and the app computes none (§3).
+See §13 for the R18 byte-82 candidate found later in an overnight capture. The R20 observations below
+still stand.
+
+- No SpO₂ value is documented in any record, and the app computes none (§3).
 - Firmware console text recovered by NOOP reads *"generated a valid SPO2 during sleep"*, so the strap
   runs an oxygen computation itself, intermittently.
 - In this corpus, blocks 1 and 2 (the two highest LED drives, 12750 and 3400) are populated for one
@@ -151,13 +161,100 @@ for derived signals.
 
 | NOOP README limit | Blocker | What closes it |
 |---|---|---|
-| Sleep detection / stages | Need overnight R21 motion + R18 band state + R-R | One or more donated nights (R18 + R21) with a sleep reference (watch or WHOOP export) |
-| Skin temperature consistency | R18 `u16@73 / 100 °C` agrees across NOOP, Johga and goose; firmware coverage unknown | R18 from more firmware versions |
-| SpO₂ | §5 | Overnight bursts + exported SpO₂ |
-| Overnight HRV / respiration | R18 carries ≤ 4 R-R words per record | R20 beat timing (§4) is a candidate dense source; validate against R-R |
+| Sleep detection / stages | One full night of R18 described (§12): band state, HR dip, motion, temperature; no R21 and no stage reference | A night with R21 and a sleep reference (watch stages or WHOOP export) |
+| Skin temperature consistency | R18 `u16@73 / 100 °C` agrees across NOOP, Johga and goose and gives a plausible overnight curve (31.4–35.0 °C) | R18 from more firmware versions, with the WHOOP export |
+| SpO₂ | Strong candidate located (§13) | The owner's WHOOP SpO₂ for a captured night |
+| Overnight HRV | Solved for R18: 92 % of beats delivered overnight, R-R in ms (§8, §12) | Comparison with the WHOOP export's HRV |
+| Respiration | No field identified | Overnight data plus the WHOOP export |
 | Bonding refusals on some Android phones | Strap refuses SMP pairing (NOOP #1635) | Hardware investigation |
 
-## 7. Sources
+## 8. R-R intervals are in milliseconds (corpus, new)
+
+NOOP and this library previously converted R-R as 1/1024 s ticks (the Bluetooth Heart Rate profile
+unit). The data says otherwise. Script: `re/analyze_rr_unit.py`; result: `re/results/rr_unit.txt`.
+
+1. In both HCI captures (iOS and MG), raw R18 R-R values are identical beat for beat to the raw R-R
+   values in the strap's standard 0x2A37 Heart Rate Measurement notifications (mean difference 0.00
+   over 25 consecutive beats).
+2. Summing those 0x2A37 values over 93 windows in which every beat was reported, against the phone's
+   own capture clock: **0.9992** of the elapsed time when read as milliseconds, 0.976 as 1/1024 s.
+3. R18 alone, 203 full-coverage minutes overnight: **0.9986** as ms, 0.975 as 1/1024 s.
+
+So the WHOOP 5/MG sends R-R in milliseconds in R18 and, contrary to the BLE specification, in 0x2A37.
+Packet 40 follows on moderate evidence (HR × RR / 60000 = 0.997 over 234 live samples). The decoders
+now return the raw value as ms. This settles NOOP #1505.
+
+## 9. MG ECG, events, console (corpus)
+
+- **R16 / R17** (MG ECG, layouts after NOOP `PROTOCOL_ECG.md`): all 25 real R16 records (500 samples,
+  18-bit two's complement, lead counts 10–11) and 56 R17 records (100 i16 samples) decode within
+  capacity, with quality codes 1–3. Physical scale and sample rate remain unestablished.
+- **Events** carry subsec (u16 @16), payload length (u16 @18) and the payload from @20 (consistent on
+  2,377 of 2,380 real frames). `BATTERY_LEVEL`: state of charge in tenths @1 and millivolts @5; ten real
+  events run from 49.9 % at 3,833 mV to 99.9 % at 4,382 mV. Eight event numbers seen on the wire have no
+  name in the app's table (48, 61, 62, 110, 112, 115, 116, 120).
+- **Console** (type 50): `[0x01][text fragment][NUL]`, joined in arrival order. 1,423 reconstructed
+  lines (`re/results/console_inventory.txt`). The firmware logs `SLEEPFLAG` transitions with the labels
+  WAKE / STILL / SLEEP / UP, the same vocabulary as R18 band state, plus wear-detection state changes and
+  per-pull history statistics.
+- **GET_CLOCK_DEPRECATED** (11) replies with Unix seconds at body offset 0 (49 real replies).
+- Running both decoders over the corpus found and fixed a Swift crash on valid frames shorter than a
+  type's fixed header, and two Python reads into CRC bytes. Swift and Python now agree on 30,559 real
+  frames (190,883 field checks).
+
+## 10. What the official app sends (corpus, new)
+
+From the iOS capture of the official app (5 h overnight; `re/analyze_official_sync.py`):
+
+- A history round every **~600 s**: SEND_HISTORICAL_DATA → GET_DATA_RANGE → SEND_HISTORICAL_DATA →
+  one HISTORICAL_DATA_RESULT per chunk → often ABORT_HISTORICAL_TRANSMITS. 40 rounds, 459 ACKs.
+- The app enumerates both key tables and writes **all 16 feature flags** with ASCII values: `'1'` only
+  for `enable_r22_v4_packets` and `enable_passive_strap_fit_gen5`, `'2'` for the other 14. Keys by
+  index and values are in the schema (`feature_flags`). Device-config keys (7): `sigproc_wear_detect`,
+  `enable_rfid`, `max_collection_backlog`, `cont_collection_mode`, `whoop_live_hr_in_adv_ind_pkt`,
+  `whoop_live_2_hrm_devices`, `enable_raw_data_w_ecg`.
+- The app also sent DISABLE_ALARM, GET_HELLO, GET_ADVERTISING_NAME and one REBOOT_STRAP.
+
+## 11. R26 compact optical (corpus, new)
+
+`re/analyze_r26.py`, `re/results/r26_analysis.txt`. During the captured night the strap records a
+40-second R26 burst roughly every 19 minutes (17 bursts). Within bursts, records are contiguous at
+25 samples/s (boundary step equals the in-record step; 0 clipped deltas in 17,112). Heart rate from the
+R26 waveform against R18 heart rate: **r = 0.95, MAE 1.4 bpm** per burst over 17 bursts spanning
+46–66 bpm (window level r = 0.82, MAE 2.7); a shuffled-record control fails (MAE 27.7). One night, one
+wearer.
+
+## 12. One full night of R18 (corpus, new)
+
+`re/analyze_overnight_r18.py`, `re/results/overnight_r18.txt`: 18,602 consecutive records,
+22:57–04:07 UTC, no gaps. Band state is SLEEP for 99.5 % of records and turns UP at the end with a
+motion spike. Heart rate falls from ~62 to ~47 bpm and rises again on waking; 5-minute RMSSD ranges
+47–102 ms (whole night 73.5 ms, artefact-filtered); 92 % of the expected beats are present as R-R.
+Skin temperature rises from 31.9 to 34.9 °C over the night and the two auxiliary channels track it.
+This describes the signals; it is not a sleep-stage or recovery validation.
+
+## 13. R18 byte 82: SpO₂ candidate (corpus, new — not validated)
+
+`re/analyze_r18_b82_windows.py`, `re/results/r18_b82_windows.txt`. In the captured night byte 82 is 0
+in every record (18,152 of 18,152) except inside **15 windows of exactly 30 s, starting exactly every
+1,200 s** (xx:05:37, xx:25:37, xx:45:37), all in band state SLEEP; the status words at 77/79 change in
+the same records. Inside the windows, byte 82 holds either codes (160, 128, 32, 16, 1, ...) or values
+in **87–100** that move smoothly from second to second (for example `97 96 96 96 96 97 97 97 98 97`). No
+windows occur in the daytime MG session. This fits a scheduled overnight oxygen-saturation
+measurement, and NOOP's console finding *"generated a valid SPO2 during sleep"*. The library exposes the
+value as `spo2_candidate_percent` (70–100 only). **It is not validated**: one night, one wearer, no
+reference. The R20 two-channel burst (§5) did not occur in this capture, which has no R20 records.
+
+## 14. R20 heart rate on a second session (corpus, negative)
+
+`re/analyze_r20_hr_sessions.py`, `re/results/r20_hr_sessions.txt`. On a second R20 session (NOOP #26:
+92 minutes, 36 % record coverage, awake, HR 85–89 bpm) with only 15 live-HR reference points
+(converted with the time zone the log states), the R20 estimate does **not** match (MAE 12–28 bpm).
+R20 heart rate therefore stays validated on one resting session only. Block configuration differs
+between the sessions (block 2 drive 3400 vs 4250), and the two-channel burst does not occur in the
+second one (`re/results/r20_config_bursts.txt`).
+
+## 15. Sources
 
 - Official WHOOP Android app 5.473.0 (static analysis for interoperability; nothing reproduced).
 - [ryanbr/noop](https://github.com/ryanbr/noop) protocol docs, test vectors and the #1992 corpus

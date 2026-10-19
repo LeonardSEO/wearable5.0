@@ -1,0 +1,10 @@
+== session A (noop#1992, banked 1 Hz HR): 1034 R20 records, 7584 reference samples
+   0A: n= 512 r=+0.80 MAE= 2.0 ref [51, 86] | control r=-0.01 MAE=16.5
+   0B: n= 512 r=+0.82 MAE= 1.8 ref [51, 86] | control r=+0.03 MAE=21.0
+   4A: n= 494 r=+0.77 MAE= 1.9 ref [51, 86] | control r=-0.08 MAE=11.0
+   4B: n= 512 r=+0.74 MAE= 2.1 ref [51, 86] | control r=+0.02 MAE=11.5
+== session B (noop#26, live HR notifications, 30 s cadence): 2013 R20 records, 15 reference samples
+   0A: n=  38 r=+0.20 MAE=11.9 ref [85, 89] | control r=-0.10 MAE=24.3
+   0B: n=  38 r=+0.60 MAE=27.8 ref [85, 89] | control r=-0.16 MAE=19.4
+   4A: n=  38 r=+0.28 MAE=19.1 ref [85, 89] | control r=-0.14 MAE=15.0
+   4B: n=  38 r=+0.26 MAE=25.1 ref [85, 89] | control r=-0.30 MAE=16.2

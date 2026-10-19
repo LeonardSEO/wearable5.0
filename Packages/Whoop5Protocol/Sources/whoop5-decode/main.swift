@@ -26,6 +26,7 @@ func summary(_ p: Whoop5Packet) -> [String: Any] {
         case .biometric(let x):
             d["heart_rate"] = Int(x.heartRate); d["rr_ms"] = x.rrMs; d["step_counter"] = Int(x.stepCounter)
             d["skin_temp_c"] = x.skinTempC as Any; d["temp_aux1_c"] = x.tempAux1C as Any; d["band_state"] = x.bandState
+            d["spo2_candidate_percent"] = x.spo2CandidatePercent as Any
         case .imu(let x): d["accel_x"] = x.accel[0].map(Int.init); d["gyro_z"] = x.gyro[2].map(Int.init)
         case .compactOptical(let x): d["samples"] = x.samples.map { Int($0) }; d["burst_counter"] = Int(x.burstCounter)
         case .optical(let x): d["blocks"] = x.blocks.map { Int($0.count) }

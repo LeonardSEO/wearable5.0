@@ -169,3 +169,10 @@ class EventsAndConsole(unittest.TestCase):
         frames = [synth.console(1, "generated a valid "), synth.console(2, "SPO2 during sleep\n")]
         self.assertEqual(console_text(frames), "generated a valid SPO2 during sleep\n")
         self.assertEqual(decode_frame(frames[0])["console_sequence"], 1)
+
+
+class SpO2Candidate(unittest.TestCase):
+    def test_b82_value_and_code(self):
+        self.assertEqual(decode_frame(synth.r18(b82=97))["spo2_candidate_percent"], 97)
+        self.assertIsNone(decode_frame(synth.r18(b82=160))["spo2_candidate_percent"])
+        self.assertIsNone(decode_frame(synth.r18())["spo2_candidate_percent"])

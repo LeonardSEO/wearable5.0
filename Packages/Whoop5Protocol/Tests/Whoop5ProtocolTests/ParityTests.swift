@@ -45,7 +45,7 @@ final class ParityTests: XCTestCase {
 
     func testGoldenParity() throws {
         let vs = try vectors()
-        XCTAssertGreaterThanOrEqual(vs.count, 16)
+        XCTAssertGreaterThanOrEqual(vs.count, 18)
         for v in vs {
             let e = v.expected
             let packet = try Whoop5Decoder.decode(bytes(v.hex))
@@ -62,6 +62,7 @@ final class ParityTests: XCTestCase {
                     XCTAssertEqual(r.skinTempC, e["skin_temp_c"]?.double, v.name)
                     XCTAssertEqual(r.tempAux1C, e["temp_aux1_c"]?.double, v.name)
                     if case .string(let s) = e["band_state"] { XCTAssertEqual(r.bandState, s, v.name) }
+                    XCTAssertEqual(r.spo2CandidatePercent, e["spo2_candidate_percent"]?.int, v.name)
                 case .imu(let imu):
                     XCTAssertEqual(imu.accel[0].map(Int.init), e["accel_x"]?.ints, v.name)
                     XCTAssertEqual(imu.gyro[2].map(Int.init), e["gyro_z"]?.ints, v.name)

@@ -1,0 +1,85 @@
+R26 compact optical window analysis (analyze_r26.py)
+corpus: 713 unique R26 records (by record_index), 21 bursts, 5 sessions
+assumed: 25 samples/s, 1 record = 1 s (base + 24 deltas), pulse = absorption dip
+
+1. Sessions and bursts (burst = consecutive seconds, same burst_counter)
+  S0 vishk23_noop(1): start 2026-06-08 11:13 UTC, 1 bursts, 1 records, burst_counter 1..1
+      burst length s: min 1 median 1 max 1
+      (on_wrist_raw, acceptance_raw, status) counts: (1, 1, 2128)x1
+  S1 hunterchen7_openwhoop(1): start 2026-06-10 16:58 UTC, 1 bursts, 1 records, burst_counter 1..1
+      burst length s: min 1 median 1 max 1
+      (on_wrist_raw, acceptance_raw, status) counts: (1, 0, 1104)x1
+  S2 digitalerdude_hci(670): start 2026-07-09 22:57 UTC, 17 bursts, 670 records, burst_counter 47..63
+      burst length s: min 30 median 40 max 40; gap between bursts s: median 1122 (min 821, max 1201)
+      burst_counter step between bursts: {1: 16}
+      (on_wrist_raw, acceptance_raw, status) counts: (0, 0, 1168)x17, (0, 0, 1696)x2, (0, 1, 1168)x125, (0, 1, 1360)x320, (0, 1, 1696)x182, (1, 0, 1168)x18, (1, 0, 1696)x6
+  S3 sennnen_maverick-connectors(1)+tanarchytan_whoop-rs(39): start 2026-07-13 15:14 UTC, 1 bursts, 40 records, burst_counter 8..8
+      burst length s: min 40 median 40 max 40
+      (on_wrist_raw, acceptance_raw, status) counts: (0, 0, 1632)x8, (0, 1, 1632)x23, (1, 0, 1632)x9
+  S4 tanarchytan_whoop-rs(1): start 2026-07-16 21:52 UTC, 1 bursts, 1 records, burst_counter 1..1
+      burst length s: min 1 median 1 max 1
+      (on_wrist_raw, acceptance_raw, status) counts: (0, 1, 1872)x1
+  bursts sharing a burst_counter with the previous burst in the same session (gap inside a burst): 0
+
+2. Delta-reconstruction continuity (next record's base minus this record's last reconstructed sample)
+  deltas: 17112, clipped (+32767/-32767/-32768): 0 {} in 0 records
+  |delta| inside records: median 179, p90 520, p99 2094
+  boundary step within bursts: n=692, |step| median 180, p90 563, max 5626
+  next base vs linear extrapolation of the last step: |error| median 49, p90 216
+  control (non-adjacent records in same burst): |step| median 3624, p90 17728
+  verdict: adjacent boundary step is 1.0x the median in-record step and 20x smaller than the control -> records are contiguous at 25 samples/s (no dropped sample at the boundary)
+  boundary steps beyond i16 range (would need >1 clipped delta): 0
+
+3. HR from R26 vs R18 heart_rate at the same seconds
+   method: per burst, 0.6-3.3 Hz Butterworth(3) filtfilt, invert, find_peaks(distance 0.33 s, prominence 0.3 sd);
+   window HR = 60/median IBI over 10 s windows every 2 s (IBI 0.3-2.0 s, >=3 IBIs); burst HR = median IBI of
+   the whole burst; reference = mean R18 heart_rate over the same seconds (>=60% coverage).
+   R18 seconds overlapping R26: 670 of 713 (band_state: {'SLEEP': 668, 'UP': 2})
+  S0 vishk23_noop(1): 0 R26 seconds with R18 HR
+      no R18 reference in this session -> not scored
+  S1 hunterchen7_openwhoop(1): 0 R26 seconds with R18 HR
+      no R18 reference in this session -> not scored
+  S2 digitalerdude_hci(670): 670 R26 seconds with R18 HR
+      windows          n= 250  r=+0.82  MAE=  2.7  bias= -0.2  ref 45-68 bpm
+      bursts           n=  17  r=+0.95  MAE=  1.4  bias= -0.2  ref 46-66 bpm
+      record-shuffled  n=  17  r=+0.60  MAE= 27.7  bias=+27.7  ref 46-66 bpm
+  S3 sennnen_maverick-connectors(1)+tanarchytan_whoop-rs(39): 0 R26 seconds with R18 HR
+      no R18 reference in this session -> not scored
+  S4 tanarchytan_whoop-rs(1): 0 R26 seconds with R18 HR
+      no R18 reference in this session -> not scored
+  pooled:
+      windows          n= 250  r=+0.82  MAE=  2.7  bias= -0.2  ref 45-68 bpm  (windows overlap; not independent)
+      bursts           n=  17  r=+0.95  MAE=  1.4  bias= -0.2  ref 46-66 bpm
+      record-shuffled  n=  17  r=+0.60  MAE= 27.7  bias=+27.7  ref 46-66 bpm
+      (record shuffle keeps ~1 s of pulse per record, so some rank order can survive; the HR level does not.
+       A boundary artifact would pin HR near 60 bpm regardless of the reference.)
+      burst-shuffled   r null 95th pct +0.46, one-sided p(r_null >= r) = 0.000, mean MAE 6.5
+  per burst (session, seconds, R26 burst HR, R18 mean HR):
+      S2  40s    62.5    61.6  diff  +0.9
+      S2  40s    68.2    66.0  diff  +2.2
+      S2  40s    53.6    57.9  diff  -4.4
+      S2  40s    48.4    48.8  diff  -0.4
+      S2  40s    50.0    48.6  diff  +1.3
+      S2  40s    51.7    51.3  diff  +0.4
+      S2  40s    50.0    51.0  diff  -1.0
+      S2  40s    46.2    46.6  diff  -0.4
+      S2  40s    45.5    46.8  diff  -1.4
+      S2  40s    48.4    46.0  diff  +2.4
+      S2  30s    46.9    46.6  diff  +0.3
+      S2  40s    53.6    58.2  diff  -4.6
+      S2  40s    50.0    49.3  diff  +0.7
+      S2  40s    47.6    48.0  diff  -0.4
+      S2  40s    50.0    49.2  diff  +0.8
+      S2  40s    51.7    52.4  diff  -0.7
+      S2  40s    62.5    61.8  diff  +0.7
+  fairness: 17 bursts spanning 20 bpm of reference -> scoreable
+
+4. whoop-rs ppg_hr golden (whoop-rs_real_frames.gen5_only.json)
+  ppg_frames: 40, consecutive seconds: True, burst_counter [8]
+  frames with pinned 'samples': 1; equal to our 24 raw deltas: 1 (whoop-rs pins the deltas, not the cumulative samples)
+  golden frames also in the L26 corpus: 40; R18 reference at those seconds: 0
+  golden: 10 estimates, first ts 1783955687 bpm 78 conf 0.733, confident range [60, 100]
+  ours:   15 window estimates, first (window ending 10 s in) 78.9 bpm; burst HR 78.9 bpm; window range 76.9-93.7
+  ours inside golden confident range: 15/15; |first ours - golden first| 0.9 bpm
+  note: whoop-rs uses a different estimator (autocorrelation lag, parabolic refinement) and its golden is a
+  regression anchor, not a reference measurement; agreement is consistency, not validation.

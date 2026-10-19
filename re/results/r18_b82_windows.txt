@@ -1,0 +1,42 @@
+== bluetoothd-hci-2026-07-10_06-09-15.redacted.frames.jsonl: 18602 R18 records, 15 marked windows
+   window length s: [(30, 15)]; interval s: [(1200, 14)]
+   2026-07-09 23:05:37  len  30 s  median 70-100:  94.0 (n=22, range 91-96)  band {'SLEEP': 30}
+   2026-07-09 23:25:37  len  30 s  median 70-100:  95.0 (n= 7, range 87-98)  band {'SLEEP': 30}
+   2026-07-09 23:45:37  len  30 s  median 70-100:  78.0 (n= 1, range 78-78)  band {'SLEEP': 30}
+   2026-07-10 00:05:37  len  30 s  median 70-100:     -  band {'SLEEP': 30}
+   2026-07-10 00:25:37  len  30 s  median 70-100:     -  band {'SLEEP': 30}
+   2026-07-10 00:45:37  len  30 s  median 70-100:     -  band {'SLEEP': 30}
+   2026-07-10 01:05:37  len  30 s  median 70-100:  95.5 (n= 2, range 95-96)  band {'SLEEP': 30}
+   2026-07-10 01:25:37  len  30 s  median 70-100:  93.0 (n= 4, range 92-94)  band {'SLEEP': 30}
+   2026-07-10 01:45:37  len  30 s  median 70-100:  93.0 (n= 1, range 93-93)  band {'SLEEP': 30}
+   2026-07-10 02:05:37  len  30 s  median 70-100:  99.0 (n=27, range 98-100)  band {'SLEEP': 30}
+   2026-07-10 02:25:37  len  30 s  median 70-100:  97.0 (n= 8, range 95-100)  band {'SLEEP': 30}
+   2026-07-10 02:45:37  len  30 s  median 70-100:  97.0 (n=28, range 96-98)  band {'SLEEP': 30}
+   2026-07-10 03:05:37  len  30 s  median 70-100:  93.0 (n=20, range 89-99)  band {'SLEEP': 30}
+   2026-07-10 03:25:37  len  30 s  median 70-100:  94.0 (n= 1, range 94-94)  band {'SLEEP': 30}
+   2026-07-10 03:45:37  len  30 s  median 70-100:  97.0 (n=27, range 97-98)  band {'SLEEP': 30}
+   byte-82 value classes in windows: {'70-100': 148, 'code 160': 121, 'code 32': 80, 'code 128': 64, 'code 16': 14, 'code 1': 9, 'code 36': 5, 'code 144': 4, 'code 2': 2, 'code 48': 2}
+   byte 82 outside windows: {0: 18152}
+== btsnoop_hci.frames.jsonl: 1243 R18 records, 0 marked windows
+== HISTORICAL_DATA_L18.jsonl: 20270 R18 records, 18 marked windows
+   window length s: [(30, 15), (1, 2), (2, 1)]; interval s: [(1200, 14), (1699900000, 1), (52597000, 1)]
+   1970-01-02 03:46:40  len   1 s  median 70-100:  90.0 (n= 1, range 90-90)  band {'SLEEP': 1}
+   2023-11-14 22:13:20  len   1 s  median 70-100:     -  band {'WAKE': 1}
+   2025-07-15 16:30:00  len   2 s  median 70-100:  90.0 (n= 2, range 90-90)  band {'WAKE': 1, 'SLEEP': 1}
+   2026-07-09 23:05:37  len  30 s  median 70-100:  94.0 (n=22, range 91-96)  band {'SLEEP': 30}
+   2026-07-09 23:25:37  len  30 s  median 70-100:  95.0 (n= 7, range 87-98)  band {'SLEEP': 30}
+   2026-07-09 23:45:37  len  30 s  median 70-100:  78.0 (n= 1, range 78-78)  band {'SLEEP': 30}
+   2026-07-10 00:05:37  len  30 s  median 70-100:     -  band {'SLEEP': 30}
+   2026-07-10 00:25:37  len  30 s  median 70-100:     -  band {'SLEEP': 30}
+   2026-07-10 00:45:37  len  30 s  median 70-100:     -  band {'SLEEP': 30}
+   2026-07-10 01:05:37  len  30 s  median 70-100:  95.5 (n= 2, range 95-96)  band {'SLEEP': 30}
+   2026-07-10 01:25:37  len  30 s  median 70-100:  93.0 (n= 4, range 92-94)  band {'SLEEP': 30}
+   2026-07-10 01:45:37  len  30 s  median 70-100:  93.0 (n= 1, range 93-93)  band {'SLEEP': 30}
+   2026-07-10 02:05:37  len  30 s  median 70-100:  99.0 (n=27, range 98-100)  band {'SLEEP': 30}
+   2026-07-10 02:25:37  len  30 s  median 70-100:  97.0 (n= 8, range 95-100)  band {'SLEEP': 30}
+   2026-07-10 02:45:37  len  30 s  median 70-100:  97.0 (n=28, range 96-98)  band {'SLEEP': 30}
+   2026-07-10 03:05:37  len  30 s  median 70-100:  93.0 (n=20, range 89-99)  band {'SLEEP': 30}
+   2026-07-10 03:25:37  len  30 s  median 70-100:  94.0 (n= 1, range 94-94)  band {'SLEEP': 30}
+   2026-07-10 03:45:37  len  30 s  median 70-100:  97.0 (n=27, range 97-98)  band {'SLEEP': 30}
+   byte-82 value classes in windows: {'70-100': 151, 'code 160': 121, 'code 32': 80, 'code 128': 64, 'code 16': 14, 'code 1': 9, 'code 36': 5, 'code 144': 4, 'code 2': 2, 'code 48': 2}
+   byte 82 outside windows: {0: 19816}

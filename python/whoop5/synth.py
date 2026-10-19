@@ -28,9 +28,9 @@ def record(layout: int, total_length: int, fill: dict[int, bytes], index: int = 
 
 
 def r18(hr: int = 58, rr_ticks: tuple[int, ...] = (1024, 980), skin_raw: int = 3412, steps: int = 1234,
-        state_bits: int = 0x20) -> bytes:
+        state_bits: int = 0x20, b82: int = 0) -> bytes:
     fill = {22: bytes([hr, len(rr_ticks)]), 57: struct.pack("<H", steps), 73: struct.pack("<H", skin_raw),
-            81: bytes([state_bits]), 41: struct.pack("<ffff", 0.02, 0.0, 0.0, 1.0),
+            81: bytes([state_bits, b82]), 41: struct.pack("<ffff", 0.02, 0.0, 0.0, 1.0),
             69: struct.pack("<hh", 331, 329)}
     for i, t in enumerate(rr_ticks):
         fill[24 + 2 * i] = struct.pack("<H", t)

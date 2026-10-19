@@ -1,0 +1,65 @@
+R20 block configuration and block 1/2 bursts per session
+============================================================
+input frames: 3051; kept (5/MG verified captures): 3047; dropped: {'satayutata_geniemax-core': 1, 'sennnen_maverick': 1, 'vishk23_noop': 2}
+sessions (split on gaps > 60 s, record_index de-duplicated within a session): 2
+Times are UTC from the record header; the wearer's local time zone is not known.
+Observations only: no SpO2 value and no wavelength identity is inferred from source numbers or drives.
+
+Session 1: 2026-07-22 18:28:40 .. 2026-07-22 20:00:40 UTC  span 5521 s  records 2013 (coverage 36%, duplicates dropped 0, internal gaps >1 s: 230)
+  source: noop_attachments/issue_26
+  source: noop_attachments/issue_26/noop-master-iOS-v9.1.0-260722-2150_unzipped
+  Block configuration (slot A | slot B), records with samples (count>0) / without:
+    block 0: A(sou=1 dri=750 det=3 ran=32 off=1600) | B(sou=4 dri=1500 det=4 ran=32 off=800)  with samples 2013 / without 0
+             count values: {25: 2013}
+    block 1: A(sou=3 dri=12750 det=1 ran=16 off=0) | B(sou=4 dri=0 det=2 ran=16 off=0)  with samples 0 / without 2013
+             count values: {0: 2013}
+    block 2: A(sou=2 dri=4250 det=1 ran=32 off=1600) | B(sou=4 dri=0 det=2 ran=32 off=800)  with samples 0 / without 2013
+             count values: {0: 2013}
+    block 3: A(sou=2 dri=0 det=3 ran=32 off=0) | B(sou=4 dri=0 det=4 ran=32 off=0)  with samples 2013 / without 0
+             count values: {25: 2013}
+    block 4: A(sou=2 dri=200 det=3 ran=32 off=0) | B(sou=4 dri=0 det=1 ran=32 off=0)  with samples 2013 / without 0
+             count values: {25: 2013}
+  Block 1 bursts: 0
+  Block 2 bursts: 0
+  Blocks 1 and 2 bursts coincide exactly: yes
+
+Session 2: 2026-09-07 03:17:46 .. 2026-09-07 03:34:59 UTC  span 1034 s  records 1034 (coverage 100%, duplicates dropped 0, internal gaps >1 s: 0)
+  source: noop1992_gists/gist_c452899c5b7dd224e87871f28a5554d1
+  Block configuration (slot A | slot B), records with samples (count>0) / without:
+    block 0: A(sou=1 dri=750 det=3 ran=32 off=1600) | B(sou=4 dri=1500 det=4 ran=32 off=800)  with samples 1034 / without 0
+             count values: {25: 1034}
+    block 1: A(sou=3 dri=12750 det=1 ran=16 off=0) | B(sou=4 dri=0 det=2 ran=16 off=0)  with samples 21 / without 1013
+             count values: {0: 1013, 25: 21}
+    block 2: A(sou=2 dri=3400 det=1 ran=32 off=1600) | B(sou=4 dri=0 det=2 ran=32 off=800)  with samples 21 / without 1013
+             count values: {0: 1013, 25: 21}
+    block 3: A(sou=2 dri=0 det=3 ran=32 off=0) | B(sou=4 dri=0 det=4 ran=32 off=0)  with samples 1034 / without 0
+             count values: {25: 1034}
+    block 4: A(sou=2 dri=200 det=3 ran=32 off=0) | B(sou=4 dri=0 det=1 ran=32 off=0)  with samples 1034 / without 0
+             count values: {25: 1034}
+  Block 1 bursts: 1
+    #1   start 2026-09-07 03:17:46  duration   21 s  interval since prev start      -    samples/slot 525  [possibly truncated: start at session start/gap]
+  Block 2 bursts: 1
+    #1   start 2026-09-07 03:17:46  duration   21 s  interval since prev start      -    samples/slot 525  [possibly truncated: start at session start/gap]
+  Blocks 1 and 2 bursts coincide exactly: yes
+  Perfusion during bursts (AC = std after 0.6-3.3 Hz band-pass, DC = median), sample-weighted over bursts:
+    chan   samples   DC            AC/DC
+    0A        525         127025    0.01166
+    0B        525         223662    0.00727
+    1A        525         228569    0.00113
+    1B        525         230654    0.00205
+    2A        525         125988    0.00413
+    2B        525         192051    0.00372
+    3A        525            234    0.02006
+    3B        525            208    0.02596
+    4A        525         195348    0.00037
+    4B        525          15851    0.00132
+
+Summary
+------------------------------------------------------------
+  sess  span_s  records  b1_bursts  b2_bursts  b1 durations (s)  b1 start-to-start intervals (s)  b1 UTC hours
+     1    5521     2013          0          0  []  []  []
+     2    1034     1034          1          1  [21]  []  [3]
+  all block-1 bursts: n=1 duration median 21 s (min 21, max 21)
+  distinct per-session block configurations (source/drive/detector/range/offset, both slots, all 5 blocks): 2
+    session 1: blocks differing from session 1: none
+    session 2: blocks differing from session 1: [2]

@@ -40,6 +40,9 @@ public struct R18: Equatable {
     public var skinTempC: Double? { Self.scaled(Double(skinTempRaw), 0.01, 5...45) }
     public var tempAux1C: Double? { Self.scaled(Double(tempAux1Raw), 0.1, 0...60) }
     public var tempAux2C: Double? { Self.scaled(Double(tempAux2Raw), 0.1, 0...60) }
+    /// Byte 82 when it holds 70...100, else nil. A SpO2 **candidate**, not a validated measurement: it is
+    /// non-zero only inside scheduled 30 s windows every 20 min during sleep (see FINDINGS).
+    public var spo2CandidatePercent: Int? { (70...100).contains(Int(sleepAdjacent82)) ? Int(sleepAdjacent82) : nil }
     /// Band motion/rest state `(byte81 >> 4) & 3`: band state, not a sleep stage.
     public var bandState: String { ["WAKE", "STILL", "SLEEP", "UP"][Int((stateBits >> 4) & 3)] }
 
