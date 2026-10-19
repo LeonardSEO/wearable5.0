@@ -148,6 +148,13 @@
       ],
       "evidence": ["noop"]
     },
+    "GET_CLOCK_DEPRECATED": {
+      "fields": [
+        {"name": "unix_s", "offset": 0, "type": "u32"},
+        {"name": "frac_ticks", "offset": 4, "type": "u16", "note": "candidate 1/32768 s; observed values < 32768"}
+      ],
+      "evidence": ["corpus"]
+    },
     "GET_BATTERY_LEVEL": {
       "fields": [{"name": "percent", "offset": 0, "type": "u32"}],
       "evidence": ["noop"]
@@ -186,7 +193,8 @@
       {"name": "rr_count", "offset": 17, "type": "u8"}
     ],
     "rr_offset": 18,
-    "rr_unit": "1/1024 s; ms = (ticks*1000 + 512) // 1024",
+    "rr_unit": "milliseconds (u16 = ms)",
+    "rr_unit_evidence": "corpus, moderate: per-sample HR*RR/60000 = 0.997 (234 live samples) vs 0.973 if read as 1/1024 s",
     "evidence": ["noop"]
   },
   "event_48": {
@@ -275,6 +283,8 @@
       ],
       "rr_offset": 24,
       "rr_max": 4,
+      "rr_unit": "milliseconds (u16 = ms), not 1/1024 s",
+      "rr_unit_evidence": "corpus, strong: raw values identical beat-for-beat to the strap's standard 0x2A37 R-R, whose sum matches the phone clock as ms (0.9992 of elapsed over 93 full-coverage windows; 0.976 as 1/1024 s); overnight R18 sum(RR)/elapsed = 0.9986 as ms",
       "band_state_from_state_bits": {"shift": 4, "mask": 3, "labels": {"0": "WAKE", "1": "STILL", "2": "SLEEP", "3": "UP"}},
       "evidence": ["noop"]
     },

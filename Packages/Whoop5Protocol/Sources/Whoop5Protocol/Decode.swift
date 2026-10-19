@@ -108,6 +108,8 @@ public struct CommandResponse: Equatable {
     public var commandName: String { Whoop5Schema.shared.commandName(command) }
     /// Field-exact GET_DATA_RANGE decode on the final SUCCESS reply; nil for PENDING or a short body.
     public var dataRange: DataRange? { command == 34 && result == 1 ? DataRange(body: body) : nil }
+    /// GET_CLOCK_DEPRECATED (11) reply: strap clock as Unix seconds (observed on 49 real replies).
+    public var deprecatedClockUnix: UInt32? { command == 11 && result == 1 && body.count >= 4 ? body.u32(0) : nil }
 }
 
 /// GET_DATA_RANGE (34) final 65-byte body. Page cursors, not timestamps, describe the backlog.
@@ -132,6 +134,7 @@ public struct DataRange: Equatable {
 }
 
 public enum Whoop5Decoder {
+    /// BLE-spec 1/1024 s ticks to ms. Not used for WHOOP 5/MG, which sends R-R in milliseconds.
     public static func rrTicksToMs(_ ticks: UInt16) -> Int { (Int(ticks) * 1000 + 512) / 1024 }
 
     /// Validate and decode one complete frame.
@@ -172,7 +175,7 @@ public enum Whoop5Decoder {
             let o = offset + 2 * i
             guard o + 2 <= end else { break }
             let t = raw.u16(o)
-            if t != 0 { out.append(rrTicksToMs(t)) }
+            if t != 0 { out.append(Int(t)) }  // WHOOP 5/MG sends R-R in milliseconds
         }
         return out
     }

@@ -38,7 +38,7 @@ class Framing(unittest.TestCase):
 class Records(unittest.TestCase):
     def test_r18(self):
         d = decode_frame(synth.r18())
-        self.assertEqual((d["layout"], d["heart_rate"], d["rr_ms"]), (18, 58, [1000, 957]))
+        self.assertEqual((d["layout"], d["heart_rate"], d["rr_ms"]), (18, 58, [1024, 980]))
         self.assertEqual(d["skin_temp_c"], 34.12)
         self.assertEqual(d["step_counter"], 1234)
         self.assertEqual(d["band_state"], "SLEEP")
@@ -61,7 +61,7 @@ class Records(unittest.TestCase):
 
     def test_realtime_hr(self):
         d = decode_frame(synth.realtime_hr(61, (1000, 1100)))
-        self.assertEqual((d["heart_rate"], d["rr_ms"]), (61, [977, 1074]))
+        self.assertEqual((d["heart_rate"], d["rr_ms"]), (61, [1000, 1100]))
 
     def test_data_range_pages_behind_and_newest(self):
         d = decode_frame(synth.data_range(write=120, trim=100))
@@ -107,7 +107,7 @@ REAL_ACK = "aa0110000001e0d12300170141b6010010000000667da4fb"
 class RealFrames(unittest.TestCase):
     def test_real_r18(self):
         d = decode_frame(bytes.fromhex(REAL_R18))
-        self.assertEqual((d["heart_rate"], d["rr_ms"], d["skin_temp_c"], d["step_counter"]), (102, [588, 599], 30.57, 50))
+        self.assertEqual((d["heart_rate"], d["rr_ms"], d["skin_temp_c"], d["step_counter"]), (102, [602, 613], 30.57, 50))
         self.assertEqual(d["unix_s"], 1780916150)
 
     def test_real_r26(self):
@@ -149,3 +149,10 @@ class ShortFrames(unittest.TestCase):
     def test_short_event_has_no_timestamp(self):
         d = decode_frame(synth.short_event())
         self.assertEqual((d["event_name"], d["unix_s"]), ("DOUBLE_TAP", None))
+
+
+class Clock(unittest.TestCase):
+    def test_deprecated_clock_reply(self):
+        d = decode_frame(synth.clock_deprecated_reply())
+        self.assertEqual((d["command_name"], d["fields"]["unix_s"], d["fields"]["frac_ticks"]),
+                         ("GET_CLOCK_DEPRECATED", 1_789_656_860, 1966))

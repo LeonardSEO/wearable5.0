@@ -94,3 +94,7 @@ def short_metadata(meta_type: int = 3) -> bytes:
 def short_event(number: int = 14) -> bytes:
     """A 16-byte event frame with no timestamp room: must decode without reading into the CRC."""
     return wrap(bytes([48, 1, number, 1]))
+
+
+def clock_deprecated_reply(unix: int = 1_789_656_860, frac: int = 1966) -> bytes:
+    return wrap(bytes([36, 7, 11, 2, 1]) + struct.pack("<IH", unix, frac) + b"\x00" * 5)

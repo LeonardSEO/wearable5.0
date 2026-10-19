@@ -1,0 +1,8 @@
+== bluetoothd-hci-2026-07-10_06-09-15.redacted.pklg: 17941 0x2A37 notifications, 18602 R18 records
+  1. 0x2A37 sum(R-R)/phone-clock elapsed, 93 full-coverage windows: as ms 0.9992 | as 1/1024 s 0.9758
+  2. best mean |raw 0x2A37 - raw R18| over 25 consecutive beats: 0.00 units at (0, 578)
+  3. R18 sum(R-R)/elapsed, 203 full-coverage minutes: as ms 0.9986 | as 1/1024 s 0.9751
+== btsnoop_hci.log: 514 0x2A37 notifications, 1243 R18 records
+  1. no full-coverage 0x2A37 windows
+  2. best mean |raw 0x2A37 - raw R18| over 25 consecutive beats: 0.00 units at (0, 878)
+  3. no full-coverage R18 minutes

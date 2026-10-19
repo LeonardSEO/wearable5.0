@@ -7,8 +7,8 @@
    "packet_type": 47,
    "record_index": 7,
    "rr_ms": [
-    1000,
-    957
+    1024,
+    980
    ],
    "skin_temp_c": 34.12,
    "step_counter": 1234,
@@ -26,8 +26,8 @@
    "packet_type": 47,
    "record_index": 7,
    "rr_ms": [
-    1000,
-    957
+    1024,
+    980
    ],
    "skin_temp_c": null,
    "step_counter": 1234,
@@ -104,8 +104,8 @@
    "heart_rate": 61,
    "packet_type": 40,
    "rr_ms": [
-    977,
-    1074
+    1000,
+    1100
    ],
    "unix_s": 1790000000
   },
@@ -205,8 +205,8 @@
    "packet_type": 47,
    "record_index": 25443699,
    "rr_ms": [
-    588,
-    599
+    602,
+    613
    ],
    "skin_temp_c": 30.57,
    "step_counter": 50,

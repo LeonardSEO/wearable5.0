@@ -43,6 +43,7 @@ def _fields(buf: bytes, specs: list[dict], base: int = 0) -> dict:
 
 
 def rr_ticks_to_ms(ticks: int) -> int:
+    """Convert BLE-spec 1/1024 s R-R ticks to ms. WHOOP 5/MG does NOT use this unit (see rr_list)."""
     return (ticks * 1000 + 512) // 1024
 
 
@@ -54,7 +55,7 @@ def _rr_list(raw: bytes, offset: int, count: int, limit: int) -> list[int]:
             break
         t = struct.unpack_from("<H", raw, o)[0]
         if t:
-            out.append(rr_ticks_to_ms(t))
+            out.append(t)  # WHOOP 5/MG sends R-R in milliseconds (FINDINGS: R-R unit)
     return out
 
 
