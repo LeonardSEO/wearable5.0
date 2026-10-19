@@ -44,12 +44,13 @@ against frames captured from real straps.
 |---|---|
 | **Canonical schema** | [`protocol/whoop5_protocol.json`](protocol/whoop5_protocol.json): GATT, envelope, 87 commands (82 from the current official app plus 5 firmware-only ones documented by NOOP), 58 events, 16 packet types, response bodies and record layouts. Every entry is tagged with where the fact comes from. |
 | **Byte-exact framing** | CRC16-Modbus header, CRC32 body, 4-byte padding, BLE fragment reassembly. Reproduces the strap's CLIENT_HELLO and history ACK byte for byte. |
+| **SpO₂ and HRV (experimental)** | `spo2_percent` from R18 byte 82 and `spo2_windows()` for one value per overnight measurement window; `rmssd_ms()` on R18 R-R. In Python (`whoop5.experimental`) and Swift (`Whoop5Experimental`). |
 | **Record decoders** | Live HR + R-R (packet 40), R18 biometric summary, R20 optical blocks, R21 six-axis IMU, R22 v9 channels, R26 compact optical, R16/R17 MG ECG, IMU streams 51/52, events with payloads, console log text, history metadata. Unknown layouts are preserved raw, never dropped. |
 | **Sync support** | Field-exact `GET_DATA_RANGE` (page backlog and newest-page clock) and the `HISTORICAL_DATA_RESULT` ACK built from the verbatim HISTORY_END token. |
 | **Safety list** | The commands that can brick, wipe or lock a strap are flagged `destructive` in the schema and exposed in both languages. |
 | **Two languages, one truth** | Python (stdlib only) and a Swift package. Parity is enforced by golden vectors in CI, and both agree on 30,559 real 5/MG frames (190,883 field checks). |
 | **Tested on real data** | An opt-in regression runs every decoder over a 31,489-frame 5/MG corpus rebuilt from public sources (`re/`). |
-| **New research** | R-R is in **milliseconds**, not 1/1024 s ([§8](FINDINGS.md#8-r-r-intervals-are-in-milliseconds-corpus-new)); heart rate from raw R26 and R20 optical data ([§11](FINDINGS.md#11-r26-compact-optical-corpus-new), [§4](FINDINGS.md#4-r20-optical-the-pulse-channels-corpus-new)); the official app's sync cadence and feature-flag values ([§10](FINDINGS.md#10-what-the-official-app-sends-corpus-new)); an overnight SpO₂ candidate in R18 byte 82 ([§13](FINDINGS.md#13-r18-byte-82-spo-candidate-corpus-new--not-validated)). |
+| **New research** | R-R is in **milliseconds**, not 1/1024 s ([§8](FINDINGS.md#8-r-r-intervals-are-in-milliseconds-corpus-new)); heart rate from raw R26 and R20 optical data ([§11](FINDINGS.md#11-r26-compact-optical-corpus-new), [§4](FINDINGS.md#4-r20-optical-the-pulse-channels-corpus-new)); the official app's sync cadence and feature-flag values ([§10](FINDINGS.md#10-what-the-official-app-sends-corpus-new)); overnight **SpO₂** decoded from R18 byte 82 ([§13](FINDINGS.md#13-spo-in-r18-byte-82-corpus-new--experimental)). |
 
 ## Repository layout
 
@@ -81,6 +82,9 @@ for notification in notifications:              # bytes from fd4b0003 / fd4b0004
         packet = decode_frame(frame)
         if packet.get("meta_name") == "HISTORY_END":
             ack = history_ack(bytes.fromhex(packet["end_token_hex"]))   # send only after you persisted the chunk
+
+from whoop5.experimental import spo2_windows, rmssd_ms   # experimental, see FINDINGS §13
+nightly_spo2 = spo2_windows(r18_records)                 # [{"start_unix", "spo2_percent", ...}, ...]
 ```
 
 **Swift** (add `Packages/Whoop5Protocol` as a local or remote package)
@@ -157,7 +161,7 @@ owners. None of them blocks using the library; they limit how far a client shoul
 | # | Item | Current state | Data that settles it |
 |---|---|---|---|
 | D1 | R20 LED wavelengths (which source is green, red, infrared) | Source codes 1–4 seen; identity unknown | Captures across a toggle of the `ir_hw_switching` feature flag, or with a known light source |
-| D2 | SpO₂ | **Strong candidate**: R18 byte 82 holds 87–100 values inside 30 s windows every 20 min during sleep (FINDINGS §13); not validated | One captured night plus the owner's WHOOP SpO₂ export for that night |
+| D2 | SpO₂ | 🧪 **Decoded, experimental**: R18 byte 82 per second in 30 s windows every 20 min during sleep; 7 windows of 93–99 % on the captured night (FINDINGS §13) | Compare with the WHOOP app's SpO₂ for a captured night; more wearers |
 | D3 | Sleep detection and stages | One full night of R18 described: band state, HR dip, motion, temperature (§12). No R21 overnight, no stage reference | A night with R21 and a sleep reference (watch stages or WHOOP export) |
 | D4 | HR from optical | R26: r = 0.95, 1.4 bpm over 17 night bursts. R20: r ≈ 0.8, ~2 bpm on one resting session; **fails** on a second, awake session with a sparse reference (§14) | R20 with motion and a dense reference; more wearers |
 | D5 | Dense overnight HRV | **Mostly closed**: R18 delivers 92 % of beats overnight with R-R in ms; RMSSD 47–102 ms per 5 min (§12) | Comparison with the WHOOP export's HRV |
@@ -189,7 +193,7 @@ repository is a protocol library, so the comparison covers the protocol layer on
 | R21 IMU arrays, R26 delta reconstruction, R22 v9 | ✅ | summaries | ✅ |
 | HR from raw optical (R26, R20) | ✅ with controls; R20 limited (§14) | — | — |
 | Official app's feature-flag values and sync cadence | ✅ | — | flag keys only |
-| SpO₂ candidate (R18 byte 82 windows) | 🟡 candidate | — | raw byte kept, uninterpreted |
+| SpO₂ (R18 byte 82) | 🧪 decoded, per-window helper | — | raw byte kept, uninterpreted |
 | Device-family table incl. battery-pack service | ✅ | partial | `1150…` listed as unsupported |
 | Machine-readable schema with evidence per fact | ✅ | — | ✅ (no per-fact source) |
 | Python + Swift with enforced parity | ✅ | Rust + Swift | Swift + Kotlin |
@@ -214,8 +218,8 @@ drop-in improvements, each small enough to land on its own:
    Confirmed on 589 real replies from 21 sessions (FINDINGS §3).
 3. **Bank heart rate from R20/R26 records** that are rejected today, which keeps the iOS history
    frontier open (also #1992). Ship as instrumentation until D4 is done.
-4. **Record `spo2_candidate_percent`** from R18 byte 82 as instrumentation beside the WHOOP export, to
-   validate or reject the SpO₂ candidate (D2).
+4. **Show SpO₂ as an experimental metric**: `spo2_windows()` turns R18 byte 82 into one value per
+   overnight measurement window (FINDINGS §13).
 5. **Allow-list against the current app's command table**, including the destructive set and
    commands 146–147 and 155–159, which NOOP's table does not list yet.
 

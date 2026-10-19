@@ -11,7 +11,7 @@
     980
    ],
    "skin_temp_c": 34.12,
-   "spo2_candidate_percent": null,
+   "spo2_percent": null,
    "step_counter": 1234,
    "temp_aux1_c": 33.1,
    "unix_s": 1790000000
@@ -31,7 +31,7 @@
     980
    ],
    "skin_temp_c": null,
-   "spo2_candidate_percent": null,
+   "spo2_percent": null,
    "step_counter": 1234,
    "temp_aux1_c": 33.1,
    "unix_s": 1790000000
@@ -51,7 +51,7 @@
     980
    ],
    "skin_temp_c": 34.12,
-   "spo2_candidate_percent": 97,
+   "spo2_percent": 97,
    "step_counter": 1234,
    "temp_aux1_c": 33.1,
    "unix_s": 1790000000
@@ -71,7 +71,7 @@
     980
    ],
    "skin_temp_c": 34.12,
-   "spo2_candidate_percent": null,
+   "spo2_percent": null,
    "step_counter": 1234,
    "temp_aux1_c": 33.1,
    "unix_s": 1790000000
@@ -275,7 +275,7 @@
     613
    ],
    "skin_temp_c": 30.57,
-   "spo2_candidate_percent": null,
+   "spo2_percent": null,
    "step_counter": 50,
    "temp_aux1_c": 24.7,
    "unix_s": 1780916150

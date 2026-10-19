@@ -33,7 +33,8 @@ the corpus locally (see `re/README.md`). WHOOP 4.0 material was excluded file by
 | R20 optical → heart rate that tracks a varying reference | ✅ **new**, r ≈ 0.8, MAE ≈ 2 bpm | corpus |
 | R26 compact optical: contiguity and heart rate | ✅ **new**, r = 0.95, MAE 1.4 bpm over 17 night bursts — §11 | corpus |
 | R21 six-axis IMU, R22 v9 | ✅ structure | noop |
-| SpO₂ | 🟡 **strong candidate**: R18 byte 82 in scheduled 30 s windows every 20 min during sleep — §13; not validated | corpus |
+| **SpO₂** | 🧪 **decoded, experimental**: R18 byte 82 in 30 s windows every 20 min during sleep; one value per window via `spo2_windows` — §13 | corpus |
+| Overnight HRV (RMSSD) | 🧪 experimental helper `rmssd_ms` on R18 R-R | corpus |
 | Sleep stages, recovery, strain | ⚫ cloud-side in the official app (§3) — must be computed locally | apk |
 
 ## 1. Device families and GATT (apk)
@@ -144,10 +145,10 @@ for derived signals.
 
 ## 5. SpO₂: what is and is not on the wire
 
-See §13 for the R18 byte-82 candidate found later in an overnight capture. The R20 observations below
+SpO₂ itself is reported in R18 byte 82 (§13, found later in an overnight capture). The R20 observations below
 still stand.
 
-- No SpO₂ value is documented in any record, and the app computes none (§3).
+- The phone app computes no SpO₂ (§3); the strap does, and reports it in R18 byte 82 (§13).
 - Firmware console text recovered by NOOP reads *"generated a valid SPO2 during sleep"*, so the strap
   runs an oxygen computation itself, intermittently.
 - In this corpus, blocks 1 and 2 (the two highest LED drives, 12750 and 3400) are populated for one
@@ -163,8 +164,8 @@ still stand.
 |---|---|---|
 | Sleep detection / stages | One full night of R18 described (§12): band state, HR dip, motion, temperature; no R21 and no stage reference | A night with R21 and a sleep reference (watch stages or WHOOP export) |
 | Skin temperature consistency | R18 `u16@73 / 100 °C` agrees across NOOP, Johga and goose and gives a plausible overnight curve (31.4–35.0 °C) | R18 from more firmware versions, with the WHOOP export |
-| SpO₂ | Strong candidate located (§13) | The owner's WHOOP SpO₂ for a captured night |
-| Overnight HRV | Solved for R18: 92 % of beats delivered overnight, R-R in ms (§8, §12) | Comparison with the WHOOP export's HRV |
+| SpO₂ | Decoded, experimental (§13) | Comparison with the WHOOP app's SpO₂ for a captured night; more wearers |
+| Overnight HRV | Solved for R18: 92 % of beats delivered overnight, R-R in ms (§8, §12); `rmssd_ms` helper | Comparison with the WHOOP export's HRV |
 | Respiration | No field identified | Overnight data plus the WHOOP export |
 | Bonding refusals on some Android phones | Strap refuses SMP pairing (NOOP #1635) | Hardware investigation |
 
@@ -233,17 +234,25 @@ motion spike. Heart rate falls from ~62 to ~47 bpm and rises again on waking; 5-
 Skin temperature rises from 31.9 to 34.9 °C over the night and the two auxiliary channels track it.
 This describes the signals; it is not a sleep-stage or recovery validation.
 
-## 13. R18 byte 82: SpO₂ candidate (corpus, new — not validated)
+## 13. SpO₂ in R18 byte 82 (corpus, new — experimental)
 
-`re/analyze_r18_b82_windows.py`, `re/results/r18_b82_windows.txt`. In the captured night byte 82 is 0
-in every record (18,152 of 18,152) except inside **15 windows of exactly 30 s, starting exactly every
-1,200 s** (xx:05:37, xx:25:37, xx:45:37), all in band state SLEEP; the status words at 77/79 change in
-the same records. Inside the windows, byte 82 holds either codes (160, 128, 32, 16, 1, ...) or values
-in **87–100** that move smoothly from second to second (for example `97 96 96 96 96 97 97 97 98 97`). No
-windows occur in the daytime MG session. This fits a scheduled overnight oxygen-saturation
-measurement, and NOOP's console finding *"generated a valid SPO2 during sleep"*. The library exposes the
-value as `spo2_candidate_percent` (70–100 only). **It is not validated**: one night, one wearer, no
-reference. The R20 two-channel burst (§5) did not occur in this capture, which has no R20 records.
+`re/analyze_r18_b82_windows.py`, `re/results/r18_b82_windows.txt`, `re/results/spo2_windows_ios_night.txt`.
+
+The strap measures SpO₂ itself during sleep and reports it in R18 byte 82:
+
+- Byte 82 is 0 in every record (18,152 of 18,152) except inside **15 windows of exactly 30 s, starting
+  exactly every 1,200 s** (xx:05:37, xx:25:37, xx:45:37), all in band state SLEEP. The status words at
+  77/79 change in the same records. The daytime MG session has no windows.
+- Inside a window each second holds either a **SpO₂ percentage (87–100)** that moves smoothly from
+  second to second (for example `97 96 96 96 96 97 97 97 98 97`) or a status code (160, 128, 32, 16, 1, …)
+  when the strap has no valid reading that second.
+- This matches the firmware's own console message *"generated a valid SPO2 during sleep"*.
+
+Decoding: `spo2_percent` is byte 82 when it is 70–100, else nil. `spo2_windows()` (Python) /
+`Whoop5Experimental.spo2Windows` (Swift) gives one value per window: the median of its valid seconds,
+with at least 5 valid seconds. On the captured night that yields **7 windows of 93–99 % (mean 96 %)**;
+the other 8 windows held only status codes. Experimental: one night and one wearer so far, and not yet
+compared with the WHOOP app's SpO₂ for the same night.
 
 ## 14. R20 heart rate on a second session (corpus, negative)
 

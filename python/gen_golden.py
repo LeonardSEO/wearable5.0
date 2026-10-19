@@ -16,7 +16,7 @@ from whoop5.decode import decode_frame  # noqa: E402
 KEEP = ["packet_type", "layout", "record_index", "unix_s", "heart_rate", "rr_ms", "skin_temp_c", "step_counter",
         "band_state", "accel_x", "gyro_z", "samples", "event", "event_name", "meta_type", "trim_cursor",
         "end_token_hex", "command", "result", "temp_aux1_c", "burst_counter", "sample_count", "quality", "lead_i",
-        "payload_hex", "console_sequence", "text", "spo2_candidate_percent"]
+        "payload_hex", "console_sequence", "text", "spo2_percent"]
 
 frames = {
     "synthetic_r18": synth.r18(),

@@ -171,8 +171,28 @@ class EventsAndConsole(unittest.TestCase):
         self.assertEqual(decode_frame(frames[0])["console_sequence"], 1)
 
 
-class SpO2Candidate(unittest.TestCase):
+class SpO2(unittest.TestCase):
     def test_b82_value_and_code(self):
-        self.assertEqual(decode_frame(synth.r18(b82=97))["spo2_candidate_percent"], 97)
-        self.assertIsNone(decode_frame(synth.r18(b82=160))["spo2_candidate_percent"])
-        self.assertIsNone(decode_frame(synth.r18())["spo2_candidate_percent"])
+        self.assertEqual(decode_frame(synth.r18(b82=97))["spo2_percent"], 97)
+        self.assertIsNone(decode_frame(synth.r18(b82=160))["spo2_percent"])
+        self.assertIsNone(decode_frame(synth.r18())["spo2_percent"])
+
+
+class Experimental(unittest.TestCase):
+    def test_spo2_windows(self):
+        from whoop5.experimental import spo2_windows
+        seq = [(100, 0), (101, 128), (102, 97), (103, 96), (104, 160), (105, 98), (106, 0),
+               (2000, 32), (2001, 160)]
+        recs = []
+        for t, b in seq:
+            f = synth.record(18, 124, {22: bytes([55, 0]), 82: bytes([b])}, unix=t)
+            recs.append(decode_frame(f))
+        w = spo2_windows(recs, min_valid_seconds=1)
+        self.assertEqual([(x["start_unix"], x["end_unix"], x["seconds"], x["valid_seconds"], x["spo2_percent"]) for x in w],
+                         [(101, 105, 5, 3, 97.0), (2000, 2001, 2, 0, None)])
+
+    def test_rmssd(self):
+        from whoop5.experimental import rmssd_ms
+        rr = [1000, 1010, 990, 1000, 1020, 1000, 990, 1010, 1000, 990, 1000, 1500]
+        self.assertAlmostEqual(rmssd_ms(rr), 14.8323970, places=5)
+        self.assertIsNone(rmssd_ms([1000, 1010]))

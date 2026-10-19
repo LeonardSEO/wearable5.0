@@ -62,7 +62,7 @@ final class ParityTests: XCTestCase {
                     XCTAssertEqual(r.skinTempC, e["skin_temp_c"]?.double, v.name)
                     XCTAssertEqual(r.tempAux1C, e["temp_aux1_c"]?.double, v.name)
                     if case .string(let s) = e["band_state"] { XCTAssertEqual(r.bandState, s, v.name) }
-                    XCTAssertEqual(r.spo2CandidatePercent, e["spo2_candidate_percent"]?.int, v.name)
+                    XCTAssertEqual(r.spo2Percent, e["spo2_percent"]?.int, v.name)
                 case .imu(let imu):
                     XCTAssertEqual(imu.accel[0].map(Int.init), e["accel_x"]?.ints, v.name)
                     XCTAssertEqual(imu.gyro[2].map(Int.init), e["gyro_z"]?.ints, v.name)
@@ -134,5 +134,30 @@ final class ParityTests: XCTestCase {
         XCTAssertEqual(Whoop5Schema.shared.commandName(34), "GET_DATA_RANGE")
         XCTAssertEqual(Whoop5Schema.shared.eventName(9), "WRIST_ON")
         XCTAssertTrue(Whoop5Schema.shared.destructiveCommands.contains(29))
+    }
+
+    func testExperimentalSpO2WindowsAndRmssd() throws {
+        func r18(_ unix: UInt32, _ b82: UInt8) throws -> (RecordHeader, R18) {
+            var body = [UInt8](repeating: 0, count: 112)
+            body[0] = 47; body[1] = 18; body[2] = 0x80
+            for k in 0..<4 { body[7 + k] = UInt8((unix >> (8 * UInt32(k))) & 0xFF) }
+            body[22 - 8] = 55; body[82 - 8] = b82
+            var header: [UInt8] = [0xAA, 0x01]; header.appendLE(UInt16(body.count + 4)); header += [0x01, 0x00]
+            header.appendLE(Whoop5Framing.crc16Modbus(header[0..<6]))
+            var frame = header + body; frame.appendLE(Whoop5Framing.crc32(body[0..<body.count]))
+            guard case .record(let h, .biometric(let r)) = try Whoop5Decoder.decode(frame) else {
+                XCTFail("not R18"); throw CocoaError(.coderInvalidValue)
+            }
+            return (h, r)
+        }
+        let seq: [(UInt32, UInt8)] = [(100, 0), (101, 128), (102, 97), (103, 96), (104, 160), (105, 98), (106, 0),
+                                      (2000, 32), (2001, 160)]
+        let w = Whoop5Experimental.spo2Windows(try seq.map { try r18($0.0, $0.1) }, minValidSeconds: 1)
+        XCTAssertEqual(w.map { [Int($0.startUnix), Int($0.endUnix), $0.seconds, $0.validSeconds] },
+                       [[101, 105, 5, 3], [2000, 2001, 2, 0]])
+        XCTAssertEqual(w.map { $0.spo2Percent }, [97.0, nil])
+        let rr = [1000, 1010, 990, 1000, 1020, 1000, 990, 1010, 1000, 990, 1000, 1500]
+        XCTAssertEqual(Whoop5Experimental.rmssdMs(rr)!, 14.8323970, accuracy: 1e-5)
+        XCTAssertNil(Whoop5Experimental.rmssdMs([1000, 1010]))
     }
 }

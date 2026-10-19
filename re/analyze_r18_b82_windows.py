@@ -1,9 +1,9 @@
-"""R18 byte 82 and the scheduled measurement windows it appears in (SpO2 candidate, not validated).
+"""R18 byte 82 (SpO2, experimental) and the scheduled measurement windows it appears in.
 
 Finds runs of R18 records in which byte 82 is non-zero or the status word at 77 leaves its resting
 value, reports their schedule (start, length, interval), the byte-82 value classes inside them, and the
-per-window median of values in 70..100. There is no SpO2 reference in any public 5/MG capture, so the
-output is a description of the field, not a measurement claim.
+per-window median of values in 70..100. No public 5/MG capture yet includes the WHOOP app's SpO2 for
+the same night, so the values are experimental.
 
 Usage: python re/analyze_r18_b82_windows.py <frames.jsonl> [...]
 """

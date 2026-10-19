@@ -34,15 +34,16 @@ public struct R18: Equatable {
     public let dynamicAccelG: Float, gravityG: (Float, Float, Float)
     public let stepCounter: UInt16, cadenceRaw: UInt16, hwStepCounter: UInt16, activityClass: UInt8
     public let tempAux1Raw: Int16, tempAux2Raw: Int16, skinTempRaw: UInt16
-    public let stateBits: UInt8, sleepAdjacent82: UInt8
+    public let stateBits: UInt8, spo2Byte82: UInt8
 
     /// Skin temperature in °C (raw / 100), nil outside the 5–45 °C plausibility window.
     public var skinTempC: Double? { Self.scaled(Double(skinTempRaw), 0.01, 5...45) }
     public var tempAux1C: Double? { Self.scaled(Double(tempAux1Raw), 0.1, 0...60) }
     public var tempAux2C: Double? { Self.scaled(Double(tempAux2Raw), 0.1, 0...60) }
-    /// Byte 82 when it holds 70...100, else nil. A SpO2 **candidate**, not a validated measurement: it is
-    /// non-zero only inside scheduled 30 s windows every 20 min during sleep (see FINDINGS).
-    public var spo2CandidatePercent: Int? { (70...100).contains(Int(sleepAdjacent82)) ? Int(sleepAdjacent82) : nil }
+    /// SpO2 in % (**experimental**): byte 82 when it holds 70...100. The strap fills it during scheduled
+    /// 30 s windows every 20 min while asleep; other values are status codes, 0 means no measurement.
+    /// Use `Whoop5Experimental.spo2Windows` for one value per measurement window.
+    public var spo2Percent: Int? { (70...100).contains(Int(spo2Byte82)) ? Int(spo2Byte82) : nil }
     /// Band motion/rest state `(byte81 >> 4) & 3`: band state, not a sleep stage.
     public var bandState: String { ["WAKE", "STILL", "SLEEP", "UP"][Int((stateBits >> 4) & 3)] }
 
@@ -215,7 +216,7 @@ public enum Whoop5Decoder {
                 dynamicAccelG: raw.f32(41), gravityG: (raw.f32(45), raw.f32(49), raw.f32(53)),
                 stepCounter: raw.u16(57), cadenceRaw: raw.u16(59), hwStepCounter: raw.u16(61), activityClass: raw[63],
                 tempAux1Raw: raw.i16(69), tempAux2Raw: raw.i16(71), skinTempRaw: raw.u16(73),
-                stateBits: raw[81], sleepAdjacent82: raw[82]))
+                stateBits: raw[81], spo2Byte82: raw[82]))
         case 20:
             return .optical(R20(blocks: [26, 448, 870, 1292, 1714].map { b in
                 let n = raw[b] <= 50 ? Int(raw[b]) : 0

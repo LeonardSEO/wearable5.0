@@ -184,8 +184,8 @@ def _data_record(frame: Frame) -> dict:
     if layout == 18:
         out.update(_fields(raw[:-4], rec["fields"]))
         out["rr_ms"] = _rr_list(raw, rec["rr_offset"], out["rr_count"] or 0, rec["rr_max"])
-        b82 = out["sleep_adjacent_82"]
-        out["spo2_candidate_percent"] = b82 if 70 <= b82 <= 100 else None  # candidate only, not validated
+        b82 = out["spo2_byte_82"]
+        out["spo2_percent"] = b82 if 70 <= b82 <= 100 else None  # experimental: see schema records.18.spo2
         bs = rec["band_state_from_state_bits"]
         out["band_state"] = bs["labels"][str((out["state_bits"] >> bs["shift"]) & bs["mask"])]
         out["activity_class"] = rec["fields"][[f["name"] for f in rec["fields"]].index("activity_class")]["enum"].get(

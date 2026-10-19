@@ -26,7 +26,7 @@ func summary(_ p: Whoop5Packet) -> [String: Any] {
         case .biometric(let x):
             d["heart_rate"] = Int(x.heartRate); d["rr_ms"] = x.rrMs; d["step_counter"] = Int(x.stepCounter)
             d["skin_temp_c"] = x.skinTempC as Any; d["temp_aux1_c"] = x.tempAux1C as Any; d["band_state"] = x.bandState
-            d["spo2_candidate_percent"] = x.spo2CandidatePercent as Any
+            d["spo2_percent"] = x.spo2Percent as Any
         case .imu(let x): d["accel_x"] = x.accel[0].map(Int.init); d["gyro_z"] = x.gyro[2].map(Int.init)
         case .compactOptical(let x): d["samples"] = x.samples.map { Int($0) }; d["burst_counter"] = Int(x.burstCounter)
         case .optical(let x): d["blocks"] = x.blocks.map { Int($0.count) }
@@ -64,6 +64,20 @@ func same(_ a: Any?, _ b: Any?) -> Bool {
 }
 
 let args = Array(CommandLine.arguments.dropFirst())
+if args.first == "--spo2-windows", args.count == 2 {
+    // frames.jsonl (one {"hex": ...} per line) -> one experimental SpO2 value per measurement window
+    var recs: [(RecordHeader, R18)] = []
+    for line in try String(contentsOfFile: args[1], encoding: .utf8).split(separator: "\n") {
+        guard let obj = try? JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any],
+              let hex = obj["hex"] as? String, let raw = bytes(hex),
+              case .record(let h, .biometric(let r))? = try? Whoop5Decoder.decode(raw) else { continue }
+        recs.append((h, r))
+    }
+    for w in Whoop5Experimental.spo2Windows(recs) {
+        print(w.startUnix, w.endUnix, w.seconds, w.validSeconds, w.spo2Percent.map { String($0) } ?? "nil")
+    }
+    exit(0)
+}
 if args.first == "--parity", args.count == 2 {
     let data = try Data(contentsOf: URL(fileURLWithPath: args[1]))
     let vectors = try JSONSerialization.jsonObject(with: data) as! [[String: Any]]

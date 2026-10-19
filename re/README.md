@@ -12,7 +12,7 @@ demand into `re/corpus/` (gitignored); only scripts and results are committed.
 | `analyze_official_sync.py` | What the official app sends, feature-flag values | `results/official_sync_ios.txt` |
 | `analyze_console.py` | Firmware console log reconstruction and inventory | `results/console_inventory.txt` |
 | `analyze_overnight_r18.py` | One night of R18 described | `results/overnight_r18.txt` |
-| `analyze_r18_b82_windows.py` | Byte-82 measurement windows (SpO₂ candidate) | `results/r18_b82_windows.txt` |
+| `analyze_r18_b82_windows.py` | Byte-82 SpO₂ measurement windows | `results/r18_b82_windows.txt`, `results/spo2_windows_ios_night.txt` |
 | `analyze_r26.py` | R26 contiguity and heart rate vs R18 | `results/r26_analysis.txt` |
 | `analyze_r20_config.py` | R20 block configuration and two-channel bursts per session | `results/r20_config_bursts.txt` |
 | `analyze_r20_hr_sessions.py` | R20 heart rate on every session with a reference | `results/r20_hr_sessions.txt` |
