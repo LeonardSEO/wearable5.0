@@ -1,0 +1,114 @@
+1423 console lines, 220 distinct templates
+
+== 'sleep': 11 lines, 5 templates
+       7  SIGPROC-WEAR-DETECT V#: moving from state # to state # (debug = #), state_cnt = #, opt_ir_near_m = #, opt_ir_m_ratio = #, opt_amb_m = #, range_stab = 
+       1  BLE_CMD: Send persistent config key, index #: enable_sig#_during_sleep
+       1  BLE_CMD: Attempt to set enable_sig#_during_sleep to #
+       1  SLEEPFLAG: moving from state 'SLEEP' to 'UP', cnt = #, motion_short = #, pos_changed_long = #
+       1  SLEEPFLAG: moving from state 'STILL' to 'WAKE', cnt = #, motion_short = #, pos_changed_long = #
+== 'temp': 16 lines, 11 templates
+       6  BLE_CMD: Attempt to set enable_r#_v#_packets to #
+       1  BLE_CMD: Attempt to set enable_r#_packets to #
+       1  BLE_CMD: Attempt to set make_hrfm_visible to #
+       1  BLE_CMD: Attempt to set disable_pip_r#_packets to #
+       1  BLE_CMD: Attempt to set wear_detect_bias to #
+       1  BLE_CMD: Attempt to set hr_ch_switching to #
+       1  BLE_CMD: Attempt to set ir_hw_switching to #
+       1  BLE_CMD: Attempt to set enable_passive_strap_fit_gen# to #
+== 'resp': 170 lines, 2 templates
+     135  BLE: hist transfer start response ack, start burst
+      35  BLE: hist transfer start response ack while transfer already active
+== 'wear': 20 lines, 9 templates
+       7  SIGPROC-WEAR-DETECT V#: moving from state # to state # (debug = #), state_cnt = #, opt_ir_near_m = #, opt_ir_m_ratio = #, opt_amb_m = #, range_stab = 
+       6  BLE_CMD: Send persistent config key, index #: sigproc_wear_detect
+       1  BLE_CMD: Send persistent config key, index #: wear_detect_bias
+       1  BLE_CMD: Attempt to set wear_detect_bias to #
+       1  SIGPROC-WEAR-DETECT V#: had an opt/amb OFF transition, opt_amb_m = #, opt_amb_m_lag# = #, opt_amb_m_#_max = #, opt_ir_near_m = #, opt_ir_near_m_lag# =
+       1  SIGPROC: wear-detection moving from on-body to off-body
+       1  SIGPROC-WEAR-DETECT V#: had an opt/amb ON TATTOO transition, opt_amb_m = #, opt_amb_m_lag# = #, opt_amb_m_#_max = #, opt_ir_near_m = #, opt_ir_near_m_
+       1  SIGPROC-WEAR-DETECT V#: had an opt/amb ON transition, opt_amb_m = #, opt_amb_m_lag# = #, opt_amb_m_#_max = #, opt_ir_near_m = #, opt_ir_near_m_lag# = 
+== 'optical': 16 lines, 1 templates
+      16  SENSORS: No active optical data collection sources. Backlog: #
+== 'imu': 18 lines, 3 templates
+      16  SENSORS: No active IMU data collection sources. Backlog: #
+       1  SENSORS: IMU double tap detected
+       1  IMU: No valid IMU device to deinitialize
+== 'ecg': 6 lines, 1 templates
+       6  BLE_CMD: Send persistent config key, index #: enable_raw_data_w_ecg
+== 'sigproc': 22 lines, 11 templates
+       7  SIGPROC-WEAR-DETECT V#: moving from state # to state # (debug = #), state_cnt = #, opt_ir_near_m = #, opt_ir_m_ratio = #, opt_amb_m = #, range_stab = 
+       6  BLE_CMD: Send persistent config key, index #: sigproc_wear_detect
+       1  SIGPROC: setting the AFE config to #: Default (prod) config
+       1  SIGPROC: sigproc has been reset via sigproc_init()
+       1  ANALYTICS: Sigproc Init Complete!
+       1  Flash: Caching intial sigproc version #x#b#
+       1  SIGPROC-WEAR-DETECT V#: had an opt/amb OFF transition, opt_amb_m = #, opt_amb_m_lag# = #, opt_amb_m_#_max = #, opt_ir_near_m = #, opt_ir_near_m_lag# =
+       1  SIGPROC: wear-detection moving from on-body to off-body
+== 'history': 454 lines, 97 templates
+     127  BLE: History burst success. Trim: #x#d:#b# (#:#)
+      34  BLE: History burst success. Trim: #xffffffff:ffffffff (#:#)
+      29  BLE: History burst success. Trim: #x#d:#af# (#:#)
+      18  BLE: History burst success. Trim: #x#d:#b#d (#:#)
+      15  BLE: History burst success. Trim: #x#d:#b#c (#:#)
+      13  BLE: History burst success. Trim: #x#d:#b#f# (#:#)
+      11  BLE: History burst success. Trim: #x#d:#b#a# (#:#)
+      11  BLE: History burst success. Trim: #x#d:#b#e# (#:#)
+== 'trim': 456 lines, 98 templates
+     127  BLE: History burst success. Trim: #x#d:#b# (#:#)
+      34  BLE: History burst success. Trim: #xffffffff:ffffffff (#:#)
+      29  BLE: History burst success. Trim: #x#d:#af# (#:#)
+      18  BLE: History burst success. Trim: #x#d:#b#d (#:#)
+      15  BLE: History burst success. Trim: #x#d:#b#c (#:#)
+      13  BLE: History burst success. Trim: #x#d:#b#f# (#:#)
+      11  BLE: History burst success. Trim: #x#d:#b#a# (#:#)
+      11  BLE: History burst success. Trim: #x#d:#b#e# (#:#)
+== 'page': 2 lines, 1 templates
+       2  Flash: events size larger than page size, skipping event parsing
+== 'flash': 8 lines, 6 templates
+       2  Flash: events size larger than page size, skipping event parsing
+       2  Flash: no unread data, read ptr #, write ptr #, oldest ptr #, trim ptr #.
+       1  Update Flash: read ID MFG #xef Dev #x# Dev #x#
+       1  Update Flash: Winbond #Mb NOR detected
+       1  Flash: Caching intial sigproc version #x#b#
+       1  Flash: disabled
+== 'alarm': 1 lines, 1 templates
+       1  BLE_CMD: Command Disable Alarm
+== 'haptic': 2 lines, 2 templates
+       1  HAPTICS: No sequence playing, ignoring stop request.
+       1  HAPTICS: Device disabled
+== 'config': 100 lines, 21 templates
+      34  SENSORS: AFE configuration changed
+       7  BLE_CMD: Start persistent config key exchange with # configs
+       6  BLE_CMD: Send persistent config key, index #: sigproc_wear_detect
+       6  BLE_CMD: Send persistent config key, index #: enable_rfid
+       6  BLE_CMD: Send persistent config key, index #: max_collection_backlog
+       6  BLE_CMD: Send persistent config key, index #: cont_collection_mode
+       6  BLE_CMD: Send persistent config key, index #: whoop_live_hr_in_adv_ind_pkt
+       6  BLE_CMD: Send persistent config key, index #: whoop_live_#_hrm_devices
+
+== most frequent templates
+     169  BLE_CMD: Command Send Historical Data
+     135  BLE: hist transfer start response ack, start burst
+     135  BLE: Historical Dump Complete
+     127  BLE: History burst success. Trim: #x#d:#b# (#:#)
+     116  BLE: PullStats: Data: #, Events: #, Bytes: #, Seconds: #, Brate: #, Prate: #
+      50  BLE_CMD: Command Get Data Range
+      35  BLE: hist transfer start response ack while transfer already active
+      34  BLE: History burst success. Trim: #xffffffff:ffffffff (#:#)
+      34  SENSORS: AFE configuration changed
+      32  BLE: BLE_GOT_HIST_RESULT_SIG caught by backstop.
+      29  BLE: History burst success. Trim: #x#d:#af# (#:#)
+      19  BLE_CMD: Command Abort Historical Transmits
+      19  BLE: Hist pull too short for valid stats
+      18  BLE: History burst success. Trim: #x#d:#b#d (#:#)
+      16  SENSORS: No active optical data collection sources. Backlog: #
+      16  SENSORS: No active IMU data collection sources. Backlog: #
+      15  BLE: History burst success. Trim: #x#d:#b#c (#:#)
+      13  BLE: History burst success. Trim: #x#d:#b#f# (#:#)
+      11  BLE: History burst success. Trim: #x#d:#b#a# (#:#)
+      11  BLE: History burst success. Trim: #x#d:#b#e# (#:#)
+      10  BLE: History burst success. Trim: #x#d:#b#b# (#:#)
+      10  BLE: History burst success. Trim: #x#d:#b#c# (#:#)
+      10  BLE: History burst success. Trim: #x#d:#b#d# (#:#)
+       8  BLE: History burst success. Trim: #x#d:#b#a (#:#)
+       8  BLE: History burst success. Trim: #x#d:#b#b (#:#)

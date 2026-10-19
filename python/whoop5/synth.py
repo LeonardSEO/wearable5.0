@@ -98,3 +98,13 @@ def short_event(number: int = 14) -> bytes:
 
 def clock_deprecated_reply(unix: int = 1_789_656_860, frac: int = 1966) -> bytes:
     return wrap(bytes([36, 7, 11, 2, 1]) + struct.pack("<IH", unix, frac) + b"\x00" * 5)
+
+
+def battery_event(soc_tenths: int = 577, millivolts: int = 3927) -> bytes:
+    payload = bytes([2]) + struct.pack("<HHH", soc_tenths, 0, millivolts) + bytes(13)
+    return wrap(bytes([48, 9, 3, 0]) + struct.pack("<IHH", 1_790_000_000, 0, len(payload)) + payload)
+
+
+def console(sequence: int, text: str) -> bytes:
+    payload = b"\x01" + text.encode("latin1") + b"\x00"
+    return wrap(bytes([50, sequence, 2, 0]) + struct.pack("<IHH", 1_790_000_000, 0, len(payload)) + payload)

@@ -42,10 +42,15 @@ func summary(_ p: Whoop5Packet) -> [String: Any] {
         var d: [String: Any] = ["command": Int(c.command), "command_name": c.commandName, "result": Int(c.result)]
         if let r = c.dataRange { d["pages_behind"] = r.pagesBehind.map { Int($0) } as Any; d["newest_unix"] = r.newestUnix.map { Int($0) } as Any }
         return d
-    case .event(let e): return ["event": Int(e.number), "event_name": e.name, "unix_s": Int(e.unix)]
+    case .event(let e):
+        var d: [String: Any] = ["event": Int(e.number), "event_name": e.name, "unix_s": Int(e.unix),
+                                "payload_hex": e.payload.map { String(format: "%02x", $0) }.joined()]
+        if let b = e.battery { d["soc_percent"] = b.socPercent; d["millivolts"] = b.millivolts }
+        return d
     case .metadata(let m):
         return ["meta_type": Int(m.type), "trim_cursor": m.trimCursor.map { Int($0) } as Any, "unix_s": m.unix.map { Int($0) } as Any]
     case .imuStream(let t, let x): return ["packet_type": Int(t), "accel_count": x.accelCount]
+    case .console(let s, let t): return ["console_sequence": Int(s), "text": t]
     case .other(let t, _): return ["packet_type": Int(t)]
     }
 }

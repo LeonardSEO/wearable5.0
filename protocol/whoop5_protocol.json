@@ -83,6 +83,26 @@
     "not_in_app_5_473_note": "Firmware commands documented by ryanbr/noop that the official app 5.473.0 does not name.",
     "evidence": ["apk", "noop"]
   },
+  "feature_flags": {
+    "set_request": "SET_FF_VALUE (120) / SET_DEVICE_CONFIG_VALUE (119) args: [0x01][key, 32 bytes NUL-padded ASCII][value, 32 bytes NUL-padded ASCII]",
+    "enumerate": "START_*_KEY_EXCHANGE (117/115) [0x01] -> body [rev][count u16]; SEND_NEXT_* (118/116) [0x01] -> body [rev][index][valid][key ASCII, NUL-padded]",
+    "value_encoding": "ASCII '1' = on, '2' = off",
+    "ff_keys_by_index": {"1": "enable_r22_packets", "2": "enable_r22_v2_packets", "3": "enable_r22_v3_packets",
+      "4": "enable_r22_v4_packets", "5": "enable_r22_v5_packets", "6": "enable_r22_v6_packets",
+      "7": "enable_r22_v8_packets", "8": "make_hrfm_visible", "9": "disable_pip_r26_packets", "10": "wear_detect_bias",
+      "13": "hr_ch_switching", "14": "ir_hw_switching", "15": "enable_passive_strap_fit_gen5",
+      "16": "enable_sig11_during_sleep", "17": "dorset_inhibit_wpt", "18": "enable_sig12"},
+    "official_app_values": {"enable_r22_v4_packets": "1", "enable_passive_strap_fit_gen5": "1",
+      "enable_r22_packets": "2", "enable_r22_v2_packets": "2", "enable_r22_v3_packets": "2", "enable_r22_v5_packets": "2",
+      "enable_r22_v6_packets": "2", "enable_r22_v8_packets": "2", "make_hrfm_visible": "2", "disable_pip_r26_packets": "2",
+      "wear_detect_bias": "2", "hr_ch_switching": "2", "ir_hw_switching": "2", "enable_sig11_during_sleep": "2",
+      "dorset_inhibit_wpt": "2", "enable_sig12": "2"},
+    "device_config_keys_by_index": {"0": "sigproc_wear_detect", "1": "enable_rfid", "2": "max_collection_backlog",
+      "3": "cont_collection_mode", "4": "whoop_live_hr_in_adv_ind_pkt", "5": "whoop_live_2_hrm_devices",
+      "6": "enable_raw_data_w_ecg"},
+    "official_app_sync": "every ~600 s: SEND_HISTORICAL_DATA, GET_DATA_RANGE, SEND_HISTORICAL_DATA, HISTORICAL_DATA_RESULT per chunk, ABORT_HISTORICAL_TRANSMITS",
+    "evidence": ["corpus", "noop"]
+  },
   "result_codes": {"0": "FAILURE", "1": "SUCCESS", "2": "PENDING", "3": "UNSUPPORTED", "evidence": ["apk", "noop"]},
   "events": {
     "0": "UNDEFINED", "1": "ERROR", "2": "CONSOLE_OUTPUT", "3": "BATTERY_LEVEL", "4": "SYSTEM_CONTROL",
@@ -200,9 +220,30 @@
   "event_48": {
     "fields": [
       {"name": "event", "offset": 10, "type": "u8"},
-      {"name": "unix_s", "offset": 12, "type": "u32"}
+      {"name": "unix_s", "offset": 12, "type": "u32"},
+      {"name": "subsec", "offset": 16, "type": "u16"},
+      {"name": "payload_length", "offset": 18, "type": "u16"}
     ],
-    "evidence": ["noop", "goose"]
+    "payload_offset": 20,
+    "payloads": {
+      "3": {"name": "BATTERY_LEVEL", "fields": [
+        {"name": "revision", "offset": 0, "type": "u8"},
+        {"name": "soc_percent", "offset": 1, "type": "u16", "scale": 0.1, "valid": [0, 100]},
+        {"name": "millivolts", "offset": 5, "type": "u16"}
+      ], "evidence": ["corpus"]}
+    },
+    "unnamed_events_seen": [48, 61, 62, 110, 112, 115, 116, 120],
+    "evidence": ["noop", "goose", "corpus"]
+  },
+  "console_50": {
+    "fields": [
+      {"name": "console_sequence", "offset": 9, "type": "u8"},
+      {"name": "unix_s", "offset": 12, "type": "u32"},
+      {"name": "payload_length", "offset": 18, "type": "u16"}
+    ],
+    "text_offset": 21,
+    "text_note": "payload = [0x01][ASCII fragment]; concatenate fragments in sequence order (u8, wraps) to get log lines",
+    "evidence": ["noop", "corpus"]
   },
   "metadata_49": {
     "fields": [

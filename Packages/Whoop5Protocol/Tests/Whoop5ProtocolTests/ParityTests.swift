@@ -45,7 +45,7 @@ final class ParityTests: XCTestCase {
 
     func testGoldenParity() throws {
         let vs = try vectors()
-        XCTAssertGreaterThanOrEqual(vs.count, 13)
+        XCTAssertGreaterThanOrEqual(vs.count, 16)
         for v in vs {
             let e = v.expected
             let packet = try Whoop5Decoder.decode(bytes(v.hex))
@@ -84,8 +84,15 @@ final class ParityTests: XCTestCase {
                 let dr = try XCTUnwrap(c.dataRange)
                 XCTAssertEqual(dr.pagesBehind.map(Int.init), e["pages_behind"]?.int, v.name)
                 XCTAssertEqual(dr.newestUnix.map(Int.init), e["newest_unix"]?.int, v.name)
+            case .console(let seq, let text):
+                XCTAssertEqual(Int(seq), e["console_sequence"]?.int, v.name)
+                if case .string(let t) = e["text"] { XCTAssertEqual(text, t, v.name) }
             case .event(let ev):
                 XCTAssertEqual(Int(ev.number), e["event"]?.int, v.name)
+                if let b = ev.battery {
+                    XCTAssertEqual(b.socPercent, e["soc_percent"]?.double, v.name)
+                    XCTAssertEqual(b.millivolts, e["millivolts"]?.int, v.name)
+                }
                 if case .string(let s) = e["event_name"] { XCTAssertEqual(ev.name, s, v.name) }
             case .metadata(let m):
                 XCTAssertEqual(Int(m.type), e["meta_type"]?.int, v.name)

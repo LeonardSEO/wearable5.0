@@ -139,6 +139,7 @@
    "event": 9,
    "event_name": "WRIST_ON",
    "packet_type": 48,
+   "payload_hex": "",
    "unix_s": 1790000000
   },
   "hex": "aa0110000100208130030901803bb16a00000000ad723be6",
@@ -196,6 +197,29 @@
   },
   "hex": "aa01080001002621310c03007feae44b",
   "name": "synthetic_short_history_complete"
+ },
+ {
+  "expected": {
+   "event": 3,
+   "event_name": "BATTERY_LEVEL",
+   "millivolts": 3927,
+   "packet_type": 48,
+   "payload_hex": "0241020000570f00000000000000000000000000",
+   "soc_percent": 57.7,
+   "unix_s": 1790000000
+  },
+  "hex": "aa01240001002eb130090300803bb16a000014000241020000570f0000000000000000000000000097f7768e",
+  "name": "synthetic_battery_event"
+ },
+ {
+  "expected": {
+   "console_sequence": 7,
+   "packet_type": 50,
+   "text": "BLE_CMD: Send persistent config key\n",
+   "unix_s": 1790000000
+  },
+  "hex": "aa0138000100292132070200803bb16a0000260001424c455f434d443a2053656e642070657273697374656e7420636f6e666967206b65790a0000005fcafa25",
+  "name": "synthetic_console"
  },
  {
   "expected": {

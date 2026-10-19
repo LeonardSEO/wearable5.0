@@ -9,6 +9,7 @@ public enum Whoop5Packet: Equatable {
     case metadata(Metadata)
     case record(RecordHeader, Record)
     case imuStream(packetType: UInt8, IMU)
+    case console(sequence: UInt8, text: String)
     case other(packetType: UInt8, body: [UInt8])
 }
 
@@ -93,6 +94,11 @@ public struct RealtimeHR: Equatable { public let unix: UInt32, heartRate: UInt8,
 public struct Event: Equatable {
     public let number: UInt8, unix: UInt32, payload: [UInt8]
     public var name: String { Whoop5Schema.shared.eventName(number) }
+    /// BATTERY_LEVEL (3): state of charge in % (tenths on the wire) and cell voltage in mV.
+    public var battery: (socPercent: Double, millivolts: Int)? {
+        guard number == 3, payload.count >= 7 else { return nil }
+        return (Double(payload.u16(1)) / 10, Int(payload.u16(5)))
+    }
 }
 
 public struct Metadata: Equatable {
@@ -143,7 +149,7 @@ public enum Whoop5Decoder {
         let end = raw.count - 4
         let type = raw[8]
         // Shortest body each fixed header needs; a shorter (valid-CRC) frame is kept raw, never read past.
-        let minEnd: [UInt8: Int] = [36: 13, 40: 18, 48: 16, 43: 21, 47: 21]
+        let minEnd: [UInt8: Int] = [36: 13, 40: 18, 48: 16, 43: 21, 47: 21]  // 50 is handled by its case guard
         if let m = minEnd[type], end < m { return .other(packetType: type, body: Array(raw[8..<end])) }
         switch type {
         case 36:
@@ -153,7 +159,13 @@ public enum Whoop5Decoder {
             let n = Int(raw[17])
             return .realtimeHR(RealtimeHR(unix: raw.u32(10), heartRate: raw[16], rrMs: rr(raw, 18, n, 64, end)))
         case 48:
-            return .event(Event(number: raw[10], unix: raw.u32(12), payload: Array(raw[16..<max(16, end)])))
+            return .event(Event(number: raw[10], unix: raw.u32(12), payload: payload(raw, end: end)))
+        case 50 where end >= 21:
+            // Latin-1, byte for byte, to match the Python reference on non-ASCII bytes.
+            var bytes = payload(raw, end: end).dropFirst()
+            while bytes.last == 0 { bytes.removeLast() }  // each fragment is NUL-terminated
+            let text = String(String.UnicodeScalarView(bytes.map { Unicode.Scalar($0) }))
+            return .console(sequence: raw[9], text: text)
         case 49:
             let token = raw[10] == 2 && end >= 29 ? Array(raw[21..<29]) : nil
             return .metadata(Metadata(type: raw[10], unix: end >= 15 ? raw.u32(11) : nil,
@@ -167,6 +179,13 @@ public enum Whoop5Decoder {
         default:
             return .other(packetType: type, body: Array(raw[8..<end]))
         }
+    }
+
+    /// Event/console payload: `length` (u16 @18) bytes from offset 20, clamped to the CRC boundary.
+    static func payload(_ raw: [UInt8], end: Int) -> [UInt8] {
+        guard end >= 20 else { return [] }
+        let n = Int(raw.u16(18))
+        return Array(raw[20..<min(20 + n, end)])
     }
 
     static func rr(_ raw: [UInt8], _ offset: Int, _ count: Int, _ limit: Int, _ end: Int) -> [Int] {

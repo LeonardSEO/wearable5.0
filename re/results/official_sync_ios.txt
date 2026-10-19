@@ -1,0 +1,48 @@
+capture span 18038 s; phone->strap commands: 784
+command counts: {'HISTORICAL_DATA_RESULT': 459, 'SEND_HISTORICAL_DATA': 157, 'GET_DATA_RANGE': 40, 'SEND_NEXT_DEVICE_CONFIG': 35, 'SEND_NEXT_FF': 32, 'SET_FF_VALUE': 32, 'ABORT_HISTORICAL_TRANSMITS': 18, 'START_DEVICE_CONFIG_KEY_EXCHANGE': 5, 'START_FF_KEY_EXCHANGE': 2, 'DISABLE_ALARM': 1, 'REBOOT_STRAP': 1, 'GET_HELLO': 1, 'GET_ADVERTISING_NAME': 1}
+
+sync rounds (one GET_DATA_RANGE each): 40; interval median 600 s (min 5, max 601)
+typical round: SEND_HISTORICAL_DATA -> GET_DATA_RANGE -> HISTORICAL_DATA_RESULT -> ABORT_HISTORICAL_TRANSMITS
+
+feature-flag / device-config writes (key = value):
+  SET_FF_VALUE             disable_pip_r26_packets          = '2'  x2
+  SET_FF_VALUE             dorset_inhibit_wpt               = '2'  x2
+  SET_FF_VALUE             enable_passive_strap_fit_gen5    = '1'  x2
+  SET_FF_VALUE             enable_r22_packets               = '2'  x2
+  SET_FF_VALUE             enable_r22_v2_packets            = '2'  x2
+  SET_FF_VALUE             enable_r22_v3_packets            = '2'  x2
+  SET_FF_VALUE             enable_r22_v4_packets            = '1'  x2
+  SET_FF_VALUE             enable_r22_v5_packets            = '2'  x2
+  SET_FF_VALUE             enable_r22_v6_packets            = '2'  x2
+  SET_FF_VALUE             enable_r22_v8_packets            = '2'  x2
+  SET_FF_VALUE             enable_sig11_during_sleep        = '2'  x2
+  SET_FF_VALUE             enable_sig12                     = '2'  x2
+  SET_FF_VALUE             hr_ch_switching                  = '2'  x2
+  SET_FF_VALUE             ir_hw_switching                  = '2'  x2
+  SET_FF_VALUE             make_hrfm_visible                = '2'  x2
+  SET_FF_VALUE             wear_detect_bias                 = '2'  x2
+
+key enumeration replies (index, key):
+  SEND_NEXT_DEVICE_CONFIG  index   0  sigproc_wear_detect
+  SEND_NEXT_DEVICE_CONFIG  index   1  enable_rfid
+  SEND_NEXT_DEVICE_CONFIG  index   2  max_collection_backlog
+  SEND_NEXT_DEVICE_CONFIG  index   3  cont_collection_mode
+  SEND_NEXT_DEVICE_CONFIG  index   4  whoop_live_hr_in_adv_ind_pkt
+  SEND_NEXT_DEVICE_CONFIG  index   5  whoop_live_2_hrm_devices
+  SEND_NEXT_DEVICE_CONFIG  index   6  enable_raw_data_w_ecg
+  SEND_NEXT_FF             index   1  enable_r22_packets
+  SEND_NEXT_FF             index   2  enable_r22_v2_packets
+  SEND_NEXT_FF             index   3  enable_r22_v3_packets
+  SEND_NEXT_FF             index   4  enable_r22_v4_packets
+  SEND_NEXT_FF             index   5  enable_r22_v5_packets
+  SEND_NEXT_FF             index   6  enable_r22_v6_packets
+  SEND_NEXT_FF             index   7  enable_r22_v8_packets
+  SEND_NEXT_FF             index   8  make_hrfm_visible
+  SEND_NEXT_FF             index   9  disable_pip_r26_packets
+  SEND_NEXT_FF             index  10  wear_detect_bias
+  SEND_NEXT_FF             index  13  hr_ch_switching
+  SEND_NEXT_FF             index  14  ir_hw_switching
+  SEND_NEXT_FF             index  15  enable_passive_strap_fit_gen5
+  SEND_NEXT_FF             index  16  enable_sig11_during_sleep
+  SEND_NEXT_FF             index  17  dorset_inhibit_wpt
+  SEND_NEXT_FF             index  18  enable_sig12

@@ -78,7 +78,15 @@ def decode_frame(raw: bytes) -> dict:
     elif t == 48:
         out.update(_fields(raw[:-4], s["event_48"]["fields"]))
         out["event_name"] = _enum(s["events"], out["event"])
-        out["payload_hex"] = raw[16:-4].hex()
+        payload = _payload(raw, out.get("payload_length"), s["event_48"]["payload_offset"])
+        out["payload_hex"] = payload.hex()
+        spec = s["event_48"]["payloads"].get(str(out["event"]))
+        if spec:
+            out["payload"] = _fields(payload, spec["fields"])
+    elif t == 50:
+        out.update(_fields(raw[:-4], s["console_50"]["fields"]))
+        # payload = [0x01][fragment][NUL]; the NUL terminates each fragment, it is not log text
+        out["text"] = _payload(raw, out.get("payload_length"), 20)[1:].rstrip(b"\x00").decode("latin1")
     elif t == 49:
         out.update(_fields(raw[:-4], s["metadata_49"]["fields"]))
         out["meta_name"] = _enum(s["metadata_types"], out["meta_type"])
@@ -93,6 +101,24 @@ def decode_frame(raw: bytes) -> dict:
     else:
         out["body_hex"] = frame.body.hex()
     return out
+
+
+def _payload(raw: bytes, length: int | None, offset: int) -> bytes:
+    """Event/console payload [offset, offset+length), clamped to the CRC boundary."""
+    end = len(raw) - 4
+    if length is None or offset >= end:
+        return b""
+    return raw[offset:min(offset + length, end)]
+
+
+def console_text(frames: list[bytes]) -> str:
+    """Join console fragments (type 50) in the order received into firmware log text."""
+    parts = []
+    for f in frames:
+        d = decode_frame(f)
+        if d["packet_type"] == 50:
+            parts.append(d["text"])
+    return "".join(parts)
 
 
 def _end_token(raw: bytes) -> bytes:

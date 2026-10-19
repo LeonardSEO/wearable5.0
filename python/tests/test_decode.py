@@ -156,3 +156,16 @@ class Clock(unittest.TestCase):
         d = decode_frame(synth.clock_deprecated_reply())
         self.assertEqual((d["command_name"], d["fields"]["unix_s"], d["fields"]["frac_ticks"]),
                          ("GET_CLOCK_DEPRECATED", 1_789_656_860, 1966))
+
+
+class EventsAndConsole(unittest.TestCase):
+    def test_battery_event(self):
+        d = decode_frame(synth.battery_event(577, 3927))
+        self.assertEqual((d["event_name"], d["payload"]["soc_percent"], d["payload"]["millivolts"]),
+                         ("BATTERY_LEVEL", 57.7, 3927))
+
+    def test_console_text_joins_fragments(self):
+        from whoop5.decode import console_text
+        frames = [synth.console(1, "generated a valid "), synth.console(2, "SPO2 during sleep\n")]
+        self.assertEqual(console_text(frames), "generated a valid SPO2 during sleep\n")
+        self.assertEqual(decode_frame(frames[0])["console_sequence"], 1)
