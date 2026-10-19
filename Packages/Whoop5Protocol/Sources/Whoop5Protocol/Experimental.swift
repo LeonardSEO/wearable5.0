@@ -51,6 +51,13 @@ public enum Whoop5Experimental {
         return s.count % 2 == 1 ? s[m] : (s[m - 1] + s[m]) / 2
     }
 
+    static func populationSD(_ v: [Double]) -> Double {
+        let mean = v.reduce(0, +) / Double(v.count)
+        var ss = 0.0
+        for x in v { ss += (x - mean) * (x - mean) }
+        return (ss / Double(v.count)).squareRoot()
+    }
+
     // MARK: Sleep periods
 
     public struct SleepPeriod: Equatable {
@@ -144,8 +151,9 @@ public enum Whoop5Experimental {
                 var num = 0.0, den = 0.0
                 for (m, y) in ys.enumerated() { num += (Double(m) - xm) * (y - mean); den += (Double(m) - xm) * (Double(m) - xm) }
                 let slope = num / den
-                ys = ys.enumerated().map { m, y in
-                    (y - mean - slope * (Double(m) - xm)) * (0.5 - 0.5 * cos(2 * Double.pi * Double(m) / Double(n - 1)))
+                for m in 0..<n {
+                    let hann = 0.5 - 0.5 * cos(2 * Double.pi * Double(m) / Double(n - 1))
+                    ys[m] = (ys[m] - mean - slope * (Double(m) - xm)) * hann
                 }
                 let top = min(hiHz, 0.5 * Double(st.count) / windowS)
                 var bestF: Double? = nil, bestP = -1.0, total = 0.0, s = 0
@@ -192,7 +200,7 @@ public enum Whoop5Experimental {
             }
             let mean = v.reduce(0, +) / Double(v.count)
             let base = baselineC ?? (means.isEmpty ? nil : means.reduce(0, +) / Double(means.count))
-            let sd = (v.map { ($0 - mean) * ($0 - mean) }.reduce(0, +) / Double(v.count)).squareRoot()
+            let sd = populationSD(v)
             out.append(SkinTempNight(onsetUnix: p.onsetUnix, offsetUnix: p.offsetUnix, samples: v.count, meanC: mean,
                                      minC: v.min(), maxC: v.max(), sdC: sd, baselineC: base,
                                      deviationC: base.map { mean - $0 }))
@@ -224,7 +232,9 @@ public enum Whoop5Experimental {
     public static func bandpass(_ x: [Double], fs: Double, loHz: Double, hiHz: Double) -> [Double] {
         let n = x.count, pad = min(n - 1, Int(2 * fs))
         guard pad >= 1 else { return [Double](repeating: 0, count: n) }
-        let ext = (0..<pad).map { 2 * x[0] - x[pad - $0] } + x + (0..<pad).map { 2 * x[n - 1] - x[n - 2 - $0] }
+        let head: [Double] = (0..<pad).map { (k: Int) -> Double in 2 * x[0] - x[pad - k] }
+        let tail: [Double] = (0..<pad).map { (k: Int) -> Double in 2 * x[n - 1] - x[n - 2 - k] }
+        let ext = head + x + tail
         let hp = butter2(loHz, fs, high: true), lp = butter2(hiHz, fs, high: false)
         var y = ext.map { $0 - ext[0] }
         for _ in 0..<2 { y = Array(biquad(biquad(y, hp.0, hp.1), lp.0, lp.1).reversed()) }
@@ -276,15 +286,18 @@ public enum Whoop5Experimental {
                 bursts.append([r])
             }
         }
-        return bursts.map { b in
-            let x = b.flatMap { $0.1.samples.map(Double.init) }
+        return bursts.map { (b: [(RecordHeader, R26)]) -> R26Burst in
+            let x: [Double] = b.flatMap { (r: (RecordHeader, R26)) -> [Double] in r.1.samples.map { Double($0) } }
             var beats = 0, hr: Double? = nil
             if Double(x.count) >= fs * Double(minSeconds), let med = medianD(x) {
                 let y = bandpass(x.map { $0 - med }, fs: fs, loHz: 0.6, hiHz: 3.3).map { -$0 }
-                let mean = y.reduce(0, +) / Double(y.count)
-                let sd = (y.map { ($0 - mean) * ($0 - mean) }.reduce(0, +) / Double(y.count)).squareRoot()
+                let sd = populationSD(y)
                 let peaks = findPeaks(y, distance: Int(fs * 0.33), prominence: 0.3 * sd)
-                let ibi = zip(peaks, peaks.dropFirst()).map { Double($1 - $0) / fs }.filter { $0 > 0.3 && $0 < 2.0 }
+                var ibi: [Double] = []
+                for (p, q) in zip(peaks, peaks.dropFirst()) {
+                    let v = Double(q - p) / fs
+                    if v > 0.3 && v < 2.0 { ibi.append(v) }
+                }
                 beats = peaks.count
                 if ibi.count >= 5, let m = medianD(ibi) { hr = 60 / m }
             }
