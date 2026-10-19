@@ -1,0 +1,19 @@
+1034 unique v20 records, 1 contiguous segments, longest 1034 s
+
+Block configuration (source, drive, detector, range, offset) for slots A | B, frequency across records:
+  block 0: A(src=1 drv=750 det=3 rng=32 off=1600) B(src=4 drv=1500 det=4 rng=32 off=800) count=25  x1034
+  block 1: A(src=3 drv=12750 det=1 rng=16 off=0) B(src=4 drv=0 det=2 rng=16 off=0) count=0  x1013
+  block 1: A(src=3 drv=12750 det=1 rng=16 off=0) B(src=4 drv=0 det=2 rng=16 off=0) count=25  x21
+  block 2: A(src=2 drv=3400 det=1 rng=32 off=1600) B(src=4 drv=0 det=2 rng=32 off=800) count=0  x1013
+  block 2: A(src=2 drv=3400 det=1 rng=32 off=1600) B(src=4 drv=0 det=2 rng=32 off=800) count=25  x21
+  block 3: A(src=2 drv=0 det=3 rng=32 off=0) B(src=4 drv=0 det=4 rng=32 off=0) count=25  x1034
+  block 4: A(src=2 drv=200 det=3 rng=32 off=0) B(src=4 drv=0 det=1 rng=32 off=0) count=25  x1034
+
+Channel pulsatility and HR tracking vs reference (windowed 10 s, median inter-beat interval):
+  chan   seconds   DC          AC/DC      r(HR)   MAE    | shuffled-control r  MAE
+  0A      1034       142640    0.01826     0.80    2.0  |  -0.01          16.5
+  0B      1034       217009    0.00935     0.82    1.8  |   0.03          21.0
+  3A      1034          221    0.02193    -0.07   73.6  |   0.09          72.4
+  3B      1034          185    0.02459     0.06   76.2  |   0.05          73.8
+  4A      1034       195662    0.00149     0.77    1.9  |  -0.02          10.9
+  4B      1034        16128    0.00287     0.74    2.1  |  -0.07          12.6

@@ -1,0 +1,29 @@
+# Never commit vendor material or private captures
+apk/
+apk-input/
+*.apk
+*.xapk
+jadx/
+re/corpus/
+*.btsnoop
+btsnoop_hci.log
+*.pklg
+captures/
+# Build output
+.build/
+.swiftpm/
+__pycache__/
+*.pyc
+.venv/
+.DS_Store
+# Python packaging
+*.egg-info/
+build/
+dist/
+# Editors
+.vscode/
+.idea/
+*.swp
+# Swift
+Package.resolved
+.netrc

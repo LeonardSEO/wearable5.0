@@ -1,0 +1,22 @@
+name: ci
+on: [push, pull_request]
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: cd python && python3 -m unittest discover -s tests -v
+  swift:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - run: cd Packages/Whoop5Protocol && swift test
+      - run: cd Packages/Whoop5Protocol && swift run whoop5-decode --parity ../../fixtures/golden.json
+  schema-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          cmp protocol/whoop5_protocol.json python/whoop5/whoop5_protocol.json
+          cmp protocol/whoop5_protocol.json Packages/Whoop5Protocol/Sources/Whoop5Protocol/Resources/whoop5_protocol.json
+          cmp fixtures/golden.json Packages/Whoop5Protocol/Tests/Whoop5ProtocolTests/Resources/golden.json
