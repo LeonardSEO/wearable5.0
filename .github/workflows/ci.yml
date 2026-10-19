@@ -12,6 +12,13 @@ jobs:
       - uses: actions/checkout@v4
       - run: cd Packages/Whoop5Protocol && swift test
       - run: cd Packages/Whoop5Protocol && swift run whoop5-decode --parity ../../fixtures/golden.json
+  kotlin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: "17" }
+      - run: cd kotlin && ./gradlew test
   schema-sync:
     runs-on: ubuntu-latest
     steps:
@@ -20,3 +27,5 @@ jobs:
           cmp protocol/whoop5_protocol.json python/whoop5/whoop5_protocol.json
           cmp protocol/whoop5_protocol.json Packages/Whoop5Protocol/Sources/Whoop5Protocol/Resources/whoop5_protocol.json
           cmp fixtures/golden.json Packages/Whoop5Protocol/Tests/Whoop5ProtocolTests/Resources/golden.json
+          cmp protocol/whoop5_protocol.json kotlin/src/main/resources/whoop5_protocol.json
+          cmp fixtures/golden.json kotlin/src/test/resources/golden.json

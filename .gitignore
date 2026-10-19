@@ -27,3 +27,6 @@ dist/
 # Swift
 Package.resolved
 .netrc
+kotlin/build/
+kotlin/.gradle/
+.kotlin/

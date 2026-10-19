@@ -1,0 +1,402 @@
+{
+  "schema_version": 1,
+  "device": "WHOOP 5.0 / MG (family MAVERICK, service fd4b0001)",
+  "evidence_tiers": {
+    "corpus": "Verified in this repository against donated real 5/MG frames (CRC-valid).",
+    "apk": "Read from static analysis of the official Android app 5.473.0 for interoperability; facts only.",
+    "noop": "Documented by ryanbr/noop (docs/PROTOCOL_*.md); community, partly hardware-confirmed.",
+    "goose": "Documented by b-nnett/goose.",
+    "johga": "Johga/Gadgetbridgefork branch whoop; author-reported on own strap.",
+    "constructed": "Arithmetic/structural rule only; no physical validation."
+  },
+  "gatt": {
+    "service": "fd4b0001-cce1-4033-93ce-002d5875f58a",
+    "cmd_to_strap": "fd4b0002-cce1-4033-93ce-002d5875f58a",
+    "cmd_from_strap": "fd4b0003-cce1-4033-93ce-002d5875f58a",
+    "events_from_strap": "fd4b0004-cce1-4033-93ce-002d5875f58a",
+    "data_from_strap": "fd4b0005-cce1-4033-93ce-002d5875f58a",
+    "memfault": "fd4b0007-cce1-4033-93ce-002d5875f58a",
+    "standard_heart_rate_measurement": "00002a37-0000-1000-8000-00805f9b34fb",
+    "evidence": ["apk", "noop", "goose"]
+  },
+  "other_families": {
+    "GEN_4": {"service": "61080001-8d6d-82b8-614a-1c8cb0f8dcc6", "codec": "classic"},
+    "MAVERICK": {"service": "fd4b0001-cce1-4033-93ce-002d5875f58a", "codec": "classic"},
+    "PUFFIN": {"service": "11500001-6215-11ee-8c99-0242ac120002", "codec": "puffin", "role": "battery pack"},
+    "MONUMENT": {"service": "8a580001-2fe8-4796-9267-b87a2b0c8234", "codec": "rev2"},
+    "SYMPHONY": {"service": "59830001-5955-419b-bb8d-c8262926af23", "codec": "rev2"},
+    "evidence": ["apk"]
+  },
+  "envelope_format1": {
+    "sof": 170,
+    "format": 1,
+    "fields": [
+      {"name": "sof", "offset": 0, "type": "u8"},
+      {"name": "format", "offset": 1, "type": "u8"},
+      {"name": "declared_length", "offset": 2, "type": "u16", "note": "complete frame length minus 8"},
+      {"name": "destination", "offset": 4, "type": "u8"},
+      {"name": "source", "offset": 5, "type": "u8"},
+      {"name": "header_crc16", "offset": 6, "type": "u16", "note": "CRC16-Modbus over bytes [0,6)"}
+    ],
+    "body_offset": 8,
+    "crc32": "zlib CRC32 over [8, end-4), stored little-endian in the last 4 bytes",
+    "body_padding": "request body (type,seq,cmd,args) zero-padded to a multiple of 4",
+    "min_frame_length": 16,
+    "client_hello_hex": "aa0108000001e67123019101363e5c8d",
+    "evidence": ["apk", "noop", "corpus"]
+  },
+  "packet_types": {
+    "35": "COMMAND", "36": "COMMAND_RESPONSE", "37": "PUFFIN_COMMAND", "38": "PUFFIN_COMMAND_RESPONSE",
+    "40": "REALTIME_DATA", "43": "REALTIME_RAW_DATA", "47": "HISTORICAL_DATA", "48": "EVENT",
+    "49": "METADATA", "50": "CONSOLE_LOGS", "51": "REALTIME_IMU_DATA_STREAM", "52": "HISTORICAL_IMU_DATA_STREAM",
+    "53": "RELATIVE_PUFFIN_EVENTS", "54": "PUFFIN_EVENTS_FROM_STRAP", "55": "RELATIVE_BATTERY_PACK_CONSOLE_LOGS",
+    "56": "PUFFIN_METADATA",
+    "evidence": ["apk"]
+  },
+  "commands": {
+    "1": "LINK_VALID", "2": "GET_MAX_PROTOCOL_VERSION", "3": "TOGGLE_REALTIME_HR", "7": "REPORT_VERSION_INFO",
+    "10": "SET_CLOCK_DEPRECATED", "11": "GET_CLOCK_DEPRECATED", "14": "TOGGLE_GENERIC_HR_PROFILE",
+    "16": "TOGGLE_R7_DATA_COLLECTION", "19": "RUN_HAPTIC_PATTERN_MAVERICK", "20": "ABORT_HISTORICAL_TRANSMITS",
+    "22": "SEND_HISTORICAL_DATA", "23": "HISTORICAL_DATA_RESULT", "25": "FORCE_TRIM", "26": "GET_BATTERY_LEVEL",
+    "29": "REBOOT_STRAP", "32": "POWER_CYCLE_STRAP", "33": "SET_READ_POINTER", "34": "GET_DATA_RANGE",
+    "35": "GET_HELLO_HARVARD", "36": "START_FIRMWARE_LOAD", "37": "LOAD_FIRMWARE_DATA", "38": "PROCESS_FIRMWARE_IMAGE",
+    "39": "SET_LED_DRIVE", "40": "GET_LED_DRIVE", "41": "SET_TIA_GAIN", "42": "GET_TIA_GAIN", "43": "SET_BIAS_OFFSET",
+    "44": "GET_BIAS_OFFSET", "45": "ENTER_BLE_DFU", "48": "SEND_EVENT_PACKETS", "52": "SET_DP_TYPE", "53": "FORCE_DP_TYPE",
+    "61": "SET_AFE_PARAMETERS", "62": "GET_AFE_PARAMETERS", "63": "SEND_R10_R11_REALTIME", "66": "SET_ALARM_TIME", "67": "GET_ALARM_TIME", "68": "RUN_ALARM", "69": "DISABLE_ALARM",
+    "76": "GET_ADVERTISING_NAME_HARVARD", "77": "SET_ADVERTISING_NAME_HARVARD", "79": "RUN_HAPTICS_PATTERN",
+    "80": "GET_ALL_HAPTICS_PATTERN", "81": "START_RAW_DATA", "82": "STOP_RAW_DATA", "83": "VERIFY_FIRMWARE_IMAGE",
+    "84": "GET_BODY_LOCATION_AND_STATUS", "96": "ENTER_HIGH_FREQ_SYNC", "97": "EXIT_HIGH_FREQ_SYNC",
+    "98": "GET_EXTENDED_BATTERY_INFO", "99": "RESET_FUEL_GAUGE", "100": "CALIBRATE_CAPSENSE", "105": "TOGGLE_IMU_MODE_HISTORICAL", "106": "TOGGLE_IMU_MODE",
+    "107": "ENABLE_OPTICAL_DATA", "108": "TOGGLE_OPTICAL_MODE", "115": "START_DEVICE_CONFIG_KEY_EXCHANGE",
+    "116": "SEND_NEXT_DEVICE_CONFIG", "117": "START_FF_KEY_EXCHANGE", "118": "SEND_NEXT_FF", "119": "SET_DEVICE_CONFIG_VALUE",
+    "120": "SET_FF_VALUE", "121": "GET_DEVICE_CONFIG_VALUE", "122": "STOP_HAPTICS", "123": "SELECT_WRIST",
+    "124": "TOGGLE_LABRADOR_DATA_GENERATION", "125": "TOGGLE_LABRADOR_RAW_SAVE", "128": "GET_FF_VALUE",
+    "131": "SET_RESEARCH_PACKET", "132": "GET_RESEARCH_PACKET", "139": "TOGGLE_LABRADOR_FILTERED",
+    "140": "SET_ADVERTISING_NAME", "141": "GET_ADVERTISING_NAME", "142": "START_FIRMWARE_LOAD_NEW",
+    "143": "LOAD_FIRMWARE_DATA_NEW", "144": "PROCESS_FIRMWARE_IMAGE_NEW", "145": "GET_HELLO", "146": "SET_CLOCK",
+    "147": "GET_CLOCK", "151": "GET_BATTERY_PACK_INFO", "153": "TOGGLE_PERSISTENT_R20", "154": "TOGGLE_PERSISTENT_R21",
+    "155": "START_CERTIFICATE_TRANSFER", "156": "LOAD_CERTIFICATE", "157": "VERIFY_CERTIFICATE",
+    "158": "PROCESS_CERTIFICATE", "159": "LOCK_DEVICE",
+    "destructive": [25, 29, 32, 33, 36, 37, 38, 45, 83, 99, 100, 142, 143, 144, 155, 156, 157, 158, 159],
+    "dual_response": [34],
+    "not_in_app_5_473": [48, 61, 62, 99, 100],
+    "not_in_app_5_473_note": "Firmware commands documented by ryanbr/noop that the official app 5.473.0 does not name.",
+    "evidence": ["apk", "noop"]
+  },
+  "feature_flags": {
+    "set_request": "SET_FF_VALUE (120) / SET_DEVICE_CONFIG_VALUE (119) args: [0x01][key, 32 bytes NUL-padded ASCII][value, 32 bytes NUL-padded ASCII]",
+    "enumerate": "START_*_KEY_EXCHANGE (117/115) [0x01] -> body [rev][count u16]; SEND_NEXT_* (118/116) [0x01] -> body [rev][index][valid][key ASCII, NUL-padded]",
+    "value_encoding": "ASCII '1' = on, '2' = off",
+    "ff_keys_by_index": {"1": "enable_r22_packets", "2": "enable_r22_v2_packets", "3": "enable_r22_v3_packets",
+      "4": "enable_r22_v4_packets", "5": "enable_r22_v5_packets", "6": "enable_r22_v6_packets",
+      "7": "enable_r22_v8_packets", "8": "make_hrfm_visible", "9": "disable_pip_r26_packets", "10": "wear_detect_bias",
+      "13": "hr_ch_switching", "14": "ir_hw_switching", "15": "enable_passive_strap_fit_gen5",
+      "16": "enable_sig11_during_sleep", "17": "dorset_inhibit_wpt", "18": "enable_sig12"},
+    "official_app_values": {"enable_r22_v4_packets": "1", "enable_passive_strap_fit_gen5": "1",
+      "enable_r22_packets": "2", "enable_r22_v2_packets": "2", "enable_r22_v3_packets": "2", "enable_r22_v5_packets": "2",
+      "enable_r22_v6_packets": "2", "enable_r22_v8_packets": "2", "make_hrfm_visible": "2", "disable_pip_r26_packets": "2",
+      "wear_detect_bias": "2", "hr_ch_switching": "2", "ir_hw_switching": "2", "enable_sig11_during_sleep": "2",
+      "dorset_inhibit_wpt": "2", "enable_sig12": "2"},
+    "device_config_keys_by_index": {"0": "sigproc_wear_detect", "1": "enable_rfid", "2": "max_collection_backlog",
+      "3": "cont_collection_mode", "4": "whoop_live_hr_in_adv_ind_pkt", "5": "whoop_live_2_hrm_devices",
+      "6": "enable_raw_data_w_ecg"},
+    "official_app_sync": "every ~600 s: SEND_HISTORICAL_DATA, GET_DATA_RANGE, SEND_HISTORICAL_DATA, HISTORICAL_DATA_RESULT per chunk, ABORT_HISTORICAL_TRANSMITS",
+    "evidence": ["corpus", "noop"]
+  },
+  "result_codes": {"0": "FAILURE", "1": "SUCCESS", "2": "PENDING", "3": "UNSUPPORTED", "evidence": ["apk", "noop"]},
+  "events": {
+    "0": "UNDEFINED", "1": "ERROR", "2": "CONSOLE_OUTPUT", "3": "BATTERY_LEVEL", "4": "SYSTEM_CONTROL",
+    "7": "CHARGING_ON", "8": "CHARGING_OFF", "9": "WRIST_ON", "10": "WRIST_OFF", "11": "BLE_CONNECTION_UP",
+    "12": "BLE_CONNECTION_DOWN", "13": "RTC_LOST", "14": "DOUBLE_TAP", "15": "BOOT", "16": "SET_RTC",
+    "17": "TEMPERATURE_LEVEL", "18": "PAIRING_MODE", "19": "SERIAL_HEAD_CONNECTED", "20": "SERIAL_HEAD_REMOVED",
+    "21": "BATTERY_PACK_CONNECTED", "22": "BATTERY_PACK_REMOVED", "23": "BLE_BONDED", "24": "BLE_HR_PROFILE_ENABLED",
+    "25": "BLE_HR_PROFILE_DISABLED", "26": "TRIM_ALL_DATA", "27": "TRIM_ALL_DATA_ENDED", "28": "FLASH_INIT_COMPLETE",
+    "29": "STRAP_CONDITION_REPORT", "30": "BOOT_REPORT", "31": "EXIT_VIRGIN_MODE", "32": "CAPTOUCH_AUTOTHRESHOLD_ACTION",
+    "33": "BLE_REALTIME_HR_ON", "34": "BLE_REALTIME_HR_OFF", "35": "ACCELEROMETER_RESET", "36": "AFE_RESET",
+    "37": "SHIP_MODE_ENABLED", "38": "SHIP_MODE_DISABLED", "39": "SHIP_MODE_BOOT", "40": "CH1_SATURATION_DETECTED",
+    "41": "CH2_SATURATION_DETECTED", "42": "ACCELEROMETER_SATURATION_DETECTED", "43": "BLE_SYSTEM_RESET",
+    "44": "BLE_SYSTEM_ON", "45": "BLE_SYSTEM_INITIALIZED", "46": "RAW_DATA_COLLECTION_ON", "47": "RAW_DATA_COLLECTION_OFF",
+    "56": "STRAP_DRIVEN_ALARM_SET", "57": "STRAP_DRIVEN_ALARM_EXECUTED", "58": "APP_DRIVEN_ALARM_EXECUTED",
+    "59": "STRAP_DRIVEN_ALARM_DISABLED", "60": "HAPTICS_FIRED", "63": "EXTENDED_BATTERY_INFORMATION",
+    "96": "HIGH_FREQ_SYNC_PROMPT", "97": "HIGH_FREQ_SYNC_ENABLED", "98": "HIGH_FREQ_SYNC_DISABLED",
+    "100": "HAPTICS_TERMINATED", "109": "BATTERY_PACK_INFO", "123": "GENERIC_FIRMWARE_EVENT",
+    "evidence": ["apk"]
+  },
+  "metadata_types": {"1": "HISTORY_START", "2": "HISTORY_END", "3": "HISTORY_COMPLETE", "evidence": ["apk", "noop"]},
+  "command_response": {
+    "fields": [
+      {"name": "packet_type", "offset": 8, "type": "u8"},
+      {"name": "sequence", "offset": 9, "type": "u8"},
+      {"name": "command", "offset": 10, "type": "u8"},
+      {"name": "origin_sequence", "offset": 11, "type": "u8"},
+      {"name": "result", "offset": 12, "type": "u8"}
+    ],
+    "body_offset": 13,
+    "evidence": ["apk", "noop"]
+  },
+  "responses": {
+    "GET_DATA_RANGE": {
+      "body_length": 65,
+      "fields": [
+        {"name": "revision", "offset": 0, "type": "u8"},
+        {"name": "ring_boundary", "offset": 1, "type": "u32"},
+        {"name": "read_page", "offset": 5, "type": "u32"},
+        {"name": "write_page", "offset": 9, "type": "u32", "evidence": ["apk", "noop"]},
+        {"name": "trim_page", "offset": 13, "type": "u32", "evidence": ["apk", "noop"]},
+        {"name": "write_wrap", "offset": 17, "type": "u32"},
+        {"name": "total_pages", "offset": 21, "type": "u32", "evidence": ["apk", "noop"]},
+        {"name": "record_estimate", "offset": 25, "type": "u32"},
+        {"name": "derived_distance", "offset": 29, "type": "u32"},
+        {"name": "boundary_clock_s", "offset": 33, "type": "u32"},
+        {"name": "boundary_clock_frac", "offset": 37, "type": "u32"},
+        {"name": "trim_clock_s", "offset": 41, "type": "u32"},
+        {"name": "trim_clock_frac", "offset": 45, "type": "u32"},
+        {"name": "read_clock_s", "offset": 49, "type": "u32"},
+        {"name": "read_clock_frac", "offset": 53, "type": "u32"},
+        {"name": "newest_clock_s", "offset": 57, "type": "u32"},
+        {"name": "newest_clock_frac", "offset": 61, "type": "u32"}
+      ],
+      "pages_behind": "write >= trim ? write - trim : (total - trim) + write",
+      "clock_sentinels": [0, 4294967295],
+      "evidence": ["apk", "noop"]
+    },
+    "GET_CLOCK": {
+      "fields": [
+        {"name": "revision", "offset": 0, "type": "u8"},
+        {"name": "unix_s", "offset": 1, "type": "u32"},
+        {"name": "frac_ticks", "offset": 5, "type": "u16", "scale": "1/32768 s"}
+      ],
+      "evidence": ["noop"]
+    },
+    "GET_CLOCK_DEPRECATED": {
+      "fields": [
+        {"name": "unix_s", "offset": 0, "type": "u32"},
+        {"name": "frac_ticks", "offset": 4, "type": "u16", "note": "candidate 1/32768 s; observed values < 32768"}
+      ],
+      "evidence": ["corpus"]
+    },
+    "GET_BATTERY_LEVEL": {
+      "fields": [{"name": "percent", "offset": 0, "type": "u32"}],
+      "evidence": ["noop"]
+    },
+    "GET_HELLO": {
+      "fields": [
+        {"name": "revision", "offset": 0, "type": "u8"},
+        {"name": "battery_tenths", "offset": 1, "type": "u32"},
+        {"name": "unix_s", "offset": 6, "type": "u32"},
+        {"name": "frac_ticks", "offset": 10, "type": "u32"},
+        {"name": "fw_major", "offset": 91, "type": "u8"},
+        {"name": "fw_minor", "offset": 92, "type": "u8"},
+        {"name": "fw_patch", "offset": 93, "type": "u8"},
+        {"name": "fw_build", "offset": 94, "type": "u32"},
+        {"name": "prep_status", "offset": 103, "type": "u32"}
+      ],
+      "evidence": ["noop"]
+    }
+  },
+  "data_record_header": {
+    "fields": [
+      {"name": "packet_type", "offset": 8, "type": "u8"},
+      {"name": "layout", "offset": 9, "type": "u8"},
+      {"name": "marker", "offset": 10, "type": "u8"},
+      {"name": "record_index", "offset": 11, "type": "u32"},
+      {"name": "unix_s", "offset": 15, "type": "u32"},
+      {"name": "subsec", "offset": 19, "type": "u16"}
+    ],
+    "evidence": ["apk", "noop", "corpus"]
+  },
+  "realtime_hr_40": {
+    "fields": [
+      {"name": "unix_s", "offset": 10, "type": "u32"},
+      {"name": "aux_time", "offset": 14, "type": "u16"},
+      {"name": "heart_rate", "offset": 16, "type": "u8", "unit": "bpm"},
+      {"name": "rr_count", "offset": 17, "type": "u8"}
+    ],
+    "rr_offset": 18,
+    "rr_unit": "milliseconds (u16 = ms)",
+    "rr_unit_evidence": "corpus, moderate: per-sample HR*RR/60000 = 0.997 (234 live samples) vs 0.973 if read as 1/1024 s",
+    "evidence": ["noop"]
+  },
+  "event_48": {
+    "fields": [
+      {"name": "event", "offset": 10, "type": "u8"},
+      {"name": "unix_s", "offset": 12, "type": "u32"},
+      {"name": "subsec", "offset": 16, "type": "u16"},
+      {"name": "payload_length", "offset": 18, "type": "u16"}
+    ],
+    "payload_offset": 20,
+    "payloads": {
+      "3": {"name": "BATTERY_LEVEL", "fields": [
+        {"name": "revision", "offset": 0, "type": "u8"},
+        {"name": "soc_percent", "offset": 1, "type": "u16", "scale": 0.1, "valid": [0, 100]},
+        {"name": "millivolts", "offset": 5, "type": "u16"}
+      ], "evidence": ["corpus"]}
+    },
+    "unnamed_events_seen": [48, 61, 62, 110, 112, 115, 116, 120],
+    "evidence": ["noop", "goose", "corpus"]
+  },
+  "console_50": {
+    "fields": [
+      {"name": "console_sequence", "offset": 9, "type": "u8"},
+      {"name": "unix_s", "offset": 12, "type": "u32"},
+      {"name": "payload_length", "offset": 18, "type": "u16"}
+    ],
+    "text_offset": 21,
+    "text_note": "payload = [0x01][ASCII fragment]; concatenate fragments in sequence order (u8, wraps) to get log lines",
+    "evidence": ["noop", "corpus"]
+  },
+  "metadata_49": {
+    "fields": [
+      {"name": "meta_type", "offset": 10, "type": "u8"},
+      {"name": "unix_s", "offset": 11, "type": "u32"},
+      {"name": "subsec", "offset": 15, "type": "u16"},
+      {"name": "trim_cursor", "offset": 21, "type": "u32"}
+    ],
+    "end_token_offset": 21,
+    "end_token_length": 8,
+    "end_token_note": "HISTORY_END carries an 8-byte token (trim u32, write-wrap u32); echo it verbatim in HISTORICAL_DATA_RESULT after committing the chunk",
+    "evidence": ["noop"]
+  },
+  "records": {
+    "16": {
+      "name": "ecg_raw",
+      "length": 1584,
+      "status_fields": [
+        {"name": "quality", "offset": 21, "type": "u8"},
+        {"name": "state_bits", "offset": 22, "type": "u8"},
+        {"name": "classifier_result", "offset": 23, "type": "u8"},
+        {"name": "classifier_state", "offset": 24, "type": "u8"},
+        {"name": "progress", "offset": 25, "type": "u8"},
+        {"name": "flags4", "offset": 26, "type": "u8"},
+        {"name": "hr_related", "offset": 27, "type": "u8"},
+        {"name": "hr_related_b", "offset": 28, "type": "u8"},
+        {"name": "hrv_related", "offset": 29, "type": "u16"},
+        {"name": "sample_count", "offset": 32, "type": "u16"}
+      ],
+      "sample_offset": 34,
+      "sample_capacity": 500,
+      "sample_encoding": "3 bytes b0,b1,b2: raw18 = ((b0&3)<<16)|(b1<<8)|b2, two's complement 18-bit; flag6 = b0 bit 6, flag7 = b0 bit 7",
+      "lead_count_offset": 1534,
+      "lead_i_offset": 1535,
+      "lead_q_offset": 1557,
+      "lead_capacity": 11,
+      "evidence": ["noop", "corpus"]
+    },
+    "17": {
+      "name": "ecg_filtered",
+      "length": 240,
+      "status_fields": "same as 16",
+      "sample_offset": 34,
+      "sample_capacity": 100,
+      "sample_type": "i16",
+      "evidence": ["noop", "corpus"]
+    },
+    "18": {
+      "name": "biometric_summary",
+      "length": 124,
+      "fields": [
+        {"name": "heart_rate", "offset": 22, "type": "u8", "unit": "bpm", "evidence": ["apk", "noop", "johga"]},
+        {"name": "rr_count", "offset": 23, "type": "u8"},
+        {"name": "hr_flags", "offset": 36, "type": "u8"},
+        {"name": "alt_heart_rate", "offset": 37, "type": "u8"},
+        {"name": "dynamic_accel_g", "offset": 41, "type": "f32"},
+        {"name": "gravity_x_g", "offset": 45, "type": "f32"},
+        {"name": "gravity_y_g", "offset": 49, "type": "f32"},
+        {"name": "gravity_z_g", "offset": 53, "type": "f32"},
+        {"name": "step_counter", "offset": 57, "type": "u16", "evidence": ["noop", "johga"]},
+        {"name": "cadence_raw", "offset": 59, "type": "u16", "evidence": ["noop", "johga"]},
+        {"name": "hw_step_counter", "offset": 61, "type": "u16"},
+        {"name": "activity_class", "offset": 63, "type": "u8", "enum": {"0": "still", "1": "walk", "2": "run"}},
+        {"name": "sw_override", "offset": 64, "type": "u8"},
+        {"name": "temp_aux1_c", "offset": 69, "type": "i16", "scale": 0.1, "valid": [0, 60], "evidence": ["noop", "johga"]},
+        {"name": "temp_aux2_c", "offset": 71, "type": "i16", "scale": 0.1, "valid": [0, 60], "evidence": ["noop", "johga"]},
+        {"name": "skin_temp_c", "offset": 73, "type": "u16", "scale": 0.01, "valid": [5, 45], "evidence": ["noop", "johga", "goose"]},
+        {"name": "status_word_75", "offset": 75, "type": "u16"},
+        {"name": "status_word_77", "offset": 77, "type": "u16"},
+        {"name": "status_word_79", "offset": 79, "type": "u16"},
+        {"name": "state_bits", "offset": 81, "type": "u8"},
+        {"name": "spo2_byte_82", "offset": 82, "type": "u8", "experimental": true,
+         "note": "SpO2 (experimental). 0 outside measurement windows; inside the scheduled 30 s windows every 1,200 s during sleep it holds SpO2 % (70..100) or a status code (16, 32, 128, 160, ...). Decoded as spo2_percent.",
+         "evidence": ["corpus", "noop"]},
+        {"name": "optical_baseline_a", "offset": 106, "type": "u8"},
+        {"name": "optical_baseline_b", "offset": 107, "type": "u8"},
+        {"name": "optical_amp_a", "offset": 108, "type": "u8"},
+        {"name": "optical_amp_b", "offset": 109, "type": "u8"},
+        {"name": "unknown_f32_113", "offset": 113, "type": "f32"}
+      ],
+      "spo2": {"experimental": true, "field": "spo2_byte_82", "valid_percent": [70, 100],
+               "window": "30 s every 1,200 s while band state is SLEEP; aggregate a window as the median of valid seconds",
+               "evidence": "15 windows on one captured night: smooth per-second values 87-100, status codes otherwise, 0 outside windows (18,152 of 18,152 records)"},
+      "rr_offset": 24,
+      "rr_max": 4,
+      "rr_unit": "milliseconds (u16 = ms), not 1/1024 s",
+      "rr_unit_evidence": "corpus, strong: raw values identical beat-for-beat to the strap's standard 0x2A37 R-R, whose sum matches the phone clock as ms (0.9992 of elapsed over 93 full-coverage windows; 0.976 as 1/1024 s); overnight R18 sum(RR)/elapsed = 0.9986 as ms",
+      "band_state_from_state_bits": {"shift": 4, "mask": 3, "labels": {"0": "WAKE", "1": "STILL", "2": "SLEEP", "3": "UP"}},
+      "evidence": ["noop"]
+    },
+    "20": {
+      "name": "optical_blocks",
+      "length": 2140,
+      "block_bases": [26, 448, 870, 1292, 1714],
+      "block_fields": [
+        {"name": "count", "rel": 0, "type": "u8", "max": 50},
+        {"name": "source_a", "rel": 1, "type": "u8"},
+        {"name": "drive_a", "rel": 2, "type": "u16"},
+        {"name": "source_b", "rel": 4, "type": "u8"},
+        {"name": "drive_b", "rel": 5, "type": "u16"},
+        {"name": "detector_a", "rel": 7, "type": "u8"},
+        {"name": "range_a", "rel": 8, "type": "u32"},
+        {"name": "offset_a", "rel": 12, "type": "i16"},
+        {"name": "detector_b", "rel": 14, "type": "u8"},
+        {"name": "range_b", "rel": 15, "type": "u32"},
+        {"name": "offset_b", "rel": 19, "type": "i16"}
+      ],
+      "slot_a_rel": 21,
+      "slot_b_rel": 221,
+      "sample_type": "i32",
+      "evidence": ["noop", "corpus"]
+    },
+    "21": {
+      "name": "imu_six_axis",
+      "length": 1244,
+      "accel_count_offset": 24,
+      "gyro_count_offset": 630,
+      "accel_xyz_offsets": [28, 228, 428],
+      "gyro_xyz_offsets": [640, 840, 1040],
+      "capacity": 100,
+      "sample_type": "i16",
+      "candidate_scale": {"accel_g_per_lsb": 0.000244140625, "gyro_dps_per_lsb": 0.06103515625, "rate_hz": 100},
+      "evidence": ["noop"]
+    },
+    "26": {
+      "name": "compact_optical_window",
+      "length": 88,
+      "fields": [
+        {"name": "aux_time", "offset": 19, "type": "u16"},
+        {"name": "burst_counter", "offset": 21, "type": "u16"},
+        {"name": "base", "offset": 23, "type": "u32"},
+        {"name": "motion_summary", "offset": 75, "type": "f32"},
+        {"name": "status", "offset": 79, "type": "u16"},
+        {"name": "on_wrist_raw", "offset": 81, "type": "u8"},
+        {"name": "acceptance_raw", "offset": 82, "type": "u8"}
+      ],
+      "delta_offset": 27,
+      "delta_count": 24,
+      "evidence": ["noop"]
+    },
+    "22": {
+      "name": "queued_channel_record",
+      "length": 188,
+      "inner_version_offset": 21,
+      "v9": {
+        "initial_offset": 31,
+        "delta_offset": 35,
+        "delta_count": 49,
+        "metadata_offset": 137,
+        "flag_offset": 139,
+        "channel_offset": 141
+      },
+      "evidence": ["noop"]
+    }
+  }
+}

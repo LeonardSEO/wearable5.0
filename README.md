@@ -59,6 +59,7 @@ protocol/                 whoop5_protocol.json: the single source of truth (edit
 python/whoop5/            reference decoder (framing, decode, synthetic frames)
 python/tests/             unit tests, including real frames from 5/MG straps
 Packages/Whoop5Protocol/  Swift package + whoop5-decode CLI
+kotlin/                   Kotlin/JVM library (no Android dependency), for Android apps such as NOOP's
 fixtures/golden.json      cross-language parity vectors (generated)
 re/                       reverse-engineering analyses and their results
 scripts/sync-schema.sh    copies the schema to every consumer and regenerates vectors
@@ -196,7 +197,7 @@ repository is a protocol library, so the comparison covers the protocol layer on
 | SpO₂ (R18 byte 82) | 🧪 decoded, per-window helper | — | raw byte kept, uninterpreted |
 | Device-family table incl. battery-pack service | ✅ | partial | `1150…` listed as unsupported |
 | Machine-readable schema with evidence per fact | ✅ | — | ✅ (no per-fact source) |
-| Python + Swift with enforced parity | ✅ | Rust + Swift | Swift + Kotlin |
+| Python + Swift + Kotlin with enforced parity | ✅ | Rust + Swift | Swift + Kotlin |
 | BLE client, storage, scoring algorithms, UI | — (out of scope) | ✅ | ✅ |
 
 Most protocol offsets here were first documented by NOOP and goose; this repository consolidates
