@@ -5,6 +5,8 @@ demand into `re/corpus/` (gitignored); only scripts and results are committed.
 
 | Script | Question | Result |
 |---|---|---|
+| `harvest_frames.py` | Extract every CRC-valid 5/MG frame from a tree of checked-out repos and downloads | de-duplicated JSONL with sources |
+| `organize_corpus.py` | Arrange harvested frames and original files into a local corpus with a manifest | `frames/`, `captures/`, `ground_truth/`, `MANIFEST.csv` |
 | `analyze_v20_optical.py` | Which R20 channels carry the pulse, and does derived HR track a varying reference? | `results/v20_optical_noop1992.txt`, summarised in FINDINGS §4 |
 
 ```bash

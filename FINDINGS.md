@@ -19,7 +19,7 @@ frames that NOOP publishes as test vectors.
 | CLIENT_HELLO and history ACK construction | ✅ byte-identical to hardware-proven frames | corpus |
 | Command table: 82 from the app + 5 firmware-only from NOOP; destructive set | ✅ | apk + noop |
 | Complete event table (58 events) and packet-type table (35–56) | ✅ | apk |
-| GET_DATA_RANGE: dual response, page cursors, newest clock | ✅ field-exact | apk + noop |
+| GET_DATA_RANGE: dual response, page cursors, newest clock | ✅ field-exact, confirmed on 589 real replies | corpus + apk |
 | History START / END / COMPLETE and the 8-byte END token | ✅ | corpus |
 | Live HR + R-R (packet 40) | ✅ | noop |
 | R18 biometric summary: HR, R-R, gravity, steps, skin temp, band state | ✅ structure; field meanings partly provisional | corpus (3 frames) + noop + johga |
@@ -89,6 +89,11 @@ phone; see §3.
 | 13 | trim (acknowledged) page | apk + noop |
 | 21 | ring capacity in pages | apk + noop |
 | 57 / 61 | clock of the last written page (seconds / fraction) | noop |
+
+**Confirmed (corpus):** 589 complete replies from 21 public capture sessions (NOOP issue attachments,
+Asherlc/dofek, tanarchytan/whoop-rs). The body is 65 bytes plus 2 padding bytes. The u32 at offset 57
+is a plausible Unix time in all 589; when the backlog is 0 it equals the trim-side clock in 286 of
+286; capacity is 131,072 pages in every reply; one 4 KB page holds a median 13.6 s of history.
 
 Backlog = `write − trim`, wrapping through capacity (the app's own formula). Clock sentinels `0` and
 `0xFFFFFFFF` mean "no usable time". The 5/MG reply has a real newest-page clock at a fixed offset,

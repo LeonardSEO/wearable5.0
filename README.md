@@ -123,7 +123,7 @@ Every fact carries one of these evidence levels (defined in the schema):
 | Envelope, CRCs, padding, reassembly | corpus |
 | CLIENT_HELLO, HISTORY_END token, history ACK | corpus |
 | Command / event / packet-type numbers, destructive set, device families | apk |
-| GET_DATA_RANGE cursor fields (write, trim, capacity) | apk + community |
+| GET_DATA_RANGE cursor fields and newest-page clock | corpus (589 replies, 21 sessions) + apk |
 | R18 heart rate, R-R, steps, skin temperature, band state | corpus (3 frames) + community |
 | R20 block layout and which channels carry the pulse | corpus |
 | R21, R22, R26, packets 51/52 | community |
@@ -141,7 +141,6 @@ owners. None of them blocks using the library; they limit how far a client shoul
 |---|---|---|---|
 | H1 | Full connect → bond → hello → sync session on iOS, macOS and Android | Built from verified frames, never run end-to-end by this project | Pair a 5.0 and run a complete offload through a client using this library |
 | H2 | Bonding refusals on some Android phones | Strap refuses SMP pairing in an HCI capture (NOOP #1635); cause open | Controlled pairing attempts with HCI logging |
-| H3 | `GET_DATA_RANGE` newest-page clock (body offset 57) | Documented by NOOP; no captured reply in this repo | Capture one SUCCESS reply and compare with the newest offloaded record |
 | H4 | HISTORY_END token second word (write-wrap state) | Echoed verbatim, meaning inferred | Offload across a ring wrap |
 | H5 | R21 IMU scale (4096 LSB/g, ±2000 °/s) and 100 Hz rate | Candidate only | Strap flat on a table (‖a‖ = 1 g) plus one timed 360° rotation |
 | H6 | Dedicated IMU stream packets 51/52 | Layout documented, never observed | Enable IMU streaming and capture |
@@ -199,7 +198,7 @@ drop-in improvements, each small enough to land on its own:
 1. **Feed sync from the 5/MG data range.** NOOP already logs the page backlog; the field-exact
    newest-page clock (`DataRange.newestUnix`) can fill `strapNewestTs`, which is nil on 5/MG today
    and drives the auto-continue storm in [ryanbr/noop#1992](https://github.com/ryanbr/noop/issues/1992).
-   Verify with H3 first.
+   Confirmed on 589 real replies from 21 sessions (FINDINGS §3).
 2. **Bank heart rate from R20 records** that are rejected today, which keeps the iOS history
    frontier open (also #1992). Ship as instrumentation until D4 is done.
 3. **Allow-list against the current app's command table**, including the destructive set and
