@@ -23,6 +23,7 @@ public enum Record: Equatable {
     case imu(IMU)
     case compactOptical(R26)
     case queuedChannel(R22)
+    case ecg(ECG)
     case unknown(body: [UInt8])
     case unexpectedLength(body: [UInt8])
 }
@@ -77,6 +78,16 @@ public struct R22: Equatable {
     public let channel: UInt8?, metadata: UInt16?, sampleBits: [UInt32]
 }
 
+/// MG ECG: R16 raw (18-bit two's complement, up to 500 samples, lead I/Q diagnostics) and R17 filtered
+/// (i16, up to 100 samples). Status bytes 21-33 are kept raw; their clinical meaning is not established.
+public struct ECG: Equatable {
+    public let isRaw: Bool
+    public let quality: UInt8, stateBits: UInt8, sampleCount: UInt16
+    public let samples: [Int32]
+    /// R16 only: per-sample flag bits 6 and 7, and the lead-off I/Q diagnostic halfwords.
+    public let flag6: [UInt8], flag7: [UInt8], leadI: [Int16], leadQ: [Int16]
+}
+
 public struct RealtimeHR: Equatable { public let unix: UInt32, heartRate: UInt8, rrMs: [Int] }
 
 public struct Event: Equatable {
@@ -128,6 +139,9 @@ public enum Whoop5Decoder {
         try Whoop5Framing.validate(raw)
         let end = raw.count - 4
         let type = raw[8]
+        // Shortest body each fixed header needs; a shorter (valid-CRC) frame is kept raw, never read past.
+        let minEnd: [UInt8: Int] = [36: 13, 40: 18, 48: 16, 43: 21, 47: 21]
+        if let m = minEnd[type], end < m { return .other(packetType: type, body: Array(raw[8..<end])) }
         switch type {
         case 36:
             return .commandResponse(CommandResponse(sequence: raw[9], command: raw[10], originSequence: raw[11],
@@ -136,7 +150,7 @@ public enum Whoop5Decoder {
             let n = Int(raw[17])
             return .realtimeHR(RealtimeHR(unix: raw.u32(10), heartRate: raw[16], rrMs: rr(raw, 18, n, 64, end)))
         case 48:
-            return .event(Event(number: raw[10], unix: raw.u32(12), payload: Array(raw[16..<end])))
+            return .event(Event(number: raw[10], unix: raw.u32(12), payload: Array(raw[16..<max(16, end)])))
         case 49:
             let token = raw[10] == 2 && end >= 29 ? Array(raw[21..<29]) : nil
             return .metadata(Metadata(type: raw[10], unix: end >= 15 ? raw.u32(11) : nil,
@@ -163,7 +177,7 @@ public enum Whoop5Decoder {
         return out
     }
 
-    static let expectedLength: [UInt8: Int] = [18: 124, 20: 2140, 21: 1244, 26: 88, 22: 188]
+    static let expectedLength: [UInt8: Int] = [16: 1584, 17: 240, 18: 124, 20: 2140, 21: 1244, 26: 88, 22: 188]
 
     static func record(_ raw: [UInt8], layout: UInt8, end: Int) -> Record {
         let body = Array(raw[8..<end])
@@ -197,6 +211,26 @@ public enum Whoop5Decoder {
             for i in 0..<24 { s.append(s[s.count - 1] + Int64(raw.i16(27 + 2 * i))) }
             return .compactOptical(R26(burstCounter: raw.u16(21), samples: s, motionSummary: raw.f32(75),
                                        status: raw.u16(79), onWristRaw: raw[81], acceptanceRaw: raw[82]))
+        case 16, 17:
+            let n = Int(raw.u16(32)), raw16 = layout == 16
+            guard n <= (raw16 ? 500 : 100) else { return .unknown(body: body) }
+            var samples: [Int32] = [], f6: [UInt8] = [], f7: [UInt8] = []
+            var li: [Int16] = [], lq: [Int16] = []
+            if raw16 {
+                for i in 0..<n {
+                    let o = 34 + 3 * i
+                    let v = Int32(raw[o] & 0x03) << 16 | Int32(raw[o + 1]) << 8 | Int32(raw[o + 2])
+                    samples.append(v >= 131_072 ? v - 262_144 : v)
+                    f6.append((raw[o] >> 6) & 1); f7.append((raw[o] >> 7) & 1)
+                }
+                let k = min(Int(raw[1534]), 11)
+                li = (0..<k).map { raw.i16(1535 + 2 * $0) }
+                lq = (0..<k).map { raw.i16(1557 + 2 * $0) }
+            } else {
+                samples = (0..<n).map { Int32(raw.i16(34 + 2 * $0)) }
+            }
+            return .ecg(ECG(isRaw: raw16, quality: raw[21], stateBits: raw[22], sampleCount: UInt16(n),
+                            samples: samples, flag6: f6, flag7: f7, leadI: li, leadQ: lq))
         case 22:
             let v = raw[21]
             guard v == 9 else {

@@ -66,3 +66,31 @@ def data_range(write: int, trim: int, total: int = 131072, newest: int = 1_790_0
 
 def event(number: int, unix: int = 1_790_000_000) -> bytes:
     return wrap(bytes([48, 3, number, 1]) + struct.pack("<I", unix) + b"\x00" * 4)
+
+
+def ecg_r17(samples: tuple[int, ...] = (0, 120, -340, 1017, -5), packet_type: int = 43) -> bytes:
+    fill = {21: bytes([3, 0x08]), 32: struct.pack("<H", len(samples)),
+            34: struct.pack(f"<{len(samples)}h", *samples)}
+    return record(17, 240, fill, packet_type=packet_type, marker=0)
+
+
+def ecg_r16(samples: tuple[int, ...] = (0, 1, -1, 131071, -131072, 4242), lead: tuple[int, ...] = (7, -7, 300)) -> bytes:
+    raw = bytearray()
+    for i, v in enumerate(samples):
+        u = v & 0x3FFFF
+        b0 = (u >> 16) | ((i & 1) << 6) | ((i % 3 == 0) << 7)
+        raw += bytes([b0, (u >> 8) & 0xFF, u & 0xFF])
+    fill = {21: bytes([3, 0x08]), 32: struct.pack("<H", len(samples)), 34: bytes(raw),
+            1534: bytes([len(lead)]), 1535: struct.pack(f"<{len(lead)}h", *lead),
+            1557: struct.pack(f"<{len(lead)}h", *[-x for x in lead])}
+    return record(16, 1584, fill, marker=0)
+
+
+def short_metadata(meta_type: int = 3) -> bytes:
+    """A 16-byte metadata frame (as HISTORY_COMPLETE is on the wire): no clock, no token."""
+    return wrap(bytes([49, 0x0C, meta_type, 0]))
+
+
+def short_event(number: int = 14) -> bytes:
+    """A 16-byte event frame with no timestamp room: must decode without reading into the CRC."""
+    return wrap(bytes([48, 1, number, 1]))

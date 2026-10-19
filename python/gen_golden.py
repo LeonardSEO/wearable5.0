@@ -15,7 +15,7 @@ from whoop5.decode import decode_frame  # noqa: E402
 
 KEEP = ["packet_type", "layout", "record_index", "unix_s", "heart_rate", "rr_ms", "skin_temp_c", "step_counter",
         "band_state", "accel_x", "gyro_z", "samples", "event", "event_name", "meta_type", "trim_cursor",
-        "end_token_hex", "command", "result", "temp_aux1_c", "burst_counter"]
+        "end_token_hex", "command", "result", "temp_aux1_c", "burst_counter", "sample_count", "quality", "lead_i"]
 
 frames = {
     "synthetic_r18": synth.r18(),
@@ -26,6 +26,9 @@ frames = {
     "synthetic_data_range": synth.data_range(120, 100),
     "synthetic_data_range_wrap": synth.data_range(5, 131070, newest=0xFFFFFFFF),
     "synthetic_event_wrist_on": synth.event(9),
+    "synthetic_ecg_r17": synth.ecg_r17(),
+    "synthetic_ecg_r16": synth.ecg_r16(),
+    "synthetic_short_history_complete": synth.short_metadata(3),
     "real_r18_noop": bytes.fromhex(REAL_R18),
     "real_r26_noop": bytes.fromhex(REAL_R26),
     "real_history_end_noop": bytes.fromhex(REAL_END),

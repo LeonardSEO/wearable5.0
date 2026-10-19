@@ -72,17 +72,19 @@ def decode_frame(raw: bytes) -> dict:
         out.update(_command_response(raw))
     elif t == 40:
         spec = s["realtime_hr_40"]
-        out.update(_fields(raw, spec["fields"]))
+        out.update(_fields(raw[:-4], spec["fields"]))
         out["rr_ms"] = _rr_list(raw, spec["rr_offset"], out["rr_count"] or 0, 64)
     elif t == 48:
-        out.update(_fields(raw, s["event_48"]["fields"]))
+        out.update(_fields(raw[:-4], s["event_48"]["fields"]))
         out["event_name"] = _enum(s["events"], out["event"])
         out["payload_hex"] = raw[16:-4].hex()
     elif t == 49:
-        out.update(_fields(raw, s["metadata_49"]["fields"]))
+        out.update(_fields(raw[:-4], s["metadata_49"]["fields"]))
         out["meta_name"] = _enum(s["metadata_types"], out["meta_type"])
-        if out["meta_type"] == 2:
+        if out["meta_type"] == 2 and len(raw) - 4 >= 29:
             out["end_token_hex"] = _end_token(raw).hex()
+        else:
+            out.pop("trim_cursor", None)  # the cursor exists only in a HISTORY_END token
     elif t in (43, 47):
         out.update(_data_record(frame))
     elif t in (51, 52):
@@ -108,7 +110,7 @@ def history_ack(end_token: bytes, sequence: int = 0) -> bytes:
 def _command_response(raw: bytes) -> dict:
     s = schema()
     spec = s["command_response"]
-    out = _fields(raw, spec["fields"])
+    out = _fields(raw[:-4], spec["fields"])
     out["command_name"] = _enum(s["commands"], out["command"])
     out["result_name"] = _enum(s["result_codes"], out["result"])
     body = raw[spec["body_offset"]:-4]
@@ -140,7 +142,7 @@ def data_range_newest(f: dict) -> int | None:
 def _data_record(frame: Frame) -> dict:
     s = schema()
     raw = frame.raw
-    out = _fields(raw, s["data_record_header"]["fields"])
+    out = _fields(raw[:-4], s["data_record_header"]["fields"])
     layout = out["layout"]
     rec = s["records"].get(str(layout))
     if rec is None:
@@ -153,7 +155,7 @@ def _data_record(frame: Frame) -> dict:
         out["body_hex"] = frame.body.hex()
         return out
     if layout == 18:
-        out.update(_fields(raw, rec["fields"]))
+        out.update(_fields(raw[:-4], rec["fields"]))
         out["rr_ms"] = _rr_list(raw, rec["rr_offset"], out["rr_count"] or 0, rec["rr_max"])
         bs = rec["band_state_from_state_bits"]
         out["band_state"] = bs["labels"][str((out["state_bits"] >> bs["shift"]) & bs["mask"])]
@@ -164,16 +166,45 @@ def _data_record(frame: Frame) -> dict:
     elif layout == 21:
         out.update(_r21(raw, rec))
     elif layout == 26:
-        out.update(_fields(raw, rec["fields"]))
+        out.update(_fields(raw[:-4], rec["fields"]))
         out["samples"] = _cumulative(out["base"], [
             struct.unpack_from("<h", raw, rec["delta_offset"] + 2 * i)[0] for i in range(rec["delta_count"])])
     elif layout == 22:
         out.update(_r22(raw, rec))
+    elif layout in (16, 17):
+        out.update(_ecg(raw, layout, schema()["records"]["16"]["status_fields"], rec))
+    return out
+
+
+def _ecg(raw: bytes, layout: int, status: list[dict], rec: dict) -> dict:
+    """R16 raw (18-bit, 500 slots + lead I/Q) and R17 filtered (i16, 100 slots) MG ECG."""
+    out = _fields(raw[:-4], status)
+    n, cap = out["sample_count"], rec["sample_capacity"]
+    if n > cap:
+        out["error"] = "count above capacity"
+        return out
+    off = rec["sample_offset"]
+    if layout == 17:
+        out["samples"] = list(struct.unpack_from(f"<{n}h", raw, off))
+        return out
+    samples, flag6, flag7 = [], [], []
+    for i in range(n):
+        b0, b1, b2 = raw[off + 3 * i: off + 3 * i + 3]
+        v = ((b0 & 0x03) << 16) | (b1 << 8) | b2
+        samples.append(v - 262144 if v >= 131072 else v)
+        flag6.append((b0 >> 6) & 1)
+        flag7.append((b0 >> 7) & 1)
+    out.update({"samples": samples, "flag6": flag6, "flag7": flag7})
+    lc = raw[rec["lead_count_offset"]]
+    out["lead_count"] = lc
+    k = min(lc, rec["lead_capacity"])
+    out["lead_i"] = list(struct.unpack_from(f"<{k}h", raw, rec["lead_i_offset"]))
+    out["lead_q"] = list(struct.unpack_from(f"<{k}h", raw, rec["lead_q_offset"]))
     return out
 
 
 def _r20_block(raw: bytes, base: int, rec: dict) -> dict:
-    blk = _fields(raw, rec["block_fields"], base)
+    blk = _fields(raw[:-4], rec["block_fields"], base)
     n = blk["count"]
     if n > 50:
         blk["error"] = "count above capacity"

@@ -30,6 +30,10 @@ func summary(_ p: Whoop5Packet) -> [String: Any] {
         case .compactOptical(let x): d["samples"] = x.samples.map { Int($0) }; d["burst_counter"] = Int(x.burstCounter)
         case .optical(let x): d["blocks"] = x.blocks.map { Int($0.count) }
         case .queuedChannel(let x): d["inner_version"] = Int(x.innerVersion)
+        case .ecg(let x):
+            d["sample_count"] = Int(x.sampleCount); d["quality"] = Int(x.quality)
+            d["samples"] = x.samples.map { Int($0) }
+            if x.isRaw { d["lead_i"] = x.leadI.map { Int($0) } }
         case .unknown, .unexpectedLength: d["record"] = "raw"
         }
         return d

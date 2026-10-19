@@ -124,3 +124,28 @@ class RealFrames(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ECG(unittest.TestCase):
+    def test_r17_filtered(self):
+        d = decode_frame(synth.ecg_r17())
+        self.assertEqual((d["record"], d["sample_count"], d["samples"]), ("ecg_filtered", 5, [0, 120, -340, 1017, -5]))
+
+    def test_r16_raw_18bit_and_leads(self):
+        d = decode_frame(synth.ecg_r16())
+        self.assertEqual(d["samples"], [0, 1, -1, 131071, -131072, 4242])
+        self.assertEqual(d["flag6"], [0, 1, 0, 1, 0, 1])
+        self.assertEqual(d["flag7"], [1, 0, 0, 1, 0, 0])
+        self.assertEqual((d["lead_count"], d["lead_i"], d["lead_q"]), (3, [7, -7, 300], [-7, 7, -300]))
+
+
+class ShortFrames(unittest.TestCase):
+    def test_short_history_complete_reads_nothing_from_the_crc(self):
+        d = decode_frame(synth.short_metadata(3))
+        self.assertEqual(d["meta_name"], "HISTORY_COMPLETE")
+        self.assertIsNone(d["unix_s"])
+        self.assertNotIn("trim_cursor", d)
+
+    def test_short_event_has_no_timestamp(self):
+        d = decode_frame(synth.short_event())
+        self.assertEqual((d["event_name"], d["unix_s"]), ("DOUBLE_TAP", None))

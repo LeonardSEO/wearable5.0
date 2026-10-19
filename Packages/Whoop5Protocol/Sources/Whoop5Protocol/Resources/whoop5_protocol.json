@@ -209,6 +209,39 @@
     "evidence": ["noop"]
   },
   "records": {
+    "16": {
+      "name": "ecg_raw",
+      "length": 1584,
+      "status_fields": [
+        {"name": "quality", "offset": 21, "type": "u8"},
+        {"name": "state_bits", "offset": 22, "type": "u8"},
+        {"name": "classifier_result", "offset": 23, "type": "u8"},
+        {"name": "classifier_state", "offset": 24, "type": "u8"},
+        {"name": "progress", "offset": 25, "type": "u8"},
+        {"name": "flags4", "offset": 26, "type": "u8"},
+        {"name": "hr_related", "offset": 27, "type": "u8"},
+        {"name": "hr_related_b", "offset": 28, "type": "u8"},
+        {"name": "hrv_related", "offset": 29, "type": "u16"},
+        {"name": "sample_count", "offset": 32, "type": "u16"}
+      ],
+      "sample_offset": 34,
+      "sample_capacity": 500,
+      "sample_encoding": "3 bytes b0,b1,b2: raw18 = ((b0&3)<<16)|(b1<<8)|b2, two's complement 18-bit; flag6 = b0 bit 6, flag7 = b0 bit 7",
+      "lead_count_offset": 1534,
+      "lead_i_offset": 1535,
+      "lead_q_offset": 1557,
+      "lead_capacity": 11,
+      "evidence": ["noop", "corpus"]
+    },
+    "17": {
+      "name": "ecg_filtered",
+      "length": 240,
+      "status_fields": "same as 16",
+      "sample_offset": 34,
+      "sample_capacity": 100,
+      "sample_type": "i16",
+      "evidence": ["noop", "corpus"]
+    },
     "18": {
       "name": "biometric_summary",
       "length": 124,

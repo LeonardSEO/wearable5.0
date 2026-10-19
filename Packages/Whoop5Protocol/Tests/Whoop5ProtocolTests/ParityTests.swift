@@ -45,7 +45,7 @@ final class ParityTests: XCTestCase {
 
     func testGoldenParity() throws {
         let vs = try vectors()
-        XCTAssertGreaterThanOrEqual(vs.count, 11)
+        XCTAssertGreaterThanOrEqual(vs.count, 13)
         for v in vs {
             let e = v.expected
             let packet = try Whoop5Decoder.decode(bytes(v.hex))
@@ -68,6 +68,11 @@ final class ParityTests: XCTestCase {
                 case .compactOptical(let r):
                     XCTAssertEqual(r.samples.map { Int($0) }, e["samples"]?.ints, v.name)
                     XCTAssertEqual(Int(r.burstCounter), e["burst_counter"]?.int, v.name)
+                case .ecg(let r):
+                    XCTAssertEqual(Int(r.sampleCount), e["sample_count"]?.int, v.name)
+                    XCTAssertEqual(Int(r.quality), e["quality"]?.int, v.name)
+                    XCTAssertEqual(r.samples.map { Int($0) }, e["samples"]?.ints, v.name)
+                    if r.isRaw { XCTAssertEqual(r.leadI.map { Int($0) }, e["lead_i"]?.ints, v.name) }
                 default:
                     XCTFail("unexpected record for \(v.name)")
                 }
