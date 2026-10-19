@@ -33,6 +33,7 @@ against frames captured from real straps.
 - [Getting started](#getting-started)
 - [Verification status](#verification-status)
 - [Open items: what still needs a WHOOP 5.0](#open-items-what-still-needs-a-whoop-50)
+- [How it compares](#how-it-compares)
 - [Using it from NOOP](#using-it-from-noop)
 - [Contributing data](#contributing-data)
 - [Credits](#credits)
@@ -41,7 +42,7 @@ against frames captured from real straps.
 
 | | |
 |---|---|
-| **Canonical schema** | [`protocol/whoop5_protocol.json`](protocol/whoop5_protocol.json): GATT, envelope, 82 commands, 58 events, 16 packet types, response bodies and record layouts. Every entry is tagged with where the fact comes from. |
+| **Canonical schema** | [`protocol/whoop5_protocol.json`](protocol/whoop5_protocol.json): GATT, envelope, 87 commands (82 from the current official app plus 5 firmware-only ones documented by NOOP), 58 events, 16 packet types, response bodies and record layouts. Every entry is tagged with where the fact comes from. |
 | **Byte-exact framing** | CRC16-Modbus header, CRC32 body, 4-byte padding, BLE fragment reassembly. Reproduces the strap's CLIENT_HELLO and history ACK byte for byte. |
 | **Record decoders** | Live HR + R-R (packet 40), R18 biometric summary, R20 optical blocks, R21 six-axis IMU, R22 v9 channels, R26 compact optical, IMU streams 51/52, events, history metadata. Unknown layouts are preserved raw, never dropped. |
 | **Sync support** | Field-exact `GET_DATA_RANGE` (page backlog and newest-page clock) and the `HISTORICAL_DATA_RESULT` ACK built from the verbatim HISTORY_END token. |
@@ -168,18 +169,47 @@ owners. None of them blocks using the library; they limit how far a client shoul
 |---|---|---|
 | T1 | Swift XCTest suite | Runs in CI on macOS; the parity CLI already passes locally |
 
+## How it compares
+
+Checked on 2026-10-19 against the source of each project. Goose and NOOP are full apps; this
+repository is a protocol library, so the comparison covers the protocol layer only.
+
+| | wearable5.0 | [goose](https://github.com/b-nnett/goose) (archived) | [NOOP](https://github.com/ryanbr/noop) 5/MG path |
+|---|---|---|---|
+| Format-1 framing, CRCs, reassembly | ✅ strict (rejects bad CRC) | ✅ lenient (keeps truncated / bad-CRC frames with warnings) | ✅ |
+| Command table | 87, with source per entry | 75, with risk gates | 80 |
+| Commands 146–147, 155–159 (new clock pair, certificates, `LOCK_DEVICE`) | ✅ | — | — |
+| Event table | 58 | 33 | 58 |
+| HISTORY_END token and ACK | ✅ | ✅ | ✅ |
+| GET_DATA_RANGE backlog in pages | ✅ | ✅ | ✅ (diagnostic only) |
+| GET_DATA_RANGE newest-page clock (field-exact) | ✅ | — | — (timestamp scan, not fed to 5/MG sync) |
+| R18 fields (HR, R-R, gravity, steps, skin temp, band state) | ✅ | header + HR byte | ✅ |
+| R20 optical blocks, all ten channels | ✅ | — | ✅ |
+| R21 IMU arrays, R26 delta reconstruction, R22 v9 | ✅ | summaries | ✅ |
+| Which R20 channels carry the pulse; HR from R20 | ✅ validated with a control | — | — |
+| Device-family table incl. battery-pack service | ✅ | partial | `1150…` listed as unsupported |
+| Machine-readable schema with evidence per fact | ✅ | — | ✅ (no per-fact source) |
+| Python + Swift with enforced parity | ✅ | Rust + Swift | Swift + Kotlin |
+| BLE client, storage, scoring algorithms, UI | — (out of scope) | ✅ | ✅ |
+
+Most protocol offsets here were first documented by NOOP and goose; this repository consolidates
+them, adds the current app's tables, and contributes the R20 heart-rate finding. Other community
+decoders exist, for example [whoop-local](https://github.com/a9eelsh/whoop-local) (single-file
+Python, derives HRV from R26).
+
 ## Using it from NOOP
 
 NOOP's WHOOP 5/MG path is currently derived from goose, which is archived. This library offers
 drop-in improvements, each small enough to land on its own:
 
-1. **Feed sync from the 5/MG data range.** Use `DataRange.pagesBehind` and `newestUnix` instead of
-   leaving `strapNewestTs` nil (the root of the auto-continue storm in
-   [ryanbr/noop#1992](https://github.com/ryanbr/noop/issues/1992)). Verify with H3 first.
+1. **Feed sync from the 5/MG data range.** NOOP already logs the page backlog; the field-exact
+   newest-page clock (`DataRange.newestUnix`) can fill `strapNewestTs`, which is nil on 5/MG today
+   and drives the auto-continue storm in [ryanbr/noop#1992](https://github.com/ryanbr/noop/issues/1992).
+   Verify with H3 first.
 2. **Bank heart rate from R20 records** that are rejected today, which keeps the iOS history
    frontier open (also #1992). Ship as instrumentation until D4 is done.
-3. **Allow-list against the current app's command table**, including the destructive set and the
-   newer commands 153–159.
+3. **Allow-list against the current app's command table**, including the destructive set and
+   commands 146–147 and 155–159, which NOOP's table does not list yet.
 
 ## Contributing data
 

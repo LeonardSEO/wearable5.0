@@ -17,7 +17,7 @@ frames that NOOP publishes as test vectors.
 | GATT map, six device families | ✅ | apk |
 | Format-1 envelope: CRC16-Modbus header, CRC32 body, padding | ✅ byte-exact | corpus |
 | CLIENT_HELLO and history ACK construction | ✅ byte-identical to hardware-proven frames | corpus |
-| Complete command table (incl. 153–159) and destructive set | ✅ | apk |
+| Command table: 82 from the app + 5 firmware-only from NOOP; destructive set | ✅ | apk + noop |
 | Complete event table (58 events) and packet-type table (35–56) | ✅ | apk |
 | GET_DATA_RANGE: dual response, page cursors, newest clock | ✅ field-exact | apk + noop |
 | History START / END / COMPLETE and the 8-byte END token | ✅ | corpus |
