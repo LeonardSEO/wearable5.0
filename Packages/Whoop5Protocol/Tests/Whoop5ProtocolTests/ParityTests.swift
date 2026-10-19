@@ -100,7 +100,7 @@ final class ParityTests: XCTestCase {
 
     func testReassemblerAcrossFragments() throws {
         let frames = try vectors().map { bytes($0.hex) }
-        let stream = [0x00, 0x13] + frames.flatMap { $0 }
+        let stream: [UInt8] = [0x00, 0x13] + Array(frames.joined())
         var r = Whoop5Reassembler()
         var out: [[UInt8]] = []
         var i = 0
