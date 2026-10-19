@@ -23,7 +23,7 @@ the corpus locally (see `re/README.md`). WHOOP 4.0 material was excluded file by
 | GET_DATA_RANGE: dual response, page cursors, newest clock | ✅ field-exact, confirmed on 589 real replies | corpus + apk |
 | History START / END / COMPLETE and the 8-byte END token | ✅ | corpus |
 | Live HR + R-R (packet 40) | ✅ | noop + corpus |
-| **R-R unit: milliseconds, not 1/1024 s** (R18 and 0x2A37; packet 40 likely) | ✅ **new** — §8 | corpus |
+| **R-R unit: milliseconds, not 1/1024 s** (R18 and 0x2A37; packet 40 likely) | ✅ §8 (independent confirmation of NOOP #2046/#2195) | corpus |
 | R18 biometric summary: HR, R-R, gravity, steps, skin temp, band state | ✅ one full night described (§12) | corpus (20,274 records) + noop + johga |
 | R16/R17 MG ECG records | ✅ structure, 81 real records | corpus + noop |
 | Event header, payloads, BATTERY_LEVEL payload | ✅ | corpus |
@@ -169,10 +169,11 @@ still stand.
 | Respiration | No field identified | Overnight data plus the WHOOP export |
 | Bonding refusals on some Android phones | Strap refuses SMP pairing (NOOP #1635) | Hardware investigation |
 
-## 8. R-R intervals are in milliseconds (corpus, new)
+## 8. R-R intervals are in milliseconds (corpus)
 
-NOOP and this library previously converted R-R as 1/1024 s ticks (the Bluetooth Heart Rate profile
-unit). The data says otherwise. Script: `re/analyze_rr_unit.py`; result: `re/results/rr_unit.txt`.
+This library first converted R-R as 1/1024 s ticks (the Bluetooth Heart Rate profile unit), as early
+NOOP builds did. NOOP corrected this in #2046 / #2195 after the discussion in #1505, using the same
+public iOS capture; the analysis below reached the same result independently. Script: `re/analyze_rr_unit.py`; result: `re/results/rr_unit.txt`.
 
 1. In both HCI captures (iOS and MG), raw R18 R-R values are identical beat for beat to the raw R-R
    values in the strap's standard 0x2A37 Heart Rate Measurement notifications (mean difference 0.00
@@ -183,7 +184,7 @@ unit). The data says otherwise. Script: `re/analyze_rr_unit.py`; result: `re/res
 
 So the WHOOP 5/MG sends R-R in milliseconds in R18 and, contrary to the BLE specification, in 0x2A37.
 Packet 40 follows on moderate evidence (HR × RR / 60000 = 0.997 over 234 live samples). The decoders
-now return the raw value as ms. This settles NOOP #1505.
+now return the raw value as ms.
 
 ## 9. MG ECG, events, console (corpus)
 
@@ -246,7 +247,8 @@ The strap measures SpO₂ itself during sleep and reports it in R18 byte 82:
 - Inside a window each second holds either a **SpO₂ percentage (87–100)** that moves smoothly from
   second to second (for example `97 96 96 96 96 97 97 97 98 97`) or a status code (160, 128, 32, 16, 1, …)
   when the strap has no valid reading that second.
-- This matches the firmware's own console message *"generated a valid SPO2 during sleep"*.
+- This matches the firmware's own console message *"generated a valid SPO2 during sleep"*, and NOOP's
+  tri-mode reading of byte 82 (`spo2_candidate_82`: 70–100 = %, high-bit values = status).
 
 Decoding: `spo2_percent` is byte 82 when it is 70–100, else nil. `spo2_windows()` (Python) /
 `Whoop5Experimental.spo2Windows` (Swift) gives one value per window: the median of its valid seconds,

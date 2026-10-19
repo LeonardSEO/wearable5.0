@@ -50,7 +50,7 @@ against frames captured from real straps.
 | **Safety list** | The commands that can brick, wipe or lock a strap are flagged `destructive` in the schema and exposed in both languages. |
 | **Two languages, one truth** | Python (stdlib only) and a Swift package. Parity is enforced by golden vectors in CI, and both agree on 30,559 real 5/MG frames (190,883 field checks). |
 | **Tested on real data** | An opt-in regression runs every decoder over a 31,489-frame 5/MG corpus rebuilt from public sources (`re/`). |
-| **New research** | R-R is in **milliseconds**, not 1/1024 s ([§8](FINDINGS.md#8-r-r-intervals-are-in-milliseconds-corpus-new)); heart rate from raw R26 and R20 optical data ([§11](FINDINGS.md#11-r26-compact-optical-corpus-new), [§4](FINDINGS.md#4-r20-optical-the-pulse-channels-corpus-new)); the official app's sync cadence and feature-flag values ([§10](FINDINGS.md#10-what-the-official-app-sends-corpus-new)); overnight **SpO₂** decoded from R18 byte 82 ([§13](FINDINGS.md#13-spo-in-r18-byte-82-corpus-new--experimental)). |
+| **New research** | R-R is in **milliseconds**, not 1/1024 s ([§8](FINDINGS.md#8-r-r-intervals-are-in-milliseconds-corpus)); heart rate from raw R26 and R20 optical data ([§11](FINDINGS.md#11-r26-compact-optical-corpus-new), [§4](FINDINGS.md#4-r20-optical-the-pulse-channels-corpus-new)); the official app's sync cadence and feature-flag values ([§10](FINDINGS.md#10-what-the-official-app-sends-corpus-new)); overnight **SpO₂** decoded from R18 byte 82 ([§13](FINDINGS.md#13-spo-in-r18-byte-82-corpus-new--experimental)). |
 
 ## Repository layout
 
@@ -187,41 +187,42 @@ repository is a protocol library, so the comparison covers the protocol layer on
 | GET_DATA_RANGE backlog in pages | ✅ | ✅ | ✅ (diagnostic only) |
 | GET_DATA_RANGE newest-page clock (field-exact) | ✅ | — | — (timestamp scan, not fed to 5/MG sync) |
 | R18 fields (HR, R-R, gravity, steps, skin temp, band state) | ✅ | header + HR byte | ✅ |
-| R-R unit | ✅ ms (proven on captures) | — | 1/1024 s (open question #1505) |
+| R-R unit | ✅ ms (proven on captures) | — | ✅ ms (fixed in #2046 / #2195) |
 | MG ECG R16/R17 | ✅ | — | ✅ |
 | Event payloads, console text | ✅ | names only | ✅ (console), partial events |
 | R20 optical blocks, all ten channels | ✅ | — | ✅ |
 | R21 IMU arrays, R26 delta reconstruction, R22 v9 | ✅ | summaries | ✅ |
-| HR from raw optical (R26, R20) | ✅ with controls; R20 limited (§14) | — | — |
+| HR from raw optical (R26, R20) | ✅ with controls; R20 limited (§14) | — | ✅ PPG heart rate |
 | Official app's feature-flag values and sync cadence | ✅ | — | flag keys only |
-| SpO₂ (R18 byte 82) | 🧪 decoded, per-window helper | — | raw byte kept, uninterpreted |
+| SpO₂ (R18 byte 82) | 🧪 decoded, per-window helper and measurement schedule | — | 🟡 tri-mode candidate, not shown as a metric |
 | Device-family table incl. battery-pack service | ✅ | partial | `1150…` listed as unsupported |
 | Machine-readable schema with evidence per fact | ✅ | — | ✅ (no per-fact source) |
 | Python + Swift + Kotlin with enforced parity | ✅ | Rust + Swift | Swift + Kotlin |
 | BLE client, storage, scoring algorithms, UI | — (out of scope) | ✅ | ✅ |
 
 Most protocol offsets here were first documented by NOOP and goose; this repository consolidates
-them, adds the current app's tables, and contributes new findings from real captures (R-R unit,
-optical heart rate, feature-flag values, the byte-82 measurement windows). Other community
+them, adds the current app's tables, and contributes findings from real captures: the GET_DATA_RANGE
+newest-page clock on 589 replies, the official app's feature-flag values and sync cadence, the byte-82
+measurement schedule, and independent confirmation of results NOOP reached first (R-R in ms, byte 82
+as SpO₂, optical heart rate). Other community
 decoders exist, for example [whoop-local](https://github.com/a9eelsh/whoop-local) (single-file
 Python, derives HRV from R26).
 
 ## Using it from NOOP
 
-NOOP's WHOOP 5/MG path is currently derived from goose, which is archived. This library offers
-drop-in improvements, each small enough to land on its own:
+NOOP has its own mature 5/MG decoder; this library can serve as an independent cross-check (Python,
+Swift and Kotlin with enforced parity) and offers a few concrete additions, each small enough to land
+on its own:
 
-1. **Read R-R as milliseconds.** Converting it as 1/1024 s understates every interval by 2.4 % and
-   biases HRV (FINDINGS §8; settles [ryanbr/noop#1505](https://github.com/ryanbr/noop/issues/1505)).
-2. **Feed sync from the 5/MG data range.** NOOP already logs the page backlog; the field-exact
+1. **Feed sync from the 5/MG data range.** NOOP already logs the page backlog; the field-exact
    newest-page clock (`DataRange.newestUnix`) can fill `strapNewestTs`, which is nil on 5/MG today
    and drives the auto-continue storm in [ryanbr/noop#1992](https://github.com/ryanbr/noop/issues/1992).
    Confirmed on 589 real replies from 21 sessions (FINDINGS §3).
-3. **Bank heart rate from R20/R26 records** that are rejected today, which keeps the iOS history
-   frontier open (also #1992). Ship as instrumentation until D4 is done.
-4. **Show SpO₂ as an experimental metric**: `spo2_windows()` turns R18 byte 82 into one value per
-   overnight measurement window (FINDINGS §13).
-5. **Allow-list against the current app's command table**, including the destructive set and
+2. **Show SpO₂ as an experimental metric**: NOOP already decodes byte 82 as a candidate;
+   `spo2_windows()` aggregates it per strap measurement window (30 s every 1,200 s while asleep;
+   FINDINGS §13).
+3. **Use the official app's feature-flag values** (FINDINGS §10) as the reference configuration.
+4. **Allow-list against the current app's command table**, including the destructive set and
    commands 146–147 and 155–159, which NOOP's table does not list yet.
 
 ## Contributing data
