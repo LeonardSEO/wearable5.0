@@ -35,6 +35,7 @@ the corpus locally (see `re/README.md`). WHOOP 4.0 material was excluded file by
 | R21 six-axis IMU, R22 v9 | ✅ structure | noop |
 | **SpO₂** | 🧪 **decoded, experimental**: R18 byte 82 in 30 s windows every 20 min during sleep; one value per window via `spo2_windows` — §13 | corpus |
 | Overnight HRV (RMSSD) | 🧪 experimental helper `rmssd_ms` on R18 R-R | corpus |
+| Sleep periods, respiratory rate, nightly skin temperature, HR from R26 | 🧪 **new**, experimental helpers (stdlib Python + Swift) — §15 | corpus |
 | Sleep stages, recovery, strain | ⚫ cloud-side in the official app (§3) — must be computed locally | apk |
 
 ## 1. Device families and GATT (apk)
@@ -265,7 +266,28 @@ R20 heart rate therefore stays validated on one resting session only. Block conf
 between the sessions (block 2 drive 3400 vs 4250), and the two-channel burst does not occur in the
 second one (`re/results/r20_config_bursts.txt`).
 
-## 15. Sources
+## 15. Experimental metrics: sleep periods, breathing, skin temperature, R26 heart rate (corpus, new)
+
+`re/analyze_experimental_metrics.py`, `re/results/experimental_metrics.txt`. Four helpers in
+`whoop5.experimental` / `Whoop5Experimental` (stdlib only, same inputs and outputs in both languages),
+run on the captured night and cross-checked against numpy/scipy:
+
+- **`sleep_periods`**: band state SLEEP, 300 s majority smoothing, gaps ≤ 600 s merged, ≥ 20 min kept.
+  One period of 5.16 h (the capture starts already asleep, so onset = capture start; offset ~1 min after
+  the last SLEEP second), 99.7 % SLEEP inside, HR mean 52.0 bpm, minimum 40 bpm (single second).
+- **`respiratory_rate`**: per 60 s of R-R, a direct-DFT spectrum of the tachogram, f²-weighted, peak in
+  0.1–0.5 Hz. Median **14.1 breaths/min** (IQR 12.6–15.3) over 269 windows, stable across the two halves
+  of the night (14.4 / 13.8); a scipy Welch spectrum of the whole night peaks at 13.1 (bin 0.5). Synthetic
+  RSA at 9 / 14 / 18 per min is recovered as 9.0 / 14.1 / 18.0. No breathing reference on this night.
+- **`skin_temp_baseline`**: nightly mean **33.82 °C** (min 31.41, max 34.99, sd 0.70); deviation needs a
+  second night or a given baseline.
+- **`hr_from_r26`**: the §11 method (band-pass 0.6–3.3 Hz, inverted peaks, median IBI) with a biquad
+  Butterworth instead of scipy: **r = 0.95, MAE 1.4 bpm** against R18 over 17 bursts (46–66 bpm), r = 0.994
+  against the scipy version.
+
+All four are experimental: one night, one wearer, no sleep-stage, breathing or thermometer reference.
+
+## 16. Sources
 
 - Official WHOOP Android app 5.473.0 (static analysis for interoperability; nothing reproduced).
 - [ryanbr/noop](https://github.com/ryanbr/noop) protocol docs, test vectors and the #1992 corpus

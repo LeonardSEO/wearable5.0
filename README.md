@@ -44,7 +44,7 @@ against frames captured from real straps.
 |---|---|
 | **Canonical schema** | [`protocol/whoop5_protocol.json`](protocol/whoop5_protocol.json): GATT, envelope, 87 commands (82 from the current official app plus 5 firmware-only ones documented by NOOP), 58 events, 16 packet types, response bodies and record layouts. Every entry is tagged with where the fact comes from. |
 | **Byte-exact framing** | CRC16-Modbus header, CRC32 body, 4-byte padding, BLE fragment reassembly. Reproduces the strap's CLIENT_HELLO and history ACK byte for byte. |
-| **SpO₂ and HRV (experimental)** | `spo2_percent` from R18 byte 82 and `spo2_windows()` for one value per overnight measurement window; `rmssd_ms()` on R18 R-R. In Python (`whoop5.experimental`) and Swift (`Whoop5Experimental`). |
+| **Experimental metrics** (SpO₂, HRV, sleep, breathing, temperature, R26 HR) | `spo2_percent` from R18 byte 82 and `spo2_windows()` for one value per overnight measurement window; `rmssd_ms()` on R18 R-R; `sleep_periods()` (onset/offset, HR min/mean), `respiratory_rate()` from R-R (14.1 breaths/min on the captured night), `skin_temp_baseline()` (nightly mean/min/max, deviation), `hr_from_r26()` (r = 0.95 vs R18). In Python (`whoop5.experimental`, stdlib only) and Swift (`Whoop5Experimental`); see [§15](FINDINGS.md#15-experimental-metrics-sleep-periods-breathing-skin-temperature-r26-heart-rate-corpus-new). |
 | **Record decoders** | Live HR + R-R (packet 40), R18 biometric summary, R20 optical blocks, R21 six-axis IMU, R22 v9 channels, R26 compact optical, R16/R17 MG ECG, IMU streams 51/52, events with payloads, console log text, history metadata. Unknown layouts are preserved raw, never dropped. |
 | **Sync support** | Field-exact `GET_DATA_RANGE` (page backlog and newest-page clock) and the `HISTORICAL_DATA_RESULT` ACK built from the verbatim HISTORY_END token. |
 | **Safety list** | The commands that can brick, wipe or lock a strap are flagged `destructive` in the schema and exposed in both languages. |
@@ -86,6 +86,8 @@ for notification in notifications:              # bytes from fd4b0003 / fd4b0004
 
 from whoop5.experimental import spo2_windows, rmssd_ms   # experimental, see FINDINGS §13
 nightly_spo2 = spo2_windows(r18_records)                 # [{"start_unix", "spo2_percent", ...}, ...]
+from whoop5.experimental import sleep_periods, respiratory_rate, skin_temp_baseline, hr_from_r26  # FINDINGS §15
+nights = sleep_periods(r18_records)                      # [{"onset_unix", "offset_unix", "hr_min", "hr_mean", ...}]
 ```
 
 **Swift** (add `Packages/Whoop5Protocol` as a local or remote package)
@@ -163,10 +165,10 @@ owners. None of them blocks using the library; they limit how far a client shoul
 |---|---|---|---|
 | D1 | R20 LED wavelengths (which source is green, red, infrared) | Source codes 1–4 seen; identity unknown | Captures across a toggle of the `ir_hw_switching` feature flag, or with a known light source |
 | D2 | SpO₂ | 🧪 **Decoded, experimental**: R18 byte 82 per second in 30 s windows every 20 min during sleep; 7 windows of 93–99 % on the captured night (FINDINGS §13) | Compare with the WHOOP app's SpO₂ for a captured night; more wearers |
-| D3 | Sleep detection and stages | One full night of R18 described: band state, HR dip, motion, temperature (§12). No R21 overnight, no stage reference | A night with R21 and a sleep reference (watch stages or WHOOP export) |
+| D3 | Sleep detection and stages | 🧪 Sleep periods from R18 band state (`sleep_periods`, experimental): one 5.2 h period on the captured night (§15). No stages; no R21 overnight, no sleep reference | A night with R21 and a sleep reference (watch stages or WHOOP export) |
 | D4 | HR from optical | R26: r = 0.95, 1.4 bpm over 17 night bursts. R20: r ≈ 0.8, ~2 bpm on one resting session; **fails** on a second, awake session with a sparse reference (§14) | R20 with motion and a dense reference; more wearers |
 | D5 | Dense overnight HRV | **Mostly closed**: R18 delivers 92 % of beats overnight with R-R in ms; RMSSD 47–102 ms per 5 min (§12) | Comparison with the WHOOP export's HRV |
-| D6 | Respiratory rate | No field identified | Overnight data plus the WHOOP export |
+| D6 | Respiratory rate | 🧪 No field on the wire; derived from R-R sinus arrhythmia (`respiratory_rate`, experimental): median 14.1 breaths/min on the captured night (§15) | A night with the WHOOP export's respiratory rate |
 | D7 | Skin temperature (R18 `u16@73 / 100 °C`) across firmware | Plausible overnight curve 31.4–35.0 °C; agrees across three sources; firmware 50.37–50.42 seen | R18 from other firmware with the WHOOP export |
 | D8 | R18 provisional fields | Byte 82 and status words 77/79 tied to the 20-minute measurement windows; bytes 106–113 characterised but unexplained (§12, §13) | Correlation against a WHOOP export over many nights |
 | D9 | R22 v9 channel meaning and R26 sample units | Structure only | Captures with the related feature flags toggled |

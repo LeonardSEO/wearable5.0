@@ -160,4 +160,102 @@ final class ParityTests: XCTestCase {
         XCTAssertEqual(Whoop5Experimental.rmssdMs(rr)!, 14.8323970, accuracy: 1e-5)
         XCTAssertNil(Whoop5Experimental.rmssdMs([1000, 1010]))
     }
+
+    // Experimental metrics: same synthetic inputs and expected values as python/tests/test_experimental.py.
+
+    static func r18(_ hr: Int, state: UInt8, skinRaw: UInt16) -> R18 {
+        R18(heartRate: UInt8(hr), rrMs: [], hrFlags: 0, altHeartRate: 0, dynamicAccelG: 0, gravityG: (0, 0, 1),
+            stepCounter: 0, cadenceRaw: 0, hwStepCounter: 0, activityClass: 0, tempAux1Raw: 0, tempAux2Raw: 0,
+            skinTempRaw: skinRaw, stateBits: state << 4, spo2Byte82: 0)
+    }
+
+    static func header(_ unix: Int, _ index: Int, layout: UInt8) -> RecordHeader {
+        RecordHeader(packetType: 47, layout: layout, marker: 0x80, recordIndex: UInt32(index), unix: UInt32(unix), subsec: 0)
+    }
+
+    /// 4000 s: wake, sleep with a 60 s awakening, 900 s wake, then a 1100 s sleep run (too short).
+    static func night() -> [(RecordHeader, R18)] {
+        (0..<4000).map { t in
+            let asleep = (300..<2000).contains(t) && !(1000..<1060).contains(t) || (2900..<4000).contains(t)
+            let state: UInt8 = asleep ? 2 : (t % 2 == 1 ? 1 : 0)
+            let hr = t == 500 ? 0 : (asleep ? 48 + t % 9 : 70)
+            return (header(10000 + t, t, layout: 18), r18(hr, state: state, skinRaw: UInt16(3300 + t / 100)))
+        }
+    }
+
+    func testExperimentalSleepPeriods() {
+        let p = Whoop5Experimental.sleepPeriods(Self.night())
+        XCTAssertEqual(p.count, 1)
+        guard let q = p.first else { return }
+        XCTAssertEqual([Int(q.onsetUnix), Int(q.offsetUnix), q.durationS, q.asleepS, q.records, q.hrMin ?? -1],
+                       [10300, 11999, 1700, 1640, 1700, 48])
+        XCTAssertEqual(q.hrMean!, 52.63802236609771, accuracy: 1e-9)
+        XCTAssertEqual(Whoop5Experimental.sleepPeriods([]), [])
+    }
+
+    func testExperimentalRespiratoryRate() {
+        var rr = (0..<45).flatMap { _ in [950, 1000, 1050, 1000] }
+        rr[20] = 250; rr[60] = 1500
+        let w = Whoop5Experimental.respiratoryRate(rr)
+        XCTAssertEqual(w.map { [$0.startS, $0.endS, Double($0.beats)] }, [[0, 60, 59], [60, 120, 60]])
+        XCTAssertEqual(w[0].breathsPerMin!, 15.3, accuracy: 1e-9)
+        XCTAssertEqual(w[1].breathsPerMin!, 15.0, accuracy: 1e-9)
+        XCTAssertEqual(w[0].peakFraction!, 0.16599567526638082, accuracy: 1e-6)
+        XCTAssertEqual(w[1].peakFraction!, 0.1985737846532536, accuracy: 1e-6)
+        XCTAssertEqual(Whoop5Experimental.respiratoryRate([Int](repeating: 1000, count: 50)), [])
+        let flat = Whoop5Experimental.respiratoryRate([Int](repeating: 1000, count: 70))
+        XCTAssertEqual(flat.count, 1)
+        XCTAssertNil(flat.first?.breathsPerMin)
+    }
+
+    func testExperimentalSkinTempBaseline() throws {
+        let s = try XCTUnwrap(Whoop5Experimental.skinTempBaseline(Self.night()).first)
+        XCTAssertEqual([Int(s.onsetUnix), Int(s.offsetUnix), s.samples], [10300, 11999, 1700])
+        XCTAssertEqual(s.minC!, 33.03, accuracy: 1e-9)
+        XCTAssertEqual(s.maxC!, 33.19, accuracy: 1e-9)
+        XCTAssertEqual(s.meanC!, 33.11, accuracy: 1e-9)
+        XCTAssertEqual(s.sdC!, 0.0489897948556632, accuracy: 1e-9)
+        XCTAssertNil(s.deviationC)
+        XCTAssertEqual(Whoop5Experimental.skinTempBaseline(Self.night(), baselineC: 33.0)[0].deviationC!, 0.11,
+                       accuracy: 1e-9)
+        let periods = [(10000, 10999), (11000, 11999)].map {
+            Whoop5Experimental.SleepPeriod(onsetUnix: UInt32($0.0), offsetUnix: UInt32($0.1), durationS: 1000,
+                                           asleepS: 0, records: 0, hrMin: nil, hrMean: nil)
+        }
+        let n = Whoop5Experimental.skinTempBaseline(Self.night(), periods: periods)
+        XCTAssertEqual(n[0].meanC!, 33.045, accuracy: 1e-9)
+        XCTAssertNil(n[0].deviationC)
+        XCTAssertEqual(n[1].baselineC!, 33.045, accuracy: 1e-9)
+        XCTAssertEqual(n[1].deviationC!, 0.1, accuracy: 1e-9)
+    }
+
+    func testExperimentalHrFromR26() {
+        let x: [Int64] = (0..<(30 * 25)).map { (i: Int) -> Int64 in  // a dip every 0.8 s = 75 bpm
+            let dip = i % 20 < 3 ? 800 : 0
+            return Int64(100_000 + 2 * i - dip)
+        }
+        func rec(_ unix: Int, _ index: Int, _ counter: UInt16, _ k: Int) -> (RecordHeader, R26) {
+            (Self.header(unix, index, layout: 26),
+             R26(burstCounter: counter, samples: Array(x[(25 * k)..<(25 * k + 25)]), motionSummary: 0, status: 0,
+                 onWristRaw: 0, acceptanceRaw: 0))
+        }
+        var recs = (0..<30).map { rec(5000 + $0, $0, 3, $0) }
+        recs.append(recs[4])  // duplicate record_index: dropped
+        recs += (0..<5).map { rec(6000 + $0, 100 + $0, 4, $0) }  // 5 s burst: too short
+        let out = Whoop5Experimental.hrFromR26(recs)
+        XCTAssertEqual(out.map { [Int($0.startUnix), Int($0.endUnix), $0.seconds, Int($0.burstCounter), $0.beats] },
+                       [[5000, 5029, 30, 3, 37], [6000, 6004, 5, 4, 0]])
+        XCTAssertEqual(out[0].heartRateBpm!, 75.0, accuracy: 1e-9)
+        XCTAssertNil(out[1].heartRateBpm)
+        let y: [Double] = [0, 2, 1, 3, 1, 0, 5, 4, 5, 0]  // expected values from scipy.signal.find_peaks
+        XCTAssertEqual(Whoop5Experimental.findPeaks(y), [1, 3, 6, 8])
+        XCTAssertEqual(Whoop5Experimental.findPeaks(y, distance: 3), [3, 8])
+        XCTAssertEqual(Whoop5Experimental.findPeaks(y, prominence: 4), [6, 8])
+        let one = Whoop5Experimental.bandpass((0..<250).map { sin(2 * Double.pi * Double($0) / 25) }, fs: 25,
+                                              loHz: 0.6, hiHz: 3.3)
+        XCTAssertGreaterThan(one[50..<200].max()!, 0.85)
+        let slow = Whoop5Experimental.bandpass((0..<250).map { sin(2 * Double.pi * 0.1 * Double($0) / 25) }, fs: 25,
+                                               loHz: 0.6, hiHz: 3.3)
+        XCTAssertLessThan(slow[50..<200].map(abs).max()!, 0.01)
+    }
 }

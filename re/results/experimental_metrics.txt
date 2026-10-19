@@ -1,0 +1,37 @@
+Experimental metrics on real captures (analyze_experimental_metrics.py)
+generated 2026-10-19; library: python/whoop5/experimental.py (stdlib)
+
+Overnight capture: 18602 R18 records over 5.17 h, 670 R26 records; times below are relative to the first R18 record
+  band_state counts: {'SLEEP': 18506, 'UP': 88, 'WAKE': 8}
+
+1. sleep_periods (SLEEP only, 300 s majority smoothing, gaps <= 600 s merged, >= 1200 s)
+  onset +0.00 h, offset +5.16 h, duration 5.16 h, asleep 99.7% of the period, records 18560
+  HR min 40 bpm, mean 52.0 bpm (numpy over the same seconds: min 40, mean 52.0)
+  raw: last SLEEP record +5.14 h; the capture starts already in SLEEP, so onset is the capture start, not a detected sleep onset
+
+2. respiratory_rate (60 s windows of R18 R-R)
+  windows 269, with a rate 269; breaths/min median 14.1, IQR 12.6-15.3, p10-p90 8.3-16.6; peak_fraction median 0.066
+  windows with peak_fraction >= 0.10: 46, median 14.1, IQR 13.5-14.4
+  first half: median 14.4 breaths/min over 134 windows
+  second half: median 13.8 breaths/min over 135 windows
+  cross-check (scipy Welch, wall-clock beat times, whole night, local peak in 0.15-0.5 Hz): 13.1 breaths/min (bin width 0.5)
+  synthetic RSA 9/min (HR 52, 60 ms swing, 15 ms noise): median 9.0/min
+  synthetic RSA 14/min (HR 52, 60 ms swing, 15 ms noise): median 14.1/min
+  synthetic RSA 18/min (HR 52, 60 ms swing, 15 ms noise): median 18.0/min
+
+3. skin_temp_baseline (per sleep period)
+  samples 18560, mean 33.82 C, min 31.41, max 34.99, sd 0.70; deviation None (single night: no baseline)
+  numpy: mean 33.82, min 31.41, max 34.99, sd 0.70
+  after the first quarter of the night (sensor settled): mean 34.05, sd 0.53
+
+4. hr_from_r26 vs R18 heart_rate (mean over the burst's seconds) and vs scipy (analyze_r26.py method)
+  bursts 17, with an estimate 17, scored 17
+  vs R18: r=+0.95  MAE=1.4 bpm  bias=+0.2  ref 46-66 bpm
+  vs scipy: r=+0.994  max |diff|=1.98 bpm  (scipy vs R18: r=+0.95, MAE=1.4)
+
+5. Corpus (5.0/MG only, frames/by_type)
+  R18 records 20270: sleep periods 1; durations h: 5.16
+    night mean 33.82 C (min 31.41, max 34.99), deviation n/a
+  R26 records 713: bursts 21, with an estimate 18, with R18 reference 17
+    vs R18: r=+0.95  MAE=1.4 bpm
+    all estimates: 46-79 bpm
