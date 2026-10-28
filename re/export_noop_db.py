@@ -24,11 +24,11 @@ DEFAULT_DB = os.path.expanduser("~/Library/Application Support/OpenWhoop/whoop.s
 
 
 def unpack_frames(blob: bytes) -> list[bytes]:
-    """NOOP's RawOutbox layout: [count u32 LE]{[len u32 LE][bytes]} x count, optionally zlib-compressed."""
-    try:
-        blob = zlib.decompress(blob)
-    except zlib.error:
-        pass
+    """NOOP's RawOutbox blob: [plain length u32 LE] + raw deflate (Apple Compression's ZLIB) of
+    [count u32 LE]{[len u32 LE][bytes]} x count."""
+    (size,) = struct.unpack_from("<I", blob, 0)
+    blob = zlib.decompress(blob[4:], -15)
+    assert len(blob) == size, f"blob length {len(blob)} != header {size}"
     (count,), off, out = struct.unpack_from("<I", blob, 0), 4, []
     for _ in range(count):
         (n,) = struct.unpack_from("<I", blob, off)
@@ -68,5 +68,6 @@ def main() -> None:
 if __name__ == "__main__":
     frames = [b"\xaa\x01", b"\x01\x02\x03"]
     packed = struct.pack("<I", 2) + b"".join(struct.pack("<I", len(f)) + f for f in frames)
-    assert unpack_frames(packed) == frames and unpack_frames(zlib.compress(packed)) == frames
+    c = zlib.compressobj(wbits=-15)
+    assert unpack_frames(struct.pack("<I", len(packed)) + c.compress(packed) + c.flush()) == frames
     main()
