@@ -8,6 +8,8 @@ demand into `re/corpus/` (gitignored); only scripts and results are committed.
 | `harvest_frames.py` | Extract every CRC-valid 5/MG frame from a tree of checked-out repos and downloads | de-duplicated JSONL with sources |
 | `organize_corpus.py` | Arrange harvested frames and original files into a local corpus with a manifest | `frames/`, `captures/`, `ground_truth/`, `MANIFEST.csv` |
 | `prepare_donation.py` | Turn your own archive, logs, HCI capture and WHOOP export into a privacy-safe donation zip | `frames.jsonl`, `whoop_export/`, `MANIFEST.json` |
+| `export_noop_db.py` | Export the raw frames NOOP keeps with `enableRawCapture` on (read-only snapshot of its database) | `frames.jsonl`, `whoop.sqlite` |
+| `validate_own_strap.py` | Every open claim checked on one owner's strap and WHOOP export, with thresholds fixed in advance | `REPORT.md`, `report.json` in the data folder |
 | `pklg_extract.py` | Extract 5/MG frames from an iOS PacketLogger (.pklg) or Android btsnoop capture | frames JSONL with direction and ATT handle |
 | `analyze_rr_unit.py` | Is R-R in ms or 1/1024 s? (0x2A37 vs R18, phone clock) | `results/rr_unit.txt` — milliseconds |
 | `analyze_official_sync.py` | What the official app sends, feature-flag values | `results/official_sync_ios.txt` |
@@ -32,6 +34,19 @@ python3 -m venv .venv && .venv/bin/pip install numpy scipy
 `WHOOP5_CORPUS=<folder built by organize_corpus.py> python3 -m unittest tests.test_corpus` (from
 `python/`) decodes every frame of the local corpus. It is skipped when the variable is unset, so CI
 never needs the data.
+
+## Validating on your own strap
+
+Put NOOP snapshots (`export_noop_db.py`), HCI captures of the official app (`.pklg`, `btsnoop_hci.log`) and
+the WHOOP export (`physiological_cycles.csv` or the export .zip) in one folder, then:
+
+```bash
+.venv/bin/python -I re/validate_own_strap.py <folder>
+```
+
+Each check reports PASS, FAIL or WAITING against the `CRITERIA` at the top of the script. Night checks
+need at least 5 nights that appear in both the frames and the export. A night synced by NOOP never reaches
+WHOOP's servers, so the paired nights come from an HCI capture of the official app's sync.
 
 ## Donating data
 
