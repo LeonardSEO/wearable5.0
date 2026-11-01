@@ -198,7 +198,8 @@ object Whoop5Experimental {
 
     // ---- optical heart rate (R26) ----------------------------------------------------------------------
 
-    data class R26Burst(val startUnix: Long, val endUnix: Long, val seconds: Int, val burstCounter: Int, val beats: Int,
+    data class R26Burst(val startUnix: Long, val endUnix: Long, val seconds: Int, val burstCounter: Int,
+                        val acceptanceFraction: Double, val periodicity: Double, val candidateBpm: Double?,
                         val heartRateBpm: Double?)
 
     private fun biquad(x: DoubleArray, b: DoubleArray, a: DoubleArray): DoubleArray {
@@ -233,32 +234,34 @@ object Whoop5Experimental {
         return y.toList().subList(pad, pad + n)
     }
 
-    /** Local maxima with scipy.signal.find_peaks semantics for [distance] and [prominence]. */
-    fun findPeaks(y: List<Double>, distance: Int = 1, prominence: Double = 0.0): List<Int> {
-        val cand = (1 until y.size - 1).filter { y[it - 1] < y[it] && y[it] >= y[it + 1] }
-        var keep: Set<Int> = cand.toSet()
-        if (distance > 1) {
-            val kept = mutableSetOf<Int>()
-            for (i in cand.sortedWith(compareBy({ -y[it] }, { -it }))) if (kept.all { abs(i - it) >= distance }) kept.add(i)
-            keep = kept
+    /**
+     * Pulse rate from the strongest autocorrelation peak at lags of [loBpm]-[hiBpm], with parabolic
+     * interpolation, and that peak's height (1 for a perfectly periodic signal). Twin of `_autocorr_bpm`.
+     */
+    private fun autocorrBpm(y: List<Double>, fs: Double, loBpm: Double = 40.0, hiBpm: Double = 200.0): Pair<Double?, Double> {
+        val energy = sumSeq(y.map { it * it })
+        if (energy == 0.0) return null to 0.0
+        val first = (fs * 60 / hiBpm).toInt(); val last = (fs * 60 / loBpm).toInt()
+        val c = (first until last).associateWith { lag -> sumSeq(List(y.size - lag) { y[it] * y[it + lag] }) / energy }
+        var best: Int? = null
+        for (lag in (first + 1) until (last - 1)) {
+            if (c.getValue(lag) > c.getValue(lag - 1) && c.getValue(lag) >= c.getValue(lag + 1) &&
+                (best == null || c.getValue(lag) > c.getValue(best))) best = lag
         }
-        return keep.sorted().filter { p ->
-            var leftMin = y[p]; var k = p - 1
-            while (k >= 0 && y[k] <= y[p]) { leftMin = minOf(leftMin, y[k]); k-- }
-            var rightMin = y[p]; k = p + 1
-            while (k < y.size && y[k] <= y[p]) { rightMin = minOf(rightMin, y[k]); k++ }
-            y[p] - maxOf(leftMin, rightMin) >= prominence
-        }
+        if (best == null || c.getValue(best) <= 0) return null to 0.0
+        val a = c.getValue(best - 1); val b = c.getValue(best); val d = c.getValue(best + 1)
+        return 60 * fs / (best + (a - d) / (2 * (a - 2 * b + d))) to b
     }
 
     /**
      * Heart rate per R26 burst from the 25 Hz compact optical waveform (**experimental**): bursts are runs of
      * consecutive seconds with the same burst counter; per burst of at least [minSeconds] s: median removed,
-     * band-pass 0.6-3.3 Hz, inverted, peaks ≥ 0.33 s apart with prominence ≥ 0.3 sd, 60 / median IBI.
-     * Twin of `hr_from_r26`.
+     * band-pass 0.6-3.3 Hz, candidateBpm from the strongest autocorrelation peak, periodicity its height.
+     * heartRateBpm is the candidate only when acceptanceFraction reaches [minAcceptance] and periodicity
+     * [minPeriodicity]: awake and moving, motion swamps the pulse (FINDINGS §16). Twin of `hr_from_r26`.
      */
     fun hrFromR26(records: List<Pair<RecordHeader, Whoop5Record.CompactOptical>>, fs: Double = 25.0,
-                  minSeconds: Int = 12): List<R26Burst> {
+                  minSeconds: Int = 12, minAcceptance: Double = 0.5, minPeriodicity: Double = 0.3): List<R26Burst> {
         val seen = HashSet<Long>()
         val rows = records.filter { it.first.layout == 26 && it.second.samples.isNotEmpty() }
             .sortedWith(compareBy({ it.first.unix }, { it.first.recordIndex })).filter { seen.add(it.first.recordIndex) }
@@ -270,18 +273,16 @@ object Whoop5Experimental {
         }
         return bursts.map { b ->
             val x = b.flatMap { r -> r.second.samples.map { it.toDouble() } }
-            var beats = 0; var hr: Double? = null
+            val acceptance = b.count { it.second.acceptanceRaw != 0 }.toDouble() / b.size
+            var candidate: Double? = null; var periodicity = 0.0
             if (x.size >= fs * minSeconds) {
                 val med = medianD(x)
-                val y = bandpass(x.map { it - med }, fs, 0.6, 3.3).map { -it }
-                val mean = sumSeq(y) / y.size
-                val sd = sqrt(sumSeq(y.map { (it - mean) * (it - mean) }) / y.size)
-                val peaks = findPeaks(y, (fs * 0.33).toInt(), 0.3 * sd)
-                val ibi = peaks.zipWithNext { p, q -> (q - p) / fs }.filter { it > 0.3 && it < 2.0 }
-                beats = peaks.size
-                if (ibi.size >= 5) hr = 60.0 / medianD(ibi)
+                val (bpm, height) = autocorrBpm(bandpass(x.map { it - med }, fs, 0.6, 3.3), fs)
+                candidate = bpm; periodicity = height
             }
-            R26Burst(b.first().first.unix, b.last().first.unix, b.size, b.first().second.burstCounter, beats, hr)
+            val keep = acceptance >= minAcceptance && periodicity >= minPeriodicity
+            R26Burst(b.first().first.unix, b.last().first.unix, b.size, b.first().second.burstCounter, acceptance,
+                     periodicity, candidate, if (keep) candidate else null)
         }
     }
 

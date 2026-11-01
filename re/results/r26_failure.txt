@@ -1,0 +1,31 @@
+234 R26 bursts with an R18 reference
+
+1. The old estimator (inverted peaks, median interval), by band state
+  SLEEP                            n= 78 MAE   3.9  median   0.7  within 3 bpm  85%  doubled 4
+  STILL                            n=  6 MAE   1.2  median   0.5  within 3 bpm  83%  doubled 0
+  UP                               n=  6 MAE   8.9  median   1.6  within 3 bpm  67%  doubled 0
+  WAKE                             n=139 MAE  13.8  median   7.6  within 3 bpm  22%  doubled 0
+
+2. Old estimator: motion or high heart rate? (motion_summary 0.03; reference 90 bpm)
+  reference < 90, still            n=101 MAE   3.5  median   0.8  within 3 bpm  81%  doubled 4
+  reference < 90, moving           n= 88 MAE   9.5  median   6.4  within 3 bpm  26%  doubled 0
+  reference >= 90, still           n=  1 MAE  32.9  median  32.9  within 3 bpm   0%  doubled 0
+  reference >= 90, moving          n= 39 MAE  27.1  median  23.3  within 3 bpm   3%  doubled 0
+
+3. Is the pulse visible? Median power at the reference heart rate over the background
+  SLEEP    2041.6  (n=79)
+  WAKE       13.8  (n=143)
+
+4. Motion lock: does the old estimate sit at the wrist-motion frequency, its double or half (within 8 %)?
+  right, within 3 bpm    14 of 53 (26%)
+  wrong, over 10 bpm     8 of 40 (20%)
+
+5. hr_from_r26 now (autocorrelation; acceptance >= 0.5 and periodicity >= 0.3)
+  old estimator, all bursts        n=229 MAE  10.0  median   3.7  within 3 bpm  46%  doubled 4
+  new candidate, all bursts        n=234 MAE  19.1  median  10.7  within 3 bpm  37%  doubled 0
+  new, accepted                    n= 98 MAE   1.7  median   0.5  within 3 bpm  87%  doubled 0
+    first half of the data         n= 48 MAE   1.7  median   0.4  within 3 bpm  90%  doubled 0
+    second half of the data        n= 50 MAE   1.7  median   0.7  within 3 bpm  84%  doubled 0
+    SLEEP (75 of 79 accepted)      n= 75 MAE   1.1  median   0.3  within 3 bpm  92%  doubled 0
+    WAKE (14 of 143 accepted)      n= 14 MAE   5.8  median   3.1  within 3 bpm  50%  doubled 0
+  accepted 98 of 234 bursts; reference range 54-87 bpm

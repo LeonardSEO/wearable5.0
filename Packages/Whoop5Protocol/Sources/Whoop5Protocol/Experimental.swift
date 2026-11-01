@@ -251,39 +251,40 @@ public enum Whoop5Experimental {
         return Array(y[pad..<(pad + n)])
     }
 
-    /// Local maxima with scipy.signal.find_peaks semantics for `distance` and `prominence`. Twin of `find_peaks`.
-    public static func findPeaks(_ y: [Double], distance: Int = 1, prominence: Double = 0) -> [Int] {
-        guard y.count >= 3 else { return [] }
-        let cand = (1..<(y.count - 1)).filter { y[$0 - 1] < y[$0] && y[$0] >= y[$0 + 1] }
-        var keep = cand
-        if distance > 1 {
-            keep = []
-            for i in cand.sorted(by: { y[$0] != y[$1] ? y[$0] > y[$1] : $0 > $1 })
-            where keep.allSatisfy({ abs(i - $0) >= distance }) {
-                keep.append(i)
-            }
-            keep.sort()
+    /// Pulse rate from the strongest autocorrelation peak at lags of `loBpm`-`hiBpm`, with parabolic
+    /// interpolation, and that peak's height (1 for a perfectly periodic signal). Twin of `_autocorr_bpm`.
+    static func autocorrBpm(_ y: [Double], fs: Double, loBpm: Double = 40, hiBpm: Double = 200) -> (bpm: Double?, height: Double) {
+        let energy = fsum(y.map { $0 * $0 })
+        guard energy != 0 else { return (nil, 0) }
+        let first = Int(fs * 60 / hiBpm), last = Int(fs * 60 / loBpm)
+        var c = [Int: Double]()
+        for lag in first..<last {
+            let products: [Double] = (0..<(y.count - lag)).map { (i: Int) -> Double in y[i] * y[i + lag] }
+            c[lag] = fsum(products) / energy
         }
-        return keep.filter { p in
-            var leftMin = y[p], k = p - 1
-            while k >= 0 && y[k] <= y[p] { leftMin = min(leftMin, y[k]); k -= 1 }
-            var rightMin = y[p]
-            k = p + 1
-            while k < y.count && y[k] <= y[p] { rightMin = min(rightMin, y[k]); k += 1 }
-            return y[p] - max(leftMin, rightMin) >= prominence
+        var best: Int? = nil
+        for lag in (first + 1)..<(last - 1) where c[lag]! > c[lag - 1]! && c[lag]! >= c[lag + 1]! {
+            if best == nil || c[lag]! > c[best!]! { best = lag }
         }
+        guard let peak = best, c[peak]! > 0 else { return (nil, 0) }
+        let a = c[peak - 1]!, b = c[peak]!, d = c[peak + 1]!
+        let offset: Double = (a - d) / (2 * (a - 2 * b + d))
+        return (60 * fs / (Double(peak) + offset), b)
     }
 
     public struct R26Burst: Equatable {
-        public let startUnix: UInt32, endUnix: UInt32, seconds: Int, burstCounter: UInt16, beats: Int
-        public let heartRateBpm: Double?
+        public let startUnix: UInt32, endUnix: UInt32, seconds: Int, burstCounter: UInt16
+        public let acceptanceFraction: Double, periodicity: Double
+        public let candidateBpm: Double?, heartRateBpm: Double?
     }
 
     /// Heart rate per R26 burst from the 25 Hz compact optical waveform (**experimental**): bursts are runs of
     /// consecutive seconds with one burstCounter; per burst of `minSeconds`+ s, median-removed, band-passed
-    /// 0.6-3.3 Hz, inverted, peaks >= 0.33 s apart with prominence >= 0.3 sd, HR = 60 / median IBI (0.3-2.0 s,
-    /// >= 5 IBIs). Tracked R18 HR at r = 0.95, MAE 1.4 bpm on 17 overnight bursts. Twin of `hr_from_r26`.
-    public static func hrFromR26(_ records: [(RecordHeader, R26)], fs: Double = 25, minSeconds: Int = 12) -> [R26Burst] {
+    /// 0.6-3.3 Hz, candidateBpm from the strongest autocorrelation peak, periodicity its height. heartRateBpm
+    /// is the candidate only when acceptanceFraction reaches `minAcceptance` and periodicity `minPeriodicity`:
+    /// awake and moving, motion swamps the pulse (FINDINGS §16). Twin of `hr_from_r26`.
+    public static func hrFromR26(_ records: [(RecordHeader, R26)], fs: Double = 25, minSeconds: Int = 12,
+                                 minAcceptance: Double = 0.5, minPeriodicity: Double = 0.3) -> [R26Burst] {
         var seen = Set<UInt32>()
         let rows = records.filter { !$0.1.samples.isEmpty }
             .sorted { ($0.0.unix, $0.0.recordIndex) < ($1.0.unix, $1.0.recordIndex) }
@@ -298,21 +299,16 @@ public enum Whoop5Experimental {
         }
         return bursts.map { (b: [(RecordHeader, R26)]) -> R26Burst in
             let x: [Double] = b.flatMap { (r: (RecordHeader, R26)) -> [Double] in r.1.samples.map { Double($0) } }
-            var beats = 0, hr: Double? = nil
+            let accepted = b.filter { $0.1.acceptanceRaw != 0 }.count
+            let acceptance = Double(accepted) / Double(b.count)
+            var candidate: Double? = nil, periodicity = 0.0
             if Double(x.count) >= fs * Double(minSeconds), let med = medianD(x) {
-                let y = bandpass(x.map { $0 - med }, fs: fs, loHz: 0.6, hiHz: 3.3).map { -$0 }
-                let sd = populationSD(y)
-                let peaks = findPeaks(y, distance: Int(fs * 0.33), prominence: 0.3 * sd)
-                var ibi: [Double] = []
-                for (p, q) in zip(peaks, peaks.dropFirst()) {
-                    let v = Double(q - p) / fs
-                    if v > 0.3 && v < 2.0 { ibi.append(v) }
-                }
-                beats = peaks.count
-                if ibi.count >= 5, let m = medianD(ibi) { hr = 60 / m }
+                (candidate, periodicity) = autocorrBpm(bandpass(x.map { $0 - med }, fs: fs, loHz: 0.6, hiHz: 3.3), fs: fs)
             }
+            let keep = acceptance >= minAcceptance && periodicity >= minPeriodicity
             return R26Burst(startUnix: b[0].0.unix, endUnix: b[b.count - 1].0.unix, seconds: b.count,
-                            burstCounter: b[0].1.burstCounter, beats: beats, heartRateBpm: hr)
+                            burstCounter: b[0].1.burstCounter, acceptanceFraction: acceptance, periodicity: periodicity,
+                            candidateBpm: candidate, heartRateBpm: keep ? candidate : nil)
         }
     }
 }

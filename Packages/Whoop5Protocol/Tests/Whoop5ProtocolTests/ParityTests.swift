@@ -234,28 +234,36 @@ final class ParityTests: XCTestCase {
             let dip = i % 20 < 3 ? 800 : 0
             return Int64(100_000 + 2 * i - dip)
         }
-        func rec(_ unix: Int, _ index: Int, _ counter: UInt16, _ k: Int) -> (RecordHeader, R26) {
-            (Self.header(unix, index, layout: 26),
-             R26(burstCounter: counter, samples: Array(x[(25 * k)..<(25 * k + 25)]), motionSummary: 0, status: 0,
-                 onWristRaw: 0, acceptanceRaw: 0))
+        // 75 bpm with a second, smaller dip half a period later: counting dips would read 150 bpm
+        let dicrotic: [Int64] = (0..<(30 * 25)).map { (i: Int) -> Int64 in
+            let p = i % 20
+            return Int64(100_000 - (p < 3 ? 800 : (p >= 10 && p < 13 ? 500 : 0)))
         }
-        var recs = (0..<30).map { rec(5000 + $0, $0, 3, $0) }
+        func rec(_ s: [Int64], _ unix: Int, _ index: Int, _ counter: UInt16, _ k: Int, _ acceptance: UInt8 = 1) -> (RecordHeader, R26) {
+            (Self.header(unix, index, layout: 26),
+             R26(burstCounter: counter, samples: Array(s[(25 * k)..<(25 * k + 25)]), motionSummary: 0, status: 0,
+                 onWristRaw: 0, acceptanceRaw: acceptance))
+        }
+        var recs = (0..<30).map { rec(x, 5000 + $0, $0, 3, $0) }
         recs.append(recs[4])  // duplicate record_index: dropped
-        recs += (0..<5).map { rec(6000 + $0, 100 + $0, 4, $0) }  // 5 s burst: too short
+        recs += (0..<5).map { rec(x, 6000 + $0, 100 + $0, 4, $0) }  // 5 s burst: too short
         let out = Whoop5Experimental.hrFromR26(recs)
-        XCTAssertEqual(out.map { [Int($0.startUnix), Int($0.endUnix), $0.seconds, Int($0.burstCounter), $0.beats] },
-                       [[5000, 5029, 30, 3, 37], [6000, 6004, 5, 4, 0]])
-        XCTAssertEqual(out[0].heartRateBpm!, 75.0, accuracy: 1e-9)
+        XCTAssertEqual(out.map { [Int($0.startUnix), Int($0.endUnix), $0.seconds, Int($0.burstCounter)] },
+                       [[5000, 5029, 30, 3], [6000, 6004, 5, 4]])
+        XCTAssertEqual(out[0].heartRateBpm!, 74.89566088240728, accuracy: 1e-9)
+        XCTAssertEqual(out[0].periodicity, 0.9365436789523954, accuracy: 1e-9)
+        XCTAssertEqual(out[0].acceptanceFraction, 1)
+        XCTAssertNil(out[1].candidateBpm)
         XCTAssertNil(out[1].heartRateBpm)
-        let y: [Double] = [0, 2, 1, 3, 1, 0, 5, 4, 5, 0]  // expected values from scipy.signal.find_peaks
-        XCTAssertEqual(Whoop5Experimental.findPeaks(y), [1, 3, 6, 8])
-        XCTAssertEqual(Whoop5Experimental.findPeaks(y, distance: 3), [3, 8])
-        XCTAssertEqual(Whoop5Experimental.findPeaks(y, prominence: 4), [6, 8])
-        let one = Whoop5Experimental.bandpass((0..<250).map { sin(2 * Double.pi * Double($0) / 25) }, fs: 25,
-                                              loHz: 0.6, hiHz: 3.3)
-        XCTAssertGreaterThan(one[50..<200].max()!, 0.85)
-        let slow = Whoop5Experimental.bandpass((0..<250).map { sin(2 * Double.pi * 0.1 * Double($0) / 25) }, fs: 25,
-                                               loHz: 0.6, hiHz: 3.3)
-        XCTAssertLessThan(slow[50..<200].map(abs).max()!, 0.01)
+        let rejected = Whoop5Experimental.hrFromR26((0..<30).map { rec(x, 5000 + $0, $0, 3, $0, 0) })[0]
+        XCTAssertEqual(rejected.candidateBpm!, 74.89566088240728, accuracy: 1e-9)
+        XCTAssertNil(rejected.heartRateBpm)
+        XCTAssertNil(Whoop5Experimental.hrFromR26(recs, minPeriodicity: 0.99)[0].heartRateBpm)
+        let second = Whoop5Experimental.hrFromR26((0..<30).map { rec(dicrotic, 5000 + $0, $0, 3, $0) })[0]
+        XCTAssertEqual(second.heartRateBpm!, 74.93825808935108, accuracy: 1e-9)
+        let flat = [Int64](repeating: 100_000, count: 30 * 25)
+        let none = Whoop5Experimental.hrFromR26((0..<30).map { rec(flat, 5000 + $0, $0, 3, $0) })[0]
+        XCTAssertNil(none.candidateBpm)
+        XCTAssertEqual(none.periodicity, 0)
     }
 }

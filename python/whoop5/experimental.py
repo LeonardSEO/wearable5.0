@@ -241,43 +241,34 @@ def bandpass(x: list[float], fs: float, lo_hz: float, hi_hz: float) -> list[floa
     return y[pad:pad + n]
 
 
-def find_peaks(y: list[float], distance: int = 1, prominence: float = 0.0) -> list[int]:
-    """Local maxima of `y` (scipy.signal.find_peaks semantics for `distance` and `prominence`): peaks closer
-    than `distance` samples to a higher kept peak are dropped (on equal height the later one is kept), then peaks below `prominence` are dropped."""
-    cand = [i for i in range(1, len(y) - 1) if y[i - 1] < y[i] >= y[i + 1]]
-    keep = set(cand)
-    if distance > 1:
-        keep = set()
-        for i in sorted(cand, key=lambda i: (-y[i], -i)):  # ties: later index first, as scipy
-            if all(abs(i - j) >= distance for j in keep):
-                keep.add(i)
-    out = []
-    for p in sorted(keep):
-        left_min = y[p]
-        k = p - 1
-        while k >= 0 and y[k] <= y[p]:
-            left_min = min(left_min, y[k])
-            k -= 1
-        right_min = y[p]
-        k = p + 1
-        while k < len(y) and y[k] <= y[p]:
-            right_min = min(right_min, y[k])
-            k += 1
-        if y[p] - max(left_min, right_min) >= prominence:
-            out.append(p)
-    return out
+def _autocorr_bpm(y: list[float], fs: float, lo_bpm: float = 40.0, hi_bpm: float = 200.0) -> tuple[float | None, float]:
+    """Pulse rate from the strongest autocorrelation peak at lags of `lo_bpm`-`hi_bpm`, with parabolic
+    interpolation (the sample grid alone would quantise 120 bpm to about 4 bpm). Returns (bpm, peak height),
+    the height being 1 for a perfectly periodic signal; (None, 0.0) without a positive peak."""
+    energy = sum(v * v for v in y)
+    if energy == 0:
+        return None, 0.0
+    first, last = int(fs * 60 / hi_bpm), int(fs * 60 / lo_bpm)
+    c = {lag: sum(y[i] * y[i + lag] for i in range(len(y) - lag)) / energy for lag in range(first, last)}
+    peaks = [lag for lag in range(first + 1, last - 1) if c[lag] > c[lag - 1] and c[lag] >= c[lag + 1]]
+    best = max(peaks, key=lambda lag: c[lag], default=None)
+    if best is None or c[best] <= 0:
+        return None, 0.0
+    a, b, d = c[best - 1], c[best], c[best + 1]
+    return 60 * fs / (best + (a - d) / (2 * (a - 2 * b + d))), b
 
 
-def hr_from_r26(records: list[dict], fs: float = 25.0, min_seconds: int = 12) -> list[dict]:
+def hr_from_r26(records: list[dict], fs: float = 25.0, min_seconds: int = 12, min_acceptance: float = 0.5,
+                min_periodicity: float = 0.3) -> list[dict]:
     """Heart rate per R26 burst from the 25 Hz compact optical waveform (**experimental**).
 
     `records` are decoded R26 dicts (`samples`: 25 cumulative samples per record, one record per second).
     A burst is a run of consecutive seconds with the same burst_counter (duplicates by record_index dropped).
-    Per burst of at least `min_seconds` s: subtract the median, band-pass 0.6-3.3 Hz (`bandpass`), invert
-    (a pulse is an absorption dip), pick peaks at least 0.33 s apart with prominence >= 0.3 sd, and report
-    60 / median inter-beat interval (IBIs 0.3-2.0 s, at least 5) as heart_rate_bpm, else None.
-    Same method as re/analyze_r26.py (scipy), which tracked R18 heart_rate at r = 0.95, MAE 1.4 bpm over
-    17 overnight bursts (46-66 bpm); not checked during exercise or on other wearers.
+    Per burst of at least `min_seconds` s: subtract the median, band-pass 0.6-3.3 Hz (`bandpass`) and take the
+    strongest autocorrelation peak as candidate_bpm; periodicity is that peak's height.
+    heart_rate_bpm is candidate_bpm only when acceptance_fraction (the share of seconds with the strap's
+    acceptance_raw set) reaches `min_acceptance` and periodicity reaches `min_periodicity`, else None: awake
+    and moving, motion swamps the pulse and the candidate does not track R18 (FINDINGS §16).
     """
     seen, rows = set(), []
     for r in sorted((r for r in records if r.get("layout") == 26 and r.get("samples")),
@@ -295,18 +286,14 @@ def hr_from_r26(records: list[dict], fs: float = 25.0, min_seconds: int = 12) ->
     out = []
     for b in bursts:
         x = [float(v) for r in b for v in r["samples"]]
-        row = {"start_unix": b[0]["unix_s"], "end_unix": b[-1]["unix_s"], "seconds": len(b),
-               "burst_counter": b[0]["burst_counter"], "beats": 0, "heart_rate_bpm": None}
+        acceptance = sum(1 for r in b if r["acceptance_raw"]) / len(b)
+        candidate, periodicity = None, 0.0
         if len(x) >= fs * min_seconds:
             med = median(x)
-            y = [-v for v in bandpass([v - med for v in x], fs, 0.6, 3.3)]
-            mean = sum(y) / len(y)
-            sd = math.sqrt(sum((v - mean) ** 2 for v in y) / len(y))
-            peaks = find_peaks(y, distance=int(fs * 0.33), prominence=0.3 * sd)
-            ibi = [(q - p) / fs for p, q in zip(peaks, peaks[1:])]
-            ibi = [v for v in ibi if 0.3 < v < 2.0]
-            row["beats"] = len(peaks)
-            if len(ibi) >= 5:
-                row["heart_rate_bpm"] = 60.0 / median(ibi)
-        out.append(row)
+            candidate, periodicity = _autocorr_bpm(bandpass([v - med for v in x], fs, 0.6, 3.3), fs)
+        accepted = candidate is not None and acceptance >= min_acceptance and periodicity >= min_periodicity
+        out.append({"start_unix": b[0]["unix_s"], "end_unix": b[-1]["unix_s"], "seconds": len(b),
+                    "burst_counter": b[0]["burst_counter"], "acceptance_fraction": acceptance,
+                    "periodicity": periodicity, "candidate_bpm": candidate,
+                    "heart_rate_bpm": candidate if accepted else None})
     return out

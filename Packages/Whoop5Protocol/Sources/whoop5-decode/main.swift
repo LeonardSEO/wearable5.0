@@ -78,6 +78,21 @@ if args.first == "--spo2-windows", args.count == 2 {
     }
     exit(0)
 }
+if args.first == "--r26-bursts", args.count == 2 {
+    // frames.jsonl -> one line per R26 burst, to compare the twins on real captures
+    var recs: [(RecordHeader, R26)] = []
+    for line in try String(contentsOfFile: args[1], encoding: .utf8).split(separator: "\n") {
+        guard let obj = try? JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any],
+              let hex = obj["hex"] as? String, let raw = bytes(hex),
+              case .record(let h, .compactOptical(let r))? = try? Whoop5Decoder.decode(raw) else { continue }
+        recs.append((h, r))
+    }
+    for b in Whoop5Experimental.hrFromR26(recs) {
+        print(b.startUnix, b.seconds, b.acceptanceFraction, b.periodicity,
+              b.candidateBpm.map { String($0) } ?? "nil", b.heartRateBpm.map { String($0) } ?? "nil")
+    }
+    exit(0)
+}
 if args.first == "--parity", args.count == 2 {
     let data = try Data(contentsOf: URL(fileURLWithPath: args[1]))
     let vectors = try JSONSerialization.jsonObject(with: data) as! [[String: Any]]

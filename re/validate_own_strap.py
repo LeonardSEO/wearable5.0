@@ -13,7 +13,8 @@ least MIN_NIGHTS paired nights: the evidence of this owner's strap, nothing else
 Checks:
   decoder          every frame decodes; no unknown layouts or lengths (all frames)
   rr_unit          R18 R-R is milliseconds: median HR x mean(R-R) / 60000 is ~1 (asleep records)
-  r26_hr           heart rate from the R26 25 Hz waveform tracks R18 heart rate; a time-shuffle control fails
+  r26_hr           on the bursts hr_from_r26 accepts, R26 heart rate tracks R18; a time-shuffle control fails.
+                   Also reports how many bursts it accepts and the error without its filter
   r21_scale        R21 accel is 4096 LSB/g: at rest |a| / 4096 is ~1 g (README H5)
   sleep_onset/wake sleep period from the R18 band state vs WHOOP's sleep onset / wake onset (D3)
   spo2             nightly mean of the R18 byte-82 window medians vs WHOOP blood oxygen (D2)
@@ -246,10 +247,15 @@ def run(folder: str) -> dict:
     c["rr_unit"] = {"records": len(ratios), "median_ratio": v, "verdict": verdict("rr_unit", v, len(ratios) >= 1000)}
 
     hr_at = {t: r["heart_rate"] for t, r in d["r18"].items() if 25 <= (r.get("heart_rate") or 0) <= 230}
-    pairs26 = []
+    pairs26, candidates, bursts26 = [], [], 0
     for b in hr_from_r26(list(d["r26"].values())):
         ref = [hr_at[t] for t in range(b["start_unix"], b["end_unix"] + 1) if t in hr_at]
-        if b["heart_rate_bpm"] and ref:
+        if not ref:
+            continue
+        bursts26 += 1
+        if b["candidate_bpm"]:
+            candidates.append(abs(b["candidate_bpm"] - sum(ref) / len(ref)))
+        if b["heart_rate_bpm"]:
             pairs26.append((b["heart_rate_bpm"], sum(ref) / len(ref)))
     mae = sum(abs(a - b) for a, b in pairs26) / len(pairs26) if pairs26 else None
     shuffled = [p[1] for p in pairs26]
@@ -258,7 +264,8 @@ def run(folder: str) -> dict:
     ok26 = verdict("r26_hr", mae, len(pairs26) >= 20)
     if ok26 == "PASS" and mae_ctl is not None and mae_ctl < 2 * mae:
         ok26 = "FAIL"  # no better than chance pairing: the agreement says nothing
-    c["r26_hr"] = {"bursts": len(pairs26), "mae_bpm": mae, "shuffled_mae_bpm": mae_ctl, "verdict": ok26}
+    c["r26_hr"] = {"accepted_bursts": len(pairs26), "of_bursts": bursts26, "mae_bpm": mae, "shuffled_mae_bpm": mae_ctl,
+                   "unfiltered_mae_bpm": sum(candidates) / len(candidates) if candidates else None, "verdict": ok26}
 
     still = {t for t, r in d["r18"].items() if (r.get("dynamic_accel_g") or 1) < 0.02}
     g = [m for t, m in d["r21_g"] if t in still]

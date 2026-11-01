@@ -281,13 +281,43 @@ run on the captured night and cross-checked against numpy/scipy:
   RSA at 9 / 14 / 18 per min is recovered as 9.0 / 14.1 / 18.0. No breathing reference on this night.
 - **`skin_temp_baseline`**: nightly mean **33.82 °C** (min 31.41, max 34.99, sd 0.70); deviation needs a
   second night or a given baseline.
-- **`hr_from_r26`**: the §11 method (band-pass 0.6–3.3 Hz, inverted peaks, median IBI) with a biquad
-  Butterworth instead of scipy: **r = 0.95, MAE 1.4 bpm** against R18 over 17 bursts (46–66 bpm), r = 0.994
-  against the scipy version.
+- **`hr_from_r26`**: replaced in §16. This capture is now 15 of 17 bursts accepted, **r = 0.97, MAE 1.0 bpm**
+  against R18 (46–66 bpm).
 
 All four are experimental: one night, one wearer, no sleep-stage, breathing or thermometer reference.
 
-## 16. Sources
+## 16. R26 heart rate fails awake: cause and quality filter (own strap, new)
+
+Five days of one owner's strap (one wearer, 286 R26 bursts with an R18 reference; `re/analyze_r26_failure.py`,
+`re/results/r26_failure.txt`). The earlier r = 0.95 came from one sleeping night and did not generalise.
+
+- **Motion is the main cause.** With the old peak-interval method, reference below 90 bpm: median error 0.8 bpm
+  still, 6.4 bpm moving. Almost every burst at 90 bpm or more was also moving (39 of 40), so high heart rate
+  alone is **not separated** from motion.
+- **The pulse drowns.** Power at the reference heart rate against the background is about 2,000× asleep and
+  about 14× awake.
+- **It is not locking onto arm swing.** Wrong readings sit at the wrist-motion frequency no more often than right
+  ones (20 % against 26 %). The cause is broadband motion noise, not one periodic artefact.
+- **Asleep, four bursts read double** (a second dip in the pulse counted as a beat): 125 against 63 bpm.
+
+`hr_from_r26` now takes the strongest autocorrelation peak (0 doubled readings) and returns `heart_rate_bpm` only
+when the strap's `acceptance_raw` covers at least half the burst and the peak height is at least 0.3. The
+filter was picked on these same bursts, so its value is untested on new data.
+
+| | bursts | MAE | within 3 bpm |
+|---|---:|---:|---:|
+| old method, all | 229 | 10.0 | 46 % |
+| new, unfiltered `candidate_bpm` | 234 | 19.1 | 37 % |
+| **new, accepted** | **98 of 286** | **1.7** | **87 %** |
+| accepted, first / second half of the data | 48 / 50 | 1.7 / 1.7 | 90 % / 84 % |
+| accepted, asleep | 75 | 1.1 | 92 % |
+| accepted, awake | 14 | 5.8 | 50 % |
+
+Limits: two thirds of bursts now give no heart rate, nearly all of them awake. The few accepted awake bursts are
+not reliable. Nothing above 87 bpm was accepted, so this says nothing about exercise. Awake, R18 rarely carries
+R-R, so the reference there is the strap's own unconfirmed algorithm. One wearer.
+
+## 17. Sources
 
 - Official WHOOP Android app 5.473.0 (static analysis for interoperability; nothing reproduced).
 - [ryanbr/noop](https://github.com/ryanbr/noop) protocol docs, test vectors and the #1992 corpus

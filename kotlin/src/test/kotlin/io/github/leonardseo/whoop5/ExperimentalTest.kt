@@ -21,14 +21,15 @@ class ExperimentalTest {
             R18(hr, emptyList(), 0, 0, 0f, Triple(0f, 0f, 1f), 0, 0, 0, 0, 0, 0, 3300 + t / 100, bits, 0)
     }
 
+    private val pulse = (0 until 30 * 25).map { i -> 100000L + 2 * i - (if (i % 20 < 3) 800 else 0) }
+    private fun r26Rec(x: List<Long>, unix: Long, idx: Long, burst: Int, k: Int, acceptance: Int = 1) =
+        RecordHeader(47, 26, 0x80, idx, unix, 0) to
+            Whoop5Record.CompactOptical(burst, x.subList(25 * k, 25 * k + 25), 0f, 0, 0, acceptance)
+
     private fun r26Records(): List<Pair<RecordHeader, Whoop5Record.CompactOptical>> {
-        val x = (0 until 30 * 25).map { i -> 100000L + 2 * i - (if (i % 20 < 3) 800 else 0) }
-        fun rec(unix: Long, idx: Long, burst: Int, k: Int) =
-            RecordHeader(47, 26, 0x80, idx, unix, 0) to
-                Whoop5Record.CompactOptical(burst, x.subList(25 * k, 25 * k + 25), 0f, 0, 0, 0)
-        val recs = (0 until 30).map { rec(5000L + it, it.toLong(), 3, it) }.toMutableList()
+        val recs = (0 until 30).map { r26Rec(pulse, 5000L + it, it.toLong(), 3, it) }.toMutableList()
         recs.add(recs[4])
-        recs += (0 until 5).map { rec(6000L + it, 100L + it, 4, it) }
+        recs += (0 until 5).map { r26Rec(pulse, 6000L + it, 100L + it, 4, it) }
         return recs
     }
 
@@ -74,17 +75,37 @@ class ExperimentalTest {
 
     @Test fun hrFromR26() {
         val out = Whoop5Experimental.hrFromR26(r26Records())
-        assertEquals(listOf(listOf(5000L, 5029L, 30L, 3L, 37L), listOf(6000L, 6004L, 5L, 4L, 0L)),
-            out.map { listOf(it.startUnix, it.endUnix, it.seconds.toLong(), it.burstCounter.toLong(), it.beats.toLong()) })
-        assertEquals(75.0, out[0].heartRateBpm!!, 1e-9)
+        assertEquals(listOf(listOf(5000L, 5029L, 30L, 3L), listOf(6000L, 6004L, 5L, 4L)),
+            out.map { listOf(it.startUnix, it.endUnix, it.seconds.toLong(), it.burstCounter.toLong()) })
+        assertEquals(74.89566088240728, out[0].heartRateBpm!!, 1e-9)
+        assertEquals(0.9365436789523954, out[0].periodicity, 1e-9)
+        assertEquals(1.0, out[0].acceptanceFraction)
+        assertNull(out[1].candidateBpm)
         assertNull(out[1].heartRateBpm)
     }
 
-    @Test fun findPeaksMatchesScipy() {
-        val y = listOf(0.0, 2.0, 1.0, 3.0, 1.0, 0.0, 5.0, 4.0, 5.0, 0.0)
-        assertEquals(listOf(1, 3, 6, 8), Whoop5Experimental.findPeaks(y))
-        assertEquals(listOf(3, 8), Whoop5Experimental.findPeaks(y, distance = 3))
-        assertEquals(listOf(6, 8), Whoop5Experimental.findPeaks(y, prominence = 4.0))
+    @Test fun strapRejectionKeepsTheCandidateButNoHeartRate() {
+        val b = Whoop5Experimental.hrFromR26((0 until 30).map { r26Rec(pulse, 5000L + it, it.toLong(), 3, it, 0) })[0]
+        assertEquals(74.89566088240728, b.candidateBpm!!, 1e-9)
+        assertNull(b.heartRateBpm)
+    }
+
+    @Test fun lowPeriodicityGivesNoHeartRate() {
+        assertNull(Whoop5Experimental.hrFromR26(r26Records(), minPeriodicity = 0.99)[0].heartRateBpm)
+    }
+
+    @Test fun secondDipDoesNotDoubleTheRate() {
+        // 75 bpm with a second, smaller dip half a period later: counting dips would read 150 bpm
+        val x = (0 until 30 * 25).map { i -> 100000L - (if (i % 20 < 3) 800 else if (i % 20 in 10 until 13) 500 else 0) }
+        val b = Whoop5Experimental.hrFromR26((0 until 30).map { r26Rec(x, 5000L + it, it.toLong(), 3, it) })[0]
+        assertEquals(74.93825808935108, b.heartRateBpm!!, 1e-9)
+    }
+
+    @Test fun flatSignalGivesNothing() {
+        val flat = List(30 * 25) { 100000L }
+        val b = Whoop5Experimental.hrFromR26((0 until 30).map { r26Rec(flat, 5000L + it, it.toLong(), 3, it) })[0]
+        assertNull(b.candidateBpm)
+        assertEquals(0.0, b.periodicity)
     }
 
     @Test fun bandpassPasses1HzRejectsDrift() {
@@ -115,6 +136,6 @@ class ExperimentalCorpusReport {
         val rr = r18.sortedBy { it.first.unix }.distinctBy { it.first.unix }.flatMap { it.second.rrMs }
         Whoop5Experimental.respiratoryRate(rr).take(5).forEach { println("RESP $it") }
         Whoop5Experimental.skinTempBaseline(r18).forEach { println("SKIN $it") }
-        Whoop5Experimental.hrFromR26(r26).forEach { println("R26 ${it.startUnix} ${it.heartRateBpm}") }
+        Whoop5Experimental.hrFromR26(r26).forEach { println("R26 ${it.startUnix} ${it.candidateBpm} ${it.periodicity} ${it.heartRateBpm}") }
     }
 }

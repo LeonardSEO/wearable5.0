@@ -6,7 +6,7 @@ import unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from whoop5.experimental import (bandpass, find_peaks, hr_from_r26, respiratory_rate,  # noqa: E402
+from whoop5.experimental import (bandpass, hr_from_r26, respiratory_rate,  # noqa: E402
                                  skin_temp_baseline, sleep_periods)
 
 
@@ -23,14 +23,24 @@ def night():
              "skin_temp_c": (3300 + t // 100) / 100} for t in range(4000)]
 
 
-def r26_records():
+def r26_records(acceptance=1):
     x = [100000 + 2 * i - (800 if i % 20 < 3 else 0) for i in range(30 * 25)]  # a dip every 0.8 s = 75 bpm
-    recs = [{"layout": 26, "unix_s": 5000 + k, "record_index": k, "burst_counter": 3, "samples": x[25 * k:25 * k + 25]}
-            for k in range(30)]
+    recs = [{"layout": 26, "unix_s": 5000 + k, "record_index": k, "burst_counter": 3, "acceptance_raw": acceptance,
+             "samples": x[25 * k:25 * k + 25]} for k in range(30)]
     recs.append(dict(recs[4]))  # duplicate record_index: dropped
-    recs += [{"layout": 26, "unix_s": 6000 + k, "record_index": 100 + k, "burst_counter": 4,
+    recs += [{"layout": 26, "unix_s": 6000 + k, "record_index": 100 + k, "burst_counter": 4, "acceptance_raw": 1,
               "samples": x[25 * k:25 * k + 25]} for k in range(5)]  # 5 s burst: too short
     return recs
+
+
+def r26_dicrotic():
+    # 75 bpm with a second, smaller dip half a period later: counting dips would read 150 bpm
+    x = [100000 - (800 if i % 20 < 3 else 500 if 10 <= i % 20 < 13 else 0) for i in range(30 * 25)]
+    return [{"layout": 26, "unix_s": 5000 + k, "record_index": k, "burst_counter": 3, "acceptance_raw": 1,
+             "samples": x[25 * k:25 * k + 25]} for k in range(30)]
+
+
+PULSE_BPM, PULSE_PERIODICITY, DICROTIC_BPM = 74.89566088240728, 0.9365436789523954, 74.93825808935108
 
 
 class SleepPeriods(unittest.TestCase):
@@ -86,16 +96,34 @@ class SkinTemp(unittest.TestCase):
 class HrFromR26(unittest.TestCase):
     def test_pulse_train(self):
         out = hr_from_r26(r26_records())
-        self.assertEqual([(b["start_unix"], b["end_unix"], b["seconds"], b["burst_counter"], b["beats"]) for b in out],
-                         [(5000, 5029, 30, 3, 37), (6000, 6004, 5, 4, 0)])
-        self.assertAlmostEqual(out[0]["heart_rate_bpm"], 75.0, places=9)
+        self.assertEqual([(b["start_unix"], b["end_unix"], b["seconds"], b["burst_counter"]) for b in out],
+                         [(5000, 5029, 30, 3), (6000, 6004, 5, 4)])
+        self.assertAlmostEqual(out[0]["heart_rate_bpm"], PULSE_BPM, places=9)
+        self.assertAlmostEqual(out[0]["periodicity"], PULSE_PERIODICITY, places=9)
+        self.assertEqual(out[0]["acceptance_fraction"], 1.0)
+        self.assertIsNone(out[1]["candidate_bpm"])
         self.assertIsNone(out[1]["heart_rate_bpm"])
 
-    def test_find_peaks_matches_scipy(self):
-        y = [0, 2, 1, 3, 1, 0, 5, 4, 5, 0]  # expected values from scipy.signal.find_peaks
-        self.assertEqual(find_peaks(y), [1, 3, 6, 8])
-        self.assertEqual(find_peaks(y, distance=3), [3, 8])
-        self.assertEqual(find_peaks(y, prominence=4), [6, 8])
+    def test_strap_rejection_keeps_the_candidate_but_no_heart_rate(self):
+        b = hr_from_r26(r26_records(acceptance=0))[0]
+        self.assertAlmostEqual(b["candidate_bpm"], PULSE_BPM, places=9)
+        self.assertEqual(b["acceptance_fraction"], 0.0)
+        self.assertIsNone(b["heart_rate_bpm"])
+
+    def test_low_periodicity_gives_no_heart_rate(self):
+        b = hr_from_r26(r26_records(), min_periodicity=0.99)[0]
+        self.assertIsNotNone(b["candidate_bpm"])
+        self.assertIsNone(b["heart_rate_bpm"])
+
+    def test_second_dip_does_not_double_the_rate(self):
+        self.assertAlmostEqual(hr_from_r26(r26_dicrotic())[0]["heart_rate_bpm"], DICROTIC_BPM, places=9)
+
+    def test_flat_signal_gives_nothing(self):
+        recs = [{"layout": 26, "unix_s": 5000 + k, "record_index": k, "burst_counter": 3, "acceptance_raw": 1,
+                 "samples": [100000] * 25} for k in range(30)]
+        b = hr_from_r26(recs)[0]
+        self.assertIsNone(b["candidate_bpm"])
+        self.assertEqual(b["periodicity"], 0.0)
 
     def test_bandpass_passes_1hz_rejects_drift(self):
         import math
