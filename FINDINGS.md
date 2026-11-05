@@ -337,8 +337,16 @@ Firmware 50.43.2.0, one strap, `re/probe_read_pointer.py`; the official app neve
 - **Serving follows trim, not the pointer.** `SEND_HISTORICAL_DATA` with arguments 0 to 3 returns the pointer to trim
   and serves the same records. Moving the pointer during a transfer serves nothing new. With the pointer on an old
   page, a valid `HISTORICAL_DATA_RESULT` advances trim normally and the next chunk continues from trim.
-- **Trim did not go back.** `HISTORICAL_DATA_RESULT` with a page 100 behind trim got no reply and changed nothing.
-  `FORCE_TRIM` (25) was not tried. No route to re-read trimmed history is known.
+- **An older acknowledgement during a burst moves trim back.** Outside a transfer, `HISTORICAL_DATA_RESULT` with an
+  older page gets no reply and changes nothing. During a transfer, after the first HISTORY_END, the same frame sets
+  trim to that page and the strap serves from there: trim went 2729 to 2629 and records from 20 minutes earlier
+  arrived. Four separate spans across the ring (wrap count 6) re-read completely, at about 120x realtime, and a final
+  acknowledgement put trim back to where it started. The firmware's own log shows the read-pointer payload is page
+  u32 + wrap u32 ("Force Read Pointer; read page:2554 wrap count:…").
+
+So trimmed history can be re-read while the ring still holds it (about 3 weeks at this data rate). A night can go to
+the official app and still be read raw afterwards. `FORCE_TRIM` (25) was not needed and was not tried. Tried on one
+strap and one firmware; whether the official app is affected by the moves is not known beyond trim being restored.
 
 ## 18. Sources
 

@@ -1,11 +1,13 @@
 """Probe SET_READ_POINTER(33) on your own WHOOP 5.0 / MG: can the strap re-serve history it already trimmed?
 
-Untested on this strap family and not used by the official app. Never sends FORCE_TRIM(25) and never acknowledges
-history, except `rewind`, which sends HISTORICAL_DATA_RESULT with an older page. Every received frame goes to
+Not used by the official app. Never sends FORCE_TRIM(25). Only drain, fetch, rewind and midstream acknowledge history;
+fetch and midstream --ack-older move trim backwards (FINDINGS §17), which makes the strap serve that history again. Every received frame goes to
 <out>/frames.jsonl. Quit NOOP and the WHOOP app first: the strap serves one central at a time.
 
   range          read write/trim/capacity only
   probe TARGET   try each payload, read back with GET_DATA_RANGE; stops as soon as the range changes
+  fetch          re-read --span with an older acknowledgement during a burst, then optionally --restore trim
+  drain          a normal sync with acknowledgements, up to --seconds
   midstream PAGE move the pointer while history is being served, no acknowledgement
   rewind STEP    IRREVERSIBLE RISK: acknowledge a page STEP behind trim, read back, then peek
   times --pages  move the pointer to each page and read the time stored there; no history is requested
@@ -91,6 +93,32 @@ class Strap:
                 "write": w, "trim": u, "capacity": cap, "behind": (w - u) % cap if cap else None, "hex": f.hex()}
 
 
+def page_wrap(behind: int, r: dict) -> tuple[int, int]:
+    """Page and wrap count `behind` pages before the write head; pages above it are from the previous ring pass."""
+    wrap = struct.unpack_from("<I", bytes.fromhex(r["hex"]), 30)[0]
+    page = r["write"] - behind
+    return (page, wrap) if page >= 0 else (page + r["capacity"], wrap - 1)
+
+
+async def time_of(s: "Strap", page: int, wrap: int) -> int:
+    await s.send(SET_READ_POINTER, struct.pack("<II", page, wrap))
+    await asyncio.sleep(0.15)
+    r = await s.data_range()
+    return struct.unpack_from("<I", bytes.fromhex(r["hex"]), 62)[0]
+
+
+async def find_page(s: "Strap", when: float, r: dict) -> tuple[int, int]:
+    """Binary search by distance behind the write head: stored times grow towards the head."""
+    lo, hi = 1, r["capacity"] - 200
+    while hi - lo > 8:
+        mid = (lo + hi) // 2
+        if await time_of(s, *page_wrap(mid, r)) > when:
+            lo = mid
+        else:
+            hi = mid
+    return page_wrap(hi, r)
+
+
 async def run(args) -> int:
     os.makedirs(args.out, exist_ok=True)
     print("scanning ...", flush=True)
@@ -109,7 +137,69 @@ async def run(args) -> int:
         print("range:", {k: v for k, v in (before or {}).items() if k != "hex"}, flush=True)
         if not before:
             return 3
-        if args.mode == "midstream":
+        if args.mode == "fetch":
+            # Re-read one time span: an older acknowledgement during a burst moves trim back; afterwards trim is
+            # left where the span ended, or at --restore PAGE:WRAP.
+            parse = lambda v: dt.datetime.strptime(v, "%Y-%m-%d %H:%M").timestamp()
+            start, stop = parse(args.span[0]), parse(args.span[1])
+            page, wrap = await find_page(s, start, before)
+            print(f"start page {page} wrap {wrap} at", dt.datetime.fromtimestamp(await time_of(s, page, wrap)), flush=True)
+            s.meta.clear()
+            await s.send(SEND_HISTORY, b"\x00")
+            end = time.time() + 15
+            while time.time() < end and not any(m[0] == 2 for m in s.meta):
+                await asyncio.sleep(0.05)
+            if not any(m[0] == 2 for m in s.meta):
+                print("no first chunk")
+                return 5
+            s.records.clear()
+            s.meta.clear()
+            await s.send(HISTORY_RESULT, b"\x01" + struct.pack("<II", page, wrap))
+            acked, last, t0 = 0, time.time(), time.time()
+            while time.time() - last < 25:
+                ends = [m for m in s.meta if m[0] == 2]
+                newest = max((t for _, t in s.records), default=0)
+                if len(ends) > acked:
+                    acked = len(ends)
+                    last = time.time()
+                    if acked % 20 == 0:
+                        rate = (newest - start) / max(1, time.time() - t0)
+                        print(f"chunk {acked} at {dt.datetime.fromtimestamp(newest)}, {rate:.1f}x realtime", flush=True)
+                    if newest >= stop:
+                        break
+                    await s.send(HISTORY_RESULT, b"\x01" + s.end_token)
+                await asyncio.sleep(0.02)
+            times = [t for _, t in s.records]
+            print(f"chunks {acked}, records {len(times)}, {dt.datetime.fromtimestamp(min(times))} .. "
+                  f"{dt.datetime.fromtimestamp(max(times))}" if times else "no records", flush=True)
+            if args.restore:
+                p, w = (int(v) for v in args.restore.split(":"))
+                await s.send(HISTORY_RESULT, b"\x01" + struct.pack("<II", p, w))
+                await asyncio.sleep(1)
+                print("restored to", p, w, flush=True)
+            await s.send(ABORT_HISTORY, b"\x00")
+            await asyncio.sleep(1)
+            r = await s.data_range()
+            print("end:", {k: v for k, v in (r or {}).items() if k != "hex"}, flush=True)
+        elif args.mode == "drain":
+            # A normal sync: every HISTORY_END is logged to frames.jsonl (flushed) before its acknowledgement.
+            s.meta.clear()
+            s.records.clear()
+            await s.send(SEND_HISTORY, b"\x00")
+            acked, last, end = 0, time.time(), time.time() + args.seconds
+            while time.time() < end and time.time() - last < 15:
+                ends = [m for m in s.meta if m[0] == 2]
+                if len(ends) > acked:
+                    acked = len(ends)
+                    last = time.time()
+                    await s.send(HISTORY_RESULT, b"\x01" + s.end_token)
+                if any(m[0] == 3 for m in s.meta):
+                    break
+                await asyncio.sleep(0.05)
+            await asyncio.sleep(1)
+            r = await s.data_range()
+            print(f"chunks {acked}, records {len(s.records)}, end:", {k: v for k, v in (r or {}).items() if k != "hex"}, flush=True)
+        elif args.mode == "midstream":
             s.records.clear()
             s.meta.clear()
             await s.send(SEND_HISTORY, b"\x00")
@@ -119,7 +209,15 @@ async def run(args) -> int:
             fmt = lambda t: dt.datetime.fromtimestamp(t).strftime("%m-%d %H:%M:%S")
             first = len(s.records)
             print(f"first chunk: {first} records, meta {s.meta[:2]}", flush=True)
-            await s.send(SET_READ_POINTER, struct.pack("<I", args.target))
+            if args.ack_older:
+                wrap = struct.unpack_from("<I", s.end_token, 4)[0]
+                print(f"in-burst ack to page {args.target} wrap {wrap}", flush=True)
+                await s.send(HISTORY_RESULT, b"\x01" + struct.pack("<II", args.target, wrap))
+                await asyncio.sleep(1)
+                r = await s.data_range()
+                print("right after:", {k: v for k, v in (r or {}).items() if k != "hex"}, flush=True)
+            else:
+                await s.send(SET_READ_POINTER, struct.pack("<I", args.target))
             if args.ack_current:
                 await asyncio.sleep(0.3)
                 print("ack token", s.end_token.hex(), flush=True)
@@ -181,6 +279,8 @@ async def run(args) -> int:
         elif args.mode == "peek":
             if args.target is not None:
                 label, pl = payloads(args.target)[args.payload]
+                if args.wrap is not None:
+                    label, pl = f"page+wrap {args.wrap}", struct.pack("<II", args.target, args.wrap)
                 await s.send(SET_READ_POINTER, pl)
                 print(f"33 {label} {pl.hex()} reply={(await s.reply(SET_READ_POINTER, seconds=2) or b'').hex()}", flush=True)
             s.records.clear()
@@ -202,7 +302,7 @@ async def run(args) -> int:
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("mode", choices=["range", "probe", "peek", "times", "rewind", "midstream"])
+    ap.add_argument("mode", choices=["range", "probe", "peek", "times", "rewind", "midstream", "drain", "fetch"])
     ap.add_argument("target", nargs="?", type=int)
     ap.add_argument("--out", required=True)
     ap.add_argument("--pages", type=int, nargs="*", default=[])
@@ -210,6 +310,10 @@ if __name__ == "__main__":
     ap.add_argument("--payload", type=int, default=0)
     ap.add_argument("--history-arg", type=int, default=0)
     ap.add_argument("--ack-current", action="store_true")
+    ap.add_argument("--wrap", type=int)
+    ap.add_argument("--span", nargs=2, help='"YYYY-MM-DD HH:MM" start and stop, local time')
+    ap.add_argument("--restore", help="PAGE:WRAP to leave trim at after a fetch")
+    ap.add_argument("--ack-older", action="store_true")
     a = ap.parse_args()
     if a.mode == "probe" and a.target is None:
         ap.error("probe needs TARGET")

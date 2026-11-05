@@ -153,6 +153,7 @@ owners. None of them blocks using the library; they limit how far a client shoul
 |---|---|---|---|
 | H1 | Full connect → bond → hello → sync session on iOS, macOS and Android | Built from verified frames, never run end-to-end by this project | Pair a 5.0 and run a complete offload through a client using this library |
 | H2 | Bonding refusals on some Android phones | Strap refuses SMP pairing in an HCI capture (NOOP #1635); cause open | Controlled pairing attempts with HCI logging |
+| H9 | Re-reading trimmed history | **Works on one strap** (fw 50.43.2): an older `HISTORICAL_DATA_RESULT` during a burst moves trim back, about 120x realtime; §17 | Other firmware and straps |
 | H4 | HISTORY_END token second word (write-wrap state) | Echoed verbatim, meaning inferred | Offload across a ring wrap |
 | H5 | R21 IMU scale (4096 LSB/g, ±2000 °/s) and 100 Hz rate | Candidate only | Strap flat on a table (‖a‖ = 1 g) plus one timed 360° rotation |
 | H6 | Dedicated IMU stream packets 51/52 | Layout documented, never observed | Enable IMU streaming and capture |

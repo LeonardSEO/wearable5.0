@@ -17,7 +17,7 @@ demand into `re/corpus/` (gitignored); only scripts and results are committed.
 | `analyze_overnight_r18.py` | One night of R18 described | `results/overnight_r18.txt` |
 | `analyze_r18_b82_windows.py` | Byte-82 SpO₂ measurement windows | `results/r18_b82_windows.txt`, `results/spo2_windows_ios_night.txt` |
 | `analyze_r26.py` | R26 contiguity and heart rate vs R18 | `results/r26_analysis.txt` |
-| `probe_read_pointer.py` | Does SET_READ_POINTER(33) reach old history? Sends commands to your own strap; never acknowledges | `frames.jsonl`, summarised in FINDINGS §17 |
+| `probe_read_pointer.py` | Probe the read pointer and re-read trimmed history from your own strap (`fetch`). Moves trim; see its header | `frames.jsonl`, summarised in FINDINGS §17 |
 | `analyze_r26_failure.py` | Why R26 heart rate fails awake, and what `hr_from_r26` accepts now | `results/r26_failure.txt`, summarised in FINDINGS §16 |
 | `analyze_experimental_metrics.py` | Sleep periods, respiratory rate, skin temperature and R26 HR (library helpers) on a night, vs numpy/scipy | `results/experimental_metrics.txt` |
 | `analyze_r20_config.py` | R20 block configuration and two-channel bursts per session | `results/r20_config_bursts.txt` |
