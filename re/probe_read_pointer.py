@@ -7,6 +7,7 @@ fetch and midstream --ack-older move trim backwards (FINDINGS §17), which makes
   range          read write/trim/capacity only
   probe TARGET   try each payload, read back with GET_DATA_RANGE; stops as soon as the range changes
   fetch          re-read --span with an older acknowledgement during a burst, then optionally --restore trim
+                 (--resume continues a dropped multi-day fetch from the current trim; re-launch until it reaches stop)
   drain          a normal sync with acknowledgements, up to --seconds
   midstream PAGE move the pointer while history is being served, no acknowledgement
   rewind STEP    IRREVERSIBLE RISK: acknowledge a page STEP behind trim, read back, then peek
@@ -143,8 +144,6 @@ async def run(args) -> int:
             # left where the span ended, or at --restore PAGE:WRAP.
             parse = lambda v: dt.datetime.strptime(v, "%Y-%m-%d %H:%M").timestamp()
             start, stop = parse(args.span[0]), parse(args.span[1])
-            page, wrap = await find_page(s, start, before)
-            print(f"start page {page} wrap {wrap} at", dt.datetime.fromtimestamp(await time_of(s, page, wrap)), flush=True)
             s.meta.clear()
             await s.send(SEND_HISTORY, b"\x00")
             end = time.time() + 15
@@ -155,8 +154,15 @@ async def run(args) -> int:
                 return 5
             s.records.clear()
             s.meta.clear()
-            await s.send(HISTORY_RESULT, b"\x01" + struct.pack("<II", page, wrap))
-            acked, last, t0 = 0, time.time(), time.time()
+            if args.resume:
+                # Serving already follows trim; a dropped multi-day fetch continues from where trim was left.
+                print(f"resuming from trim {before['trim']} ({before['pointer_time']})", flush=True)
+            else:
+                page, wrap = await find_page(s, start, before)
+                print(f"start page {page} wrap {wrap} at", dt.datetime.fromtimestamp(await time_of(s, page, wrap)),
+                      flush=True)
+                await s.send(HISTORY_RESULT, b"\x01" + struct.pack("<II", page, wrap))
+            acked, last, t0, reached = 0, time.time(), time.time(), False
             while time.time() - last < 25:
                 ends = [m for m in s.meta if m[0] == 2]
                 newest = max((t for _, t in s.records), default=0)
@@ -167,13 +173,16 @@ async def run(args) -> int:
                         rate = (newest - start) / max(1, time.time() - t0)
                         print(f"chunk {acked} at {dt.datetime.fromtimestamp(newest)}, {rate:.1f}x realtime", flush=True)
                     if newest >= stop:
+                        reached = True
                         break
                     await s.send(HISTORY_RESULT, b"\x01" + s.end_token)
                 await asyncio.sleep(0.02)
             times = [t for _, t in s.records]
             print(f"chunks {acked}, records {len(times)}, {dt.datetime.fromtimestamp(min(times))} .. "
                   f"{dt.datetime.fromtimestamp(max(times))}" if times else "no records", flush=True)
-            if args.restore:
+            if reached:
+                print("reached stop", flush=True)
+            if reached and args.restore:
                 p, w = (int(v) for v in args.restore.split(":"))
                 await s.send(HISTORY_RESULT, b"\x01" + struct.pack("<II", p, w))
                 await asyncio.sleep(1)
@@ -314,6 +323,7 @@ if __name__ == "__main__":
     ap.add_argument("--wrap", type=int)
     ap.add_argument("--span", nargs=2, help='"YYYY-MM-DD HH:MM" start and stop, local time')
     ap.add_argument("--restore", help="PAGE:WRAP to leave trim at after a fetch")
+    ap.add_argument("--resume", action="store_true", help="continue a dropped fetch from the current trim, no seek")
     ap.add_argument("--ack-older", action="store_true")
     a = ap.parse_args()
     if a.mode == "probe" and a.target is None:
