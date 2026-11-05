@@ -95,6 +95,11 @@ documented only.
 
 ## 4. Gaps worth closing (what is missing or weak today)
 
+- **Strain — pipeline built (`re/strain_model.py`), fit blocked on data overlap.** The HR to zone to Edwards-TRIMP to
+  log-strain mechanism works and is tested; running it shows the gap precisely: the full-day-HR days (28-31 Oct, synced
+  to NOOP) have no WHOOP Day Strain, and the days that have a strain (1/3 Nov) were only re-read overnight (<= 12 h). No
+  day has both yet. Closing it: re-read a full 24 h span (not just the night) for days that carry a WHOOP Day Strain,
+  then the fit runs. Zones use % of max HR seen; WHOOP's zone-defining max may differ.
 - **On-demand SpO₂ / optical measurement.** Today SpO₂ (byte 82) only appears in the strap's own ~20-minute sleep
   windows. The strap has optical-enable commands (107/108/81), so a *candidate* is to drive an optical capture
   awake and derive SpO₂ or HR on demand. **Unverified**: the app strings for "on_demand" / "manual measurement"
