@@ -72,6 +72,13 @@ documented only.
   fields and every score path is a fetch or a leaderboard read (`community-service/.../recovery/score`, etc.). So a
   client **cannot** extract WHOOP's scoring model from the app — it would have to reproduce it from the raw inputs
   itself, which is exactly what this project's experimental metrics do. The useful half is the input list below.
+  **Empirical route (`re/score_model.py`):** your export pairs each cycle's inputs (HRV, resting HR, respiratory rate,
+  sleep) with the score WHOOP gave it, and those pairs are yours. The script fits a model per score on your history and
+  reports how well it reproduces WHOOP, so a client can show the same numbers from the inputs this library decodes.
+  Caveats: recovery/strain are baseline-relative, so a fit reproduces *your* account's mapping, not a universal
+  formula; it needs the full export (>= 20 cycles), not one week; strain also needs per-second day HR (re-read frames)
+  for time-in-zone. First run on a 3-cycle export only showed sleep performance is **not** the naive asleep/need ratio
+  (33 % off on 3 nights) — worth settling on a full history.
 - **What the strap uploads (the raw inputs to the server model).** The app ships, over `api.prod.whoop.com`:
   raw frames (`research-metrics-service/v1/{raw,imu,optical}/upload`, `com.whoop.dataSyncService.rawdata`
   `RawDataUploadWorker`), sensor metrics (`metrics-service/v1/metrics/sensor`), strap and firmware events

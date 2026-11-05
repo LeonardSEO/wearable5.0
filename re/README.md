@@ -9,6 +9,7 @@ demand into `re/corpus/` (gitignored); only scripts and results are committed.
 | `organize_corpus.py` | Arrange harvested frames and original files into a local corpus with a manifest | `frames/`, `captures/`, `ground_truth/`, `MANIFEST.csv` |
 | `prepare_donation.py` | Turn your own archive, logs, HCI capture and WHOOP export into a privacy-safe donation zip | `frames.jsonl`, `whoop_export/`, `MANIFEST.json` |
 | `export_noop_db.py` | Export the raw frames NOOP keeps with `enableRawCapture` on (read-only snapshot of its database) | `frames.jsonl`, `whoop.sqlite` |
+| `score_model.py` | Reverse-engineer WHOOP's recovery/strain/sleep scores empirically from your own export (input/output pairs) | fit stats on stdout |
 | `validate_own_strap.py` | Every open claim checked on one owner's strap and WHOOP export, with thresholds fixed in advance | `REPORT.md`, `report.json` in the data folder |
 | `pklg_extract.py` | Extract 5/MG frames from an iOS PacketLogger (.pklg) or Android btsnoop capture | frames JSONL with direction and ATT handle |
 | `analyze_rr_unit.py` | Is R-R in ms or 1/1024 s? (0x2A37 vs R18, phone clock) | `results/rr_unit.txt` — milliseconds |
