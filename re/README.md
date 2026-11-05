@@ -37,6 +37,10 @@ python3 -m venv .venv && .venv/bin/pip install numpy scipy
 `python/`) decodes every frame of the local corpus. It is skipped when the variable is unset, so CI
 never needs the data.
 
+## What else to reverse-engineer
+
+[RE_OPPORTUNITIES.md](RE_OPPORTUNITIES.md) ranks what is left: the firmware-update protocol (app side mapped, strap side not automated), unexercised commands, the app and API, and the current gaps.
+
 ## Validating on your own strap
 
 Put NOOP snapshots (`export_noop_db.py`), re-read frames ([REREAD_HISTORY.md](REREAD_HISTORY.md)), HCI captures of the
