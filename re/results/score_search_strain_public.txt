@@ -1,0 +1,8 @@
+336 cycles from unverified__model_unverified__noop_issue_attachments__issue_3__whoop_days_shared.csv
+
+## strain: MODEL
+   7204 formulas on 228 cycles, judged on the newest 98
+   holdout error 1.51; guessing the mean 3.75; best shuffled run 3.49; exact 2%
+   picked (logit): max_hr^2 + diff30(rhr) + avg_hr/rhr
+   on all cycles (logit): max_hr^2 + diff30(rhr) + avg_hr/rhr  coef [-9.7813, 0.0001, 0.0742, 6.7827]  leave-one-out error 1.25
+

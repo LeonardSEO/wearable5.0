@@ -32,4 +32,9 @@ echo " 3. Day strain (HR zones -> TRIMP -> log fit, per WHOOP cycle)"
 echo "============================================================"
 "$PY" -I "$HERE/strain_model.py" "$DATA" "$EXPORT" | sed -n '/cycle start/,$p'
 echo
+echo "============================================================"
+echo " 4. Formula search over every input combination, with holdout and shuffle checks"
+echo "============================================================"
+"$PY" -I "$HERE/score_search.py" "$EXPORT" --frames "$DATA"
+echo
 echo "Done. Full SpO2 and metric detail: $DATA/REPORT.md and $DATA/report.json."
