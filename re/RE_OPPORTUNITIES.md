@@ -78,7 +78,10 @@ documented only.
   Caveats: recovery/strain are baseline-relative, so a fit reproduces *your* account's mapping, not a universal
   formula; it needs the full export (>= 20 cycles), not one week; strain also needs per-second day HR (re-read frames)
   for time-in-zone. First run on a 3-cycle export only showed sleep performance is **not** the naive asleep/need ratio
-  (33 % off on 3 nights) — worth settling on a full history.
+  (33 % off on 3 nights) — worth settling on a full history. First 3 cycles, preliminary: WHOOP sleep performance looks
+  capped near 95 % and curved (ratio 89/181/69 % mapped to 90/95/81 %), and recovery did **not** track absolute HRV/RHR
+  (its best HRV + lowest RHR night scored lowest), consistent with baseline-relative normalization. The account is ~2
+  weeks old, so there are only 3 scored cycles yet; the fit needs a few more weeks of wear.
 - **What the strap uploads (the raw inputs to the server model).** The app ships, over `api.prod.whoop.com`:
   raw frames (`research-metrics-service/v1/{raw,imu,optical}/upload`, `com.whoop.dataSyncService.rawdata`
   `RawDataUploadWorker`), sensor metrics (`metrics-service/v1/metrics/sensor`), strap and firmware events
