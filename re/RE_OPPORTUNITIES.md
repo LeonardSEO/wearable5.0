@@ -29,11 +29,22 @@ authenticated API rather than from a public CDN. Update strategies are `DefaultU
 `START_FIRMWARE_LOAD` (36/142) → `LOAD_FIRMWARE_DATA` (37/143) → `PROCESS_FIRMWARE_IMAGE` (38/144) →
 `VERIFY_FIRMWARE_IMAGE` (83); all are `destructive` in `protocol/whoop5_protocol.json`.
 
+**Flow detail (static, from the decompiled 5.473.0 app).** A WorkManager job (`PeriodicFwUpdateCheckWorker`) runs the
+check on a schedule. `firmwareFile` on the fetch response is **Base64**: the app decodes it to bytes in-process
+(`og1/a.java`: `byte[] b = base64.b(update.getFirmwareFile(), …)`), writes it to a per-serial file
+(`firmwareFilesHelper.i(serial, "boylston", …)`, "boylston" being a chip codename), and only then transfers it to the
+strap. Two transfer paths: the main sensor chip over the WHOOP command path (36/37/38/83), and the battery pack / nRF
+chip over **standard Nordic DFU** (`no.nordicsemi.android.dfu.DfuBaseService`, `ENTER_BLE_DFU` 45, `DfuUpdateStrategy`).
+So the image is server-signed and comes inline from the authenticated API, not from a public CDN; there is no
+plaintext URL to fetch and no separate checksum field in the model.
+
 - **Would add:** a client could report the current chip versions and read back whether a newer firmware exists and
   whether it is forced, without the official app — read-only, no write path.
-- **Settles it:** an HCI capture of the official app running an actual update, to confirm the request bodies, the
-  `firmwareFile` encoding and the on-strap verify/commit handshake. Not yet captured.
-- **Not planned here:** sending the load/verify commands. Document them; do not drive them.
+- **Settles it:** the check/fetch itself is HTTPS to `api.prod.whoop.com`, not BLE, so the BLE logger cannot see it and
+  a proxy would meet certificate pinning; the request/response **shapes** are already known from the app (above). The
+  BLE logger does capture the on-strap transfer, but only while a real update runs — WHOOP decides when.
+- **Not planned here:** sending the load/verify commands or decoding a firmware image. Document the flow; do not drive
+  it or redistribute any image.
 
 ## 2. More of the command surface, from the app
 
