@@ -169,7 +169,7 @@ owners. None of them blocks using the library; they limit how far a client shoul
 | D4 | HR from optical | R26: 1.7 bpm on the 98 of 286 bursts `hr_from_r26` accepts, nearly all asleep; no usable reading awake and moving (§16). R20: r ≈ 0.8, ~2 bpm on one resting session; **fails** on a second, awake session with a sparse reference (§14) | R20 with motion and a dense reference; R26 filter on new nights; more wearers |
 | D5 | Dense overnight HRV | **Mostly closed**: R18 delivers 92 % of beats overnight with R-R in ms; RMSSD 47–102 ms per 5 min (§12) | Comparison with the WHOOP export's HRV |
 | D6 | Respiratory rate | 🧪 No field on the wire; derived from R-R sinus arrhythmia (`respiratory_rate`, experimental): median 14.1 breaths/min on the captured night (§15) | A night with the WHOOP export's respiratory rate |
-| D7 | Skin temperature (R18 `u16@73 / 100 °C`) across firmware | Plausible overnight curve 31.4–35.0 °C; agrees across three sources; firmware 50.37–50.42 seen | R18 from other firmware with the WHOOP export |
+| D7 | Skin temperature (R18 `u16@73 / 100 °C`) across firmware | Plausible overnight curve 31.4–35.0 °C; agrees across three sources; firmware 50.37–50.43 seen | R18 from other firmware with the WHOOP export |
 | D8 | R18 provisional fields | Byte 82 and status words 77/79 tied to the 20-minute measurement windows; bytes 106–113 characterised but unexplained (§12, §13) | Correlation against a WHOOP export over many nights |
 | D9 | R22 v9 channel meaning and R26 sample units | Structure only | Captures with the related feature flags toggled |
 | D10 | Event payloads | Header, payload length and BATTERY_LEVEL payload decoded; 8 unnamed event numbers seen; other payloads opaque (§9) | More captures of each event |

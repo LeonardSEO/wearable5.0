@@ -317,6 +317,13 @@ Limits: two thirds of bursts now give no heart rate, nearly all of them awake. T
 not reliable. Nothing above 87 bpm was accepted, so this says nothing about exercise. Awake, R18 rarely carries
 R-R, so the reference there is the strap's own unconfirmed algorithm. One wearer.
 
+### Firmware of this strap
+
+Noop's strap logs report **50.43.1.0** up to 1 November. On 5 November the strap reports **50.43.2.0** in an HCI
+capture of the official app; the owner reads the full version as **50.43.2.0.3.30.5.0** (what the last four
+numbers mean is unknown). The update happened between those dates. All of §16 is on 50.43.1.0. On 50.43.2.0
+so far: 48 minutes of awake R18 and R26 decode without errors; no night yet, so byte 82 is unconfirmed there.
+
 ## 17. Sources
 
 - Official WHOOP Android app 5.473.0 (static analysis for interoperability; nothing reproduced).
