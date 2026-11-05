@@ -69,7 +69,7 @@ def sp_m(sufficiency: float, efficiency: float, consistency: float | None, stres
 
 
 def stress_rows(sleeps: list[dict], stress_csv: str) -> list[dict]:
-    """SP-M per main sleep with app stress hours. A cycle with a nap only has a combined stress reading, so it is skipped."""
+    """SP-M on separate main sleeps with their own stress reading. Nap cycles have one combined reading, so they are out of scope here."""
     rows = []
     by_cycle = {}
     for s in sleeps:

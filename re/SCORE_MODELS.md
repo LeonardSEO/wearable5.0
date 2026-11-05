@@ -40,16 +40,22 @@ These are the same nights, so neither column is a test on new data. A miss rejec
 P = (0.4 sufficiency + 0.2 efficiency + 0.2 consistency + 0.2 (100 - stress share)) / (0.8 + 0.2 if consistency exists), with sufficiency =
 min(100, 100 asleep/need) and stress share = (medium + high) / (low + medium + high) from the WHOOP app, which the API does not give.
 
-The two main sleeps with their own stress reading both fit within rounding. The weights come from the earlier illustration and treating medium stress
-as the stress input was chosen after seeing the numbers. On a cycle with a nap the app gives one combined reading and the nap's score does not fit any
-split of it, so naps are excluded. **Two points, so a lead.** New mornings test it unchanged.
+**Scope:** one separate main sleep with consistency and its own stress reading. Both such sleeps so far fit within rounding (94.56 and 89.78 against 95 and 90).
+The weights come from the earlier illustration, and medium stress was chosen as the input after seeing the numbers. **Two points, so a lead.** New mornings test it
+unchanged. Limiting the scope to these sleeps is itself a choice made after seeing a nap cycle not fit. Nap cycles stay recorded, because they show how WHOOP
+combines sleeps.
 
-Dossier SP-C used stress = high sleep stress and needed 7-18 %. The app reports 0 %, which rejects SP-C with those weights: it gives 83.6, 79.7, 96.4 and
-92.3 against 81, 75, 95 and 90. No choice of non-negative weights on sufficiency, efficiency, consistency and a fixed calm term fits all 4 sleeps either: the
-best is 0.53 off, just past the rounding limit of 0.5. That margin is thin, so it points to a missing input rather than settling the form.
+High stress is 0 on every night, so its weight cannot be determined. Dossier SP-C used stress = high sleep stress and needed 7-18 %. With the app's 0 % those
+specific weights fail: 83.6, 79.7, 96.4 and 92.3 against 81, 75, 95 and 90. That does not rule out every formula with high stress. No choice of non-negative weights on
+sufficiency, efficiency, consistency and a fixed calm term fits all 4 sleeps either: the best is 0.53 off, just past the rounding limit of 0.5. That margin is thin,
+so it points to a missing input without settling the form.
 
-Stress hours add up to time in bed within 1.3 minutes, including the nap on the cycle that has one. A weak lead for where stress comes from: 5-minute mean HR
-of at least 1.07 x the night's median gives 75, 35 and 55 minutes against 74, 39 and 54. This was picked from a search over thresholds and window lengths.
+Stress hours add up to time in bed within 1.32 minutes, with the main sleep and nap together on the cycle that has a nap. So the window is about time in bed. Rounding,
+missing stress samples and the exact link are unchecked, so identical periods are not established.
+
+**Lead ST-1, frozen:** split each cycle's sleeps into 300 s windows from each sleep's start; take the mean HR per window with at least half its samples; medium stress is the
+windows at or above 1.07 x the median of those means over the whole cycle. It gives 75, 35 and 55 minutes against 74, 39 and 54. It was picked from a search over thresholds and
+window lengths, so it is not an established source.
 
 ## Ruled out
 
