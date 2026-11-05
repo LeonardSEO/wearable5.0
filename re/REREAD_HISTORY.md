@@ -5,8 +5,8 @@ the official app (WHOOP's scores and export) or a raw client (the frames). This 
 because the strap keeps trimmed pages on flash until the ring overwrites them, about 3 weeks at the observed rate of
 245 pages an hour.
 
-**Status:** worked once on one strap, firmware 50.43.2.0: four spans of 6 to 8 hours, all complete, with trim restored
-afterwards. The official app's next sync after a restore has not been observed yet. Other firmware is untested.
+**Status:** works on one strap, firmware 50.43.2.0: four spans of 6 to 8 hours, all complete, with trim restored
+afterwards. The official app synced on normally after a later run that left trim moved (FINDINGS §17). Other firmware is untested.
 
 **This moves the strap's history bookkeeping. It is not used by the official app. Use it only on a strap you own, and
 accept that an untested firmware may behave differently.** Never send `FORCE_TRIM` (25) for this: it is not needed.
@@ -69,5 +69,6 @@ weeks, you can sleep and sync normally and do this once for a whole batch of nig
 ## Costs seen so far
 
 - The phone loses its bond each time the Mac pairs.
-- An acknowledgement moves trim, so restore it, or the official app misses those pages.
-- Reads without `--restore` leave trim at the end of the span.
+- An acknowledgement moves trim. With trim moved forward past unsynced pages, the official app misses them, so restore it.
+- Reads without `--restore` leave trim at the end of the span. With a span in the past, the strap serves everything after
+  it to the app again (FINDINGS §17). Whether WHOOP's server double-counts that is open.

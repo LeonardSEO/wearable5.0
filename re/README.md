@@ -9,7 +9,8 @@ demand into `re/corpus/` (gitignored); only scripts and results are committed.
 | `organize_corpus.py` | Arrange harvested frames and original files into a local corpus with a manifest | `frames/`, `captures/`, `ground_truth/`, `MANIFEST.csv` |
 | `prepare_donation.py` | Turn your own archive, logs, HCI capture and WHOOP export into a privacy-safe donation zip | `frames.jsonl`, `whoop_export/`, `MANIFEST.json` |
 | `export_noop_db.py` | Export the raw frames NOOP keeps with `enableRawCapture` on (read-only snapshot of its database) | `frames.jsonl`, `whoop.sqlite` |
-| `strain_model.py` | Build WHOOP day strain from per-second HR (zones -> TRIMP -> log fit); needs a daytime re-read of strain days | fit stats on stdout |
+| `strain_model.py` | Build WHOOP day strain from per-second HR (zones -> TRIMP -> log fit); needs each strain cycle's whole span re-read | fit stats on stdout |
+| `compare_noop.py` | Which commands, events and packet types differ between this schema and NOOP's | difference list on stdout |
 | `pipeline.sh` | One command: validate + score + strain over your data folder and WHOOP export (SpO2 standing on top) | combined report |
 | `score_model.py` | Reverse-engineer WHOOP's recovery/strain/sleep scores empirically from your own export (input/output pairs) | fit stats on stdout |
 | `validate_own_strap.py` | Every open claim checked on one owner's strap and WHOOP export, with thresholds fixed in advance | `REPORT.md`, `report.json` in the data folder |

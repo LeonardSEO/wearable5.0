@@ -153,7 +153,7 @@ owners. None of them blocks using the library; they limit how far a client shoul
 |---|---|---|---|
 | H1 | Full connect → bond → hello → sync session on iOS, macOS and Android | **macOS done** on one strap with `re/probe_read_pointer.py` on this library's framing; iOS and Android not run | Same session through a client on those platforms |
 | H2 | Bonding refusals on some Android phones | Strap refuses SMP pairing in an HCI capture (NOOP #1635); cause open | Controlled pairing attempts with HCI logging |
-| H9 | Re-reading trimmed history | **Works on one strap** (fw 50.43.2): an older `HISTORICAL_DATA_RESULT` during a burst moves trim back, about 120x realtime; [guide](re/REREAD_HISTORY.md), §17 | The official app's next sync after a restore; other firmware and straps |
+| H9 | Re-reading trimmed history | **Works on one strap** (fw 50.43.2): an older `HISTORICAL_DATA_RESULT` during a burst moves trim back, about 120x realtime; the official app syncs on from a moved trim; [guide](re/REREAD_HISTORY.md), §17 | Whether WHOOP's server double-counts re-sent pages; other firmware and straps |
 | H4 | HISTORY_END token second word (write-wrap state) | **Closed on one strap**: the firmware calls it the wrap count, and pages above the write head are one lower (§17) | Other firmware |
 | H5 | R21 IMU scale (4096 LSB/g, ±2000 °/s) and 100 Hz rate | **Accel closed on one strap**: 1.003 g over 71,019 still seconds (§18). Gyro samples are present, gyro scale open | One timed 360° rotation |
 | H6 | Dedicated IMU stream packets 51/52 | Layout documented, never observed | Enable IMU streaming and capture |
@@ -165,12 +165,12 @@ owners. None of them blocks using the library; they limit how far a client shoul
 | # | Item | Current state | Data that settles it |
 |---|---|---|---|
 | D1 | R20 LED wavelengths (which source is green, red, infrared) | Source codes 1–4 seen; identity unknown | Captures across a toggle of the `ir_hw_switching` feature flag, or with a known light source |
-| D2 | SpO₂ | 🧪 **Decoded, experimental**: R18 byte 82 per second in 30 s windows every 20 min during sleep; within 0.33 % of the WHOOP app over 3 nights of one wearer (§13, §18) | 5 or more nights; byte 82 ranks fifth among bytes so far; more wearers |
-| D3 | Sleep detection and stages | 🧪 Sleep periods from R18 band state (`sleep_periods`, experimental): onset within 14 min of WHOOP, wake 31 min off, over 3 nights (§15, §18). No stages | Better wake detection; stages from the WHOOP export |
+| D2 | SpO₂ | **Proven that R18 byte 82 is the strap's SpO₂ reading**: 30 s windows every 20 min during sleep on 3 straps. 0.34 % from the WHOOP app over 3 nights (§13, §18) | 2 more nights for the fixed bar; the 2 contrary nights on NOOP's #103 strap |
+| D3 | Sleep detection and stages | 🧪 Sleep periods from R18 band state (`sleep_periods`, experimental): onset within 14 min of WHOOP, wake 34 min off, over 3 nights (§15, §18). No stages | Better wake detection; stages from the WHOOP export |
 | D4 | HR from optical | R26: 1.7 bpm on the 98 of 286 bursts `hr_from_r26` accepts, 0.92 bpm on 82 new ones, nearly all asleep; no usable reading awake and moving (§16, §18). R20: r ≈ 0.8, ~2 bpm on one resting session; **fails** on a second, awake session with a sparse reference (§14) | R20 with motion and a dense reference; more wearers |
-| D5 | Dense overnight HRV | **Mostly closed**: R18 delivers 92 % of beats overnight with R-R in ms; RMSSD 47–102 ms per 5 min (§12); 1.4 ms from the WHOOP export over 3 nights (§18) | 5 or more nights; more wearers |
+| D5 | Dense overnight HRV | **Mostly closed**: R18 delivers 92 % of beats overnight with R-R in ms; RMSSD 47–102 ms per 5 min (§12); 1.48 ms from the WHOOP export over 3 nights (§18) | 5 or more nights; more wearers |
 | D6 | Respiratory rate | 🧪 No field on the wire; derived from R-R sinus arrhythmia (`respiratory_rate`, experimental): 0.13 per min from the WHOOP export over 3 nights (§15, §18) | 5 or more nights; more wearers |
-| D7 | Skin temperature (R18 `u16@73 / 100 °C`) across firmware | Plausible overnight curve 31.4–35.0 °C; agrees across three sources; 0.13 °C from the WHOOP export over 3 nights (§18); firmware 50.37–50.43 seen | R18 from other firmware with the WHOOP export |
+| D7 | Skin temperature (R18 `u16@73 / 100 °C`) across firmware | Plausible overnight curve 31.4–35.0 °C; agrees across three sources; 0.12 °C from the WHOOP export over 3 nights (§18); firmware 50.37–50.43 seen | R18 from other firmware with the WHOOP export |
 | D8 | R18 provisional fields | Byte 82 and status words 77/79 tied to the 20-minute measurement windows; bytes 106–113 characterised but unexplained (§12, §13) | Correlation against a WHOOP export over many nights |
 | D9 | R22 v9 channel meaning and R26 sample units | Structure only | Captures with the related feature flags toggled |
 | D10 | Event payloads | Header, payload length and BATTERY_LEVEL payload decoded; 8 unnamed event numbers seen; other payloads opaque (§9) | More captures of each event |
@@ -213,20 +213,8 @@ Python, derives HRV from R26).
 
 ## Using it from NOOP
 
-NOOP has its own mature 5/MG decoder; this library can serve as an independent cross-check (Python,
-Swift and Kotlin with enforced parity) and offers a few concrete additions, each small enough to land
-on its own:
-
-1. **Feed sync from the 5/MG data range.** NOOP already logs the page backlog; the field-exact
-   newest-page clock (`DataRange.newestUnix`) can fill `strapNewestTs`, which is nil on 5/MG today
-   and drives the auto-continue storm in [ryanbr/noop#1992](https://github.com/ryanbr/noop/issues/1992).
-   Confirmed on 589 real replies from 21 sessions (FINDINGS §3).
-2. **Show SpO₂ as an experimental metric**: NOOP already decodes byte 82 as a candidate;
-   `spo2_windows()` aggregates it per strap measurement window (30 s every 1,200 s while asleep;
-   FINDINGS §13).
-3. **Use the official app's feature-flag values** (FINDINGS §10) as the reference configuration.
-4. **Allow-list against the current app's command table**, including the destructive set and
-   commands 146–147 and 155–159, which NOOP's table does not list yet.
+NOOP is what this project is for. [NOOP_HANDOFF.md](NOOP_HANDOFF.md) lists each change NOOP can take: what to change, the
+evidence, where it goes in NOOP, and the open PR if there is one.
 
 ## Contributing data
 

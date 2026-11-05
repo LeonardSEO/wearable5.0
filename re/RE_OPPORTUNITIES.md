@@ -51,10 +51,10 @@ plaintext URL to fetch and no separate checksum field in the model.
 The app names commands this project has not exercised. Highest-value, lowest-risk first; the destructive ones are
 documented only.
 
-- **`GET_BODY_LOCATION_AND_STATUS` (84), `GET_EXTENDED_BATTERY_INFO` (98), feature-flag/config reads (128/121)** —
-  their builder classes were not located in a quick pass (likely a shared empty-body sender); the response layouts
-  are the open part. Still worth a capture.
-- **`GET_EXTENDED_BATTERY_INFO` (98), `GET_BATTERY_PACK_INFO` (151)** — battery health beyond the SoC/mV we decode.
+- **`GET_BODY_LOCATION_AND_STATUS` (84), `GET_EXTENDED_BATTERY_INFO` (98), `GET_BATTERY_PACK_INFO` (151),
+  feature-flag/config reads (128/121)** — NOOP already has probes and decoders for these (`BodyLocationProbe`,
+  `ExtendedBatteryProbe`, `BatteryPackInfo`, `FeatureFlagProbe`, `DeviceConfigReadProbe`), so this adds nothing to NOOP.
+  Low priority; take the layouts from NOOP if this library needs them.
 - **Alarm/haptics bodies — DONE from the app (§19).** Request bodies for 66/67/68/69/79, `SELECT_WRIST` (123),
   `ENABLE_OPTICAL_DATA` (107) and `TOGGLE_OPTICAL_MODE` (108) are decoded and in `protocol/whoop5_protocol.json`
   (`request_bodies`). Still open: `GET_ALL_HAPTICS_PATTERN` (80), LED/TIA bodies, and the on-strap *responses*.
@@ -72,16 +72,11 @@ documented only.
   fields and every score path is a fetch or a leaderboard read (`community-service/.../recovery/score`, etc.). So a
   client **cannot** extract WHOOP's scoring model from the app — it would have to reproduce it from the raw inputs
   itself, which is exactly what this project's experimental metrics do. The useful half is the input list below.
-  **Empirical route (`re/score_model.py`):** your export pairs each cycle's inputs (HRV, resting HR, respiratory rate,
-  sleep) with the score WHOOP gave it, and those pairs are yours. The script fits a model per score on your history and
-  reports how well it reproduces WHOOP, so a client can show the same numbers from the inputs this library decodes.
-  Caveats: recovery/strain are baseline-relative, so a fit reproduces *your* account's mapping, not a universal
-  formula; it needs the full export (>= 20 cycles), not one week; strain also needs per-second day HR (re-read frames)
-  for time-in-zone. First run on a 3-cycle export only showed sleep performance is **not** the naive asleep/need ratio
-  (33 % off on 3 nights) — worth settling on a full history. First 3 cycles, preliminary: WHOOP sleep performance looks
-  capped near 95 % and curved (ratio 89/181/69 % mapped to 90/95/81 %), and recovery did **not** track absolute HRV/RHR
-  (its best HRV + lowest RHR night scored lowest), consistent with baseline-relative normalization. The account is ~2
-  weeks old, so there are only 3 scored cycles yet; the fit needs a few more weeks of wear.
+  **Empirical route (`re/score_model.py`):** the export pairs each cycle's inputs with the score WHOOP gave it, so nobody
+  has to note scores per day (FINDINGS §18). The script fits a model per score. Limits: recovery and strain are
+  baseline-relative, so a fit reproduces this account's mapping, and other accounts test whether it generalises. It needs
+  20 cycles; there are 3. On those 3, sleep performance is not the plain asleep/need ratio (33 % off) and looks capped
+  near 95 %, and recovery did not track absolute HRV or resting HR.
 - **What the strap uploads (the raw inputs to the server model).** The app ships, over `api.prod.whoop.com`:
   raw frames (`research-metrics-service/v1/{raw,imu,optical}/upload`, `com.whoop.dataSyncService.rawdata`
   `RawDataUploadWorker`), sensor metrics (`metrics-service/v1/metrics/sensor`), strap and firmware events
@@ -95,20 +90,17 @@ documented only.
 
 ## 4. Gaps worth closing (what is missing or weak today)
 
-- **Strain — pipeline built (`re/strain_model.py`), fit blocked on data overlap.** The HR to zone to Edwards-TRIMP to
-  log-strain mechanism works and is tested; running it shows the gap precisely: the full-day-HR days (28-31 Oct, synced
-  to NOOP) have no WHOOP Day Strain, and the days that have a strain (1/3 Nov) were only re-read overnight (<= 12 h). No
-  day has both yet. Closing it: re-read a full 24 h span (not just the night) for days that carry a WHOOP Day Strain,
-  then the fit runs. Zones use % of max HR seen; WHOOP's zone-defining max may differ.
+- **Strain — first pairs exist, fit needs 5 (`re/strain_model.py`).** Two cycles have a Day Strain and full heart rate:
+  TRIMP 998 gives 12.2, TRIMP 379 gives 4.8. Zones use % of max HR seen; WHOOP's zone-defining max may differ.
 - **On-demand SpO₂ / optical measurement.** Today SpO₂ (byte 82) only appears in the strap's own ~20-minute sleep
   windows. The strap has optical-enable commands (107/108/81), so a *candidate* is to drive an optical capture
   awake and derive SpO₂ or HR on demand. **Unverified**: the app strings for "on_demand" / "manual measurement"
   relate to Health-Connect manual entry, not an on-strap trigger, so whether these commands yield a valid SpO₂
   awake is an open experiment — and §16 already shows optical HR fails with motion.
-- **Resting HR and wake time** miss the WHOOP app (§18). Our definitions differ from theirs; worth matching the
-  app's method.
-- **Byte 82 is not yet the top-correlating byte** over 3 nights (§18). Needs ≥5 nights, which the re-read method
-  now makes practical.
+- **Resting HR and wake time** miss the fixed bar (FINDINGS §18). Ours is too low on all 3 nights and wakes later on all
+  3 nights, so these are different definitions. Fix them against the WHOOP export.
+- **SpO₂ on 50.43.2.0.** The first certain night on that firmware is any night after 5 November 11:03 (FINDINGS §16).
+  The sign-off is 5 paired nights; byte 82 has to rank first in the byte scan there.
 - **Gyro scale** (R21) is still open; accel is confirmed (§18). One timed rotation with gyro on would settle it.
 - **R22 v9 channels and R26 sample units** (README D9) remain structure-only.
 
