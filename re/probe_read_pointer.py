@@ -1,11 +1,13 @@
 """Probe SET_READ_POINTER(33) on your own WHOOP 5.0 / MG: can the strap re-serve history it already trimmed?
 
 Untested on this strap family and not used by the official app. Never sends FORCE_TRIM(25) and never acknowledges
-history (no HISTORICAL_DATA_RESULT), so this script itself cannot advance the trim cursor. Every received frame goes
-to <out>/frames.jsonl. Quit NOOP and the WHOOP app first: the strap serves one central at a time.
+history, except `rewind`, which sends HISTORICAL_DATA_RESULT with an older page. Every received frame goes to
+<out>/frames.jsonl. Quit NOOP and the WHOOP app first: the strap serves one central at a time.
 
   range          read write/trim/capacity only
   probe TARGET   try each payload, read back with GET_DATA_RANGE; stops as soon as the range changes
+  midstream PAGE move the pointer while history is being served, no acknowledgement
+  rewind STEP    IRREVERSIBLE RISK: acknowledge a page STEP behind trim, read back, then peek
   times --pages  move the pointer to each page and read the time stored there; no history is requested
   peek [TARGET]  request history without acknowledging, optionally after one payload (--payload N), and report the
                  record times and metadata cursors, then abort the transfer
@@ -34,7 +36,7 @@ SERVICE = "fd4b0001-cce1-4033-93ce-002d5875f58a"
 TO_STRAP = "fd4b0002-cce1-4033-93ce-002d5875f58a"
 NOTIFY = ["fd4b0003-cce1-4033-93ce-002d5875f58a", "fd4b0004-cce1-4033-93ce-002d5875f58a",
           "fd4b0005-cce1-4033-93ce-002d5875f58a"]
-CLIENT_HELLO, SEND_HISTORY, ABORT_HISTORY, SET_READ_POINTER, GET_DATA_RANGE = 145, 22, 20, 33, 34
+CLIENT_HELLO, SEND_HISTORY, HISTORY_RESULT, ABORT_HISTORY, SET_READ_POINTER, GET_DATA_RANGE = 145, 22, 23, 20, 33, 34
 
 
 def payloads(target: int) -> list[tuple[str, bytes]]:
@@ -60,6 +62,8 @@ class Strap:
                 self.records.append((d["layout"], d["unix_s"]))
             if d.get("packet") == "METADATA":
                 self.meta.append((d.get("meta_type"), d.get("trim_cursor"), d.get("unix_s")))
+                if d.get("meta_type") == 2:
+                    self.end_token = f[21:29]
 
     async def send(self, command: int, args: bytes = b"") -> None:
         self.seq = (self.seq + 1) & 0xFF
@@ -105,7 +109,54 @@ async def run(args) -> int:
         print("range:", {k: v for k, v in (before or {}).items() if k != "hex"}, flush=True)
         if not before:
             return 3
-        if args.mode == "times":
+        if args.mode == "midstream":
+            s.records.clear()
+            s.meta.clear()
+            await s.send(SEND_HISTORY, b"\x00")
+            end = time.time() + 10
+            while time.time() < end and not any(m == 2 for m, _, _ in s.meta):
+                await asyncio.sleep(0.05)
+            fmt = lambda t: dt.datetime.fromtimestamp(t).strftime("%m-%d %H:%M:%S")
+            first = len(s.records)
+            print(f"first chunk: {first} records, meta {s.meta[:2]}", flush=True)
+            await s.send(SET_READ_POINTER, struct.pack("<I", args.target))
+            if args.ack_current:
+                await asyncio.sleep(0.3)
+                print("ack token", s.end_token.hex(), flush=True)
+                await s.send(HISTORY_RESULT, b"\x01" + s.end_token)
+            await asyncio.sleep(args.seconds)
+            later = [t for _, t in s.records[first:]]
+            print(f"after 33 to page {args.target}: {len(later)} records"
+                  + (f", {fmt(min(later))} .. {fmt(max(later))}" if later else ""), flush=True)
+            print("metadata:", sorted({(m, u) for m, u, _ in s.meta}, key=str), flush=True)
+            await s.send(ABORT_HISTORY, b"\x00")
+            await asyncio.sleep(1)
+            r = await s.data_range()
+            print("end:", {k: v for k, v in (r or {}).items() if k != "hex"}, flush=True)
+        elif args.mode == "rewind":
+            if not 0 < args.target <= 1000 or args.target >= before["trim"]:
+                print("rewind step must be 1-1000 pages and stay above 0; nothing sent")
+                return 4
+            page, wrap = before["trim"] - args.target, struct.unpack_from("<I", bytes.fromhex(before["hex"]), 30)[0]
+            s.replies.clear()
+            await s.send(HISTORY_RESULT, b"\x01" + struct.pack("<II", page, wrap))
+            resp = await s.reply(HISTORY_RESULT, seconds=3)
+            print(f"23 to page {page} wrap {wrap}: reply={resp.hex() if resp else None}", flush=True)
+            after = await s.data_range()
+            print("after:", {k: v for k, v in (after or {}).items() if k != "hex"}, flush=True)
+            s.records.clear()
+            s.meta.clear()
+            await s.send(SEND_HISTORY, b"\x00")
+            await asyncio.sleep(args.seconds)
+            await s.send(ABORT_HISTORY, b"\x00")
+            await asyncio.sleep(1)
+            times = [t for _, t in s.records]
+            fmt = lambda t: dt.datetime.fromtimestamp(t).strftime("%m-%d %H:%M:%S")
+            print(f"records {len(times)}" + (f", {fmt(min(times))} .. {fmt(max(times))}" if times else ""), flush=True)
+            print("metadata (type, trim, time):", [(m, u, fmt(t) if t else None) for m, u, t in s.meta[:6]], flush=True)
+            end = await s.data_range()
+            print("end:", {k: v for k, v in (end or {}).items() if k != "hex"}, flush=True)
+        elif args.mode == "times":
             for target in args.pages:
                 await s.send(SET_READ_POINTER, struct.pack("<I", target))
                 await asyncio.sleep(0.3)
@@ -151,13 +202,14 @@ async def run(args) -> int:
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("mode", choices=["range", "probe", "peek", "times"])
+    ap.add_argument("mode", choices=["range", "probe", "peek", "times", "rewind", "midstream"])
     ap.add_argument("target", nargs="?", type=int)
     ap.add_argument("--out", required=True)
     ap.add_argument("--pages", type=int, nargs="*", default=[])
     ap.add_argument("--seconds", type=float, default=15)
     ap.add_argument("--payload", type=int, default=0)
     ap.add_argument("--history-arg", type=int, default=0)
+    ap.add_argument("--ack-current", action="store_true")
     a = ap.parse_args()
     if a.mode == "probe" and a.target is None:
         ap.error("probe needs TARGET")

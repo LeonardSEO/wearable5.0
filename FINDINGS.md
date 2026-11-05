@@ -334,8 +334,11 @@ Firmware 50.43.2.0, one strap, `re/probe_read_pointer.py`; the official app neve
 - **The strap keeps a time for old pages.** Pages read back in order over about 6 days (30 Oct to 5 Nov), far behind
   trim, with about 245 pages per hour. This suggests trimmed history stays on flash, but only the time was read back,
   not a record.
-- **`SEND_HISTORICAL_DATA` ignores it.** With arguments 0 to 3 the pointer returns to the trim position and the same
-  records are served, so this command alone does not re-read history. Trim itself did not move at any point.
+- **Serving follows trim, not the pointer.** `SEND_HISTORICAL_DATA` with arguments 0 to 3 returns the pointer to trim
+  and serves the same records. Moving the pointer during a transfer serves nothing new. With the pointer on an old
+  page, a valid `HISTORICAL_DATA_RESULT` advances trim normally and the next chunk continues from trim.
+- **Trim did not go back.** `HISTORICAL_DATA_RESULT` with a page 100 behind trim got no reply and changed nothing.
+  `FORCE_TRIM` (25) was not tried. No route to re-read trimmed history is known.
 
 ## 18. Sources
 
