@@ -82,6 +82,6 @@ That only reports the page. Add `--apply` to move trim, and `--undo PAGE:WRAP` t
 ## Costs seen so far
 
 - The phone loses its bond each time the Mac pairs.
-- An acknowledgement moves trim. With trim moved forward past unsynced pages, the official app misses them, so restore it.
+- An acknowledgement moves trim. A re-read now resumes after a dropped link. With trim moved forward past unsynced pages, the official app misses them, so restore it.
 - Reads without `--restore` leave trim at the end of the span. With a span in the past, the strap serves everything after
   it to the app again. WHOOP did not rescore the re-sent day (FINDINGS §17).

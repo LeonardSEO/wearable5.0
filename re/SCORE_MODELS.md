@@ -36,8 +36,24 @@ a new night without its components.
 
 - **Time in bed is truncated, not rounded.** It equals whole minutes of wake - onset, rounded down, on all 4 sleeps (`417.62` gives
   417).
-- **The 214 lead is rejected.** WHOOP reports a maximum HR of 187. `re/workout_zones.py` had fitted 214 with a shifted window on one
-  workout. Zones at % of 187 do not fit either, so the zone definition stays open.
+- **The 214 lead and its 11-minute shift were wrong.** They came from assuming zones start at 50 % of maximum HR. The zones below need
+  no shift.
+
+## WHOOP's heart-rate zones (`re/hrr_zones.py`)
+
+Zones are percentages of heart rate reserve, (HR - rest) / (max - rest), with edges at **40, 60, 70, 80 and 90 %**, using WHOOP's maximum
+HR from the API and a resting HR of 58.
+
+From raw strap heart rate at the exported times, no shift or fitting of time: one workout matches in all 6 zones to the second, 1379 of
+1379 s. A second workout matches 4 of 5 edges to the second: 26 of 1978 s are one zone off, all at the 60 % edge. The 50 % edge
+is off by 2170 s on the same data. Fitted: only the resting HR, out of 16 values, and the edge set, out of 4. That also shows R18 heart
+rate and its clock line up with what WHOOP scored.
+
+Open: why the 60 % edge misses by 26 s on the second workout, whether the resting HR is fixed or changes, and why WHOOP's mean HR reads
+about 4 bpm lower than the raw mean on both workouts.
+
+**Strain.** With these zones one curve a ln(1 + b load) across 2 workouts and 3 cycles misses by 0.48 on average at best, so load is
+still not identified.
 
 ## Settled by the official API
 

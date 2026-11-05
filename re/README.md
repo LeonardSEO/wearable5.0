@@ -15,7 +15,7 @@ demand into `re/corpus/` (gitignored); only scripts and results are committed.
 | `noop_compare.py` | NOOP's real Charge and Effort next to WHOOP's Recovery and Day Strain (builds on `noop_scores/`, which links a NOOP checkout) | table on stdout |
 | `export_diff.py` | What changed between two WHOOP exports: cycles added, removed or rescored | table on stdout |
 | `score_predictions.py` | Test the frozen candidate formulas in [SCORE_MODELS.md](SCORE_MODELS.md) on later cycles only | table on stdout |
-| `workout_zones.py` | Which maximum HR and time shift reproduce WHOOP's zone shares for a workout | best fits on stdout |
+| `hrr_zones.py` | WHOOP's zones as heart rate reserve from raw HR, and which load fits strain | zone seconds and fits on stdout |
 | `whoop_api_fetch.py` | Save your own data from WHOOP's official developer API, read-only, untouched | JSON per run, outside git |
 | `api_checks.py` | Check the sleep need, debt and nap rules against an API snapshot | rule hits on stdout |
 | `verify_findings.py` | Recompute every claim from the export and API, and fail if one no longer holds | pass or fail per claim, counts only |

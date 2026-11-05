@@ -124,6 +124,15 @@ async def find_page(s: "Strap", when: float, r: dict) -> tuple[int, int]:
     return page_wrap(hi, r)
 
 
+def span_progress(times: list[int], stop: float) -> tuple[bool, bool, int]:
+    """Started, reached stop, newest time. Records newer than stop that arrive first are left over from before the seek."""
+    start = next((i for i, t in enumerate(times) if t <= stop), None)
+    if start is None:
+        return False, False, 0
+    newest = max(times[start:])
+    return True, newest >= stop, newest
+
+
 def backfill_refusal(start: float, found: int, page_behind: int, trim_behind: int, now: float) -> str | None:
     """Why trim must not move to this page, or None. The strap only moves trim on our word, so check before asking."""
     if start >= now:
@@ -192,25 +201,30 @@ async def run(args) -> int:
             if args.resume:
                 # Serving already follows trim; a dropped multi-day fetch continues from where trim was left.
                 print(f"resuming from trim {before['trim']} ({before['pointer_time']})", flush=True)
+                await s.send(HISTORY_RESULT, b"\x01" + s.end_token)  # the first chunk is saved; the strap waits for this
             else:
                 page, wrap = await find_page(s, start, before)
                 print(f"start page {page} wrap {wrap} at", dt.datetime.fromtimestamp(await time_of(s, page, wrap)),
                       flush=True)
                 await s.send(HISTORY_RESULT, b"\x01" + struct.pack("<II", page, wrap))
+                s.records.clear()
+                s.meta.clear()
             acked, last, t0, reached = 0, time.time(), time.time(), False
             while time.time() - last < 25:
                 ends = [m for m in s.meta if m[0] == 2]
-                newest = max((t for _, t in s.records), default=0)
+                started, reached_stop, newest = span_progress([t for _, t in s.records], stop)
                 if len(ends) > acked:
                     acked = len(ends)
                     last = time.time()
                     if acked % 20 == 0:
                         rate = (newest - start) / max(1, time.time() - t0)
                         print(f"chunk {acked} at {dt.datetime.fromtimestamp(newest)}, {rate:.1f}x realtime", flush=True)
-                    if newest >= stop:
+                    if reached_stop:
                         reached = True
                         break
-                    await s.send(HISTORY_RESULT, b"\x01" + s.end_token)
+                    # Acknowledging a leftover chunk would move trim forward again, past the span.
+                    if started:
+                        await s.send(HISTORY_RESULT, b"\x01" + s.end_token)
                 await asyncio.sleep(0.02)
             times = [t for _, t in s.records]
             print(f"chunks {acked}, records {len(times)}, {dt.datetime.fromtimestamp(min(times))} .. "

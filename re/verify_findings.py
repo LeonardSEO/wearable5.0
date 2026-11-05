@@ -1,6 +1,6 @@
 """Recompute every claim taken from the WHOOP export and official API, and fail loudly if one no longer holds.
 
-  python re/verify_findings.py <export zip or folder> <API snapshot folder>
+  python re/verify_findings.py <export zip or folder> <API snapshot folder> [frames folder]
 
 Prints counts only, so the output is safe to share. Exit code 1 means a claim failed. Run it on every new snapshot: a rule that
 held on the data that suggested it has to keep holding on later data.
@@ -23,6 +23,8 @@ KJ_PER_KCAL = 4.184
 RESEND_START_UTC = "2026-11-05T13:48:04+00:00"  # first captured re-send of already scored pages, FINDINGS §17
 Z5_EDGE = 0.9
 REJECTED_MAX_HR = 214
+ZONE_REST_HR = 58  # the resting HR that fits best, re/hrr_zones.py
+ZONE_MIN_SHARE = 0.99
 
 
 def read_export(path: str, name: str) -> list[dict]:
@@ -110,11 +112,31 @@ def verify(export_sleeps: list[dict], export_cycles: list[dict], sleeps: list[di
     return results
 
 
+def zone_claims(results: list, workouts: list[dict], hr: dict[int, int], max_hr: int) -> None:
+    """WHOOP's zones as heart rate reserve, from raw strap heart rate at the exported times, with no shift."""
+    from hrr_zones import ZONE_KEYS, unix, zone_error
+    total = off = exact = 0
+    for w in workouts:
+        hrs = [hr[t] for t in range(unix(w["start"]), unix(w["end"])) if t in hr]
+        wrong = zone_error(hrs, [w["score"]["zone_durations"][k] / 1000 for k in ZONE_KEYS], ZONE_REST_HR, max_hr)
+        total += len(hrs)
+        off += wrong / 2  # each misplaced second counts in two zones
+        exact += wrong == 0
+    claim(results, f"at least {ZONE_MIN_SHARE:.0%} of workout seconds land in WHOOP's zone", int(total - off),
+          total, need_all=False)
+    results[-1]["ok"] = total > 0 and (total - off) / total >= ZONE_MIN_SHARE
+    claim(results, "at least one workout matches WHOOP's zones to the second", exact, len(workouts), need_all=False)
+    results[-1]["ok"] = exact >= 1
+
+
 def main() -> int:
     export, snapshot = sys.argv[1], sys.argv[2]
     load = lambda n: json.load(open(os.path.join(snapshot, f"{n}.json")))
     results = verify(read_export(export, "sleeps.csv"), read_export(export, "physiological_cycles.csv"), load("sleeps"), load("cycles"),
                      load("recoveries"), load("workouts"))
+    if len(sys.argv) > 3:
+        from strain_model import hr_by_second
+        zone_claims(results, load("workouts"), hr_by_second(sys.argv[3]), load("body_measurement")["max_heart_rate"])
     for r in results:
         print(f"{'PASS' if r['ok'] else 'FAIL'}  {r['hits']} of {r['total']}  {r['claim']}")
     failed = sum(not r["ok"] for r in results)

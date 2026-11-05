@@ -47,6 +47,7 @@ exist but the bar fixed in advance (`CRITERIA` in `re/validate_own_strap.py`, 5 
 | R20 heart rate outside one resting session | Failed | 12–28 bpm off, §14 | corpus |
 | **Wake time** | Failing | 33.6 min off, bar is 15, §18 | own strap |
 | **Resting heart rate** | Failing | 3.75 bpm too low, bar is 3, §18 | own strap |
+| **WHOOP's heart-rate zones: 40/60/70/80/90 % of heart rate reserve** | Proven on one account | 1379 of 1379 s on one workout, 26 of 1978 s off on another, §18 | own strap + official API |
 | **Sleep need, sleep debt and nap credit rules** | Measured | exact to the millisecond on every case so far, §18 | official API |
 | WHOOP's recovery, strain and sleep performance formulas | Open | §18; recovery is still in WHOOP's calibration | own strap |
 | Sleep stages | Open | not attempted; the export holds per-stage minutes | |
@@ -442,7 +443,7 @@ Effort reads 2.4 and 3.1 below WHOOP on 2 cycles. Charge does not score yet: it 
 ### What the official API settled
 
 `re/whoop_api_fetch.py` saves the owner's data from WHOOP's official developer API, and `re/verify_findings.py` recomputes each claim
-and fails if one stops holding (14 of 14 on the first snapshot). WHOOP's servers are used only through that official, signed-in, read-only API.
+and fails if one stops holding (16 of 16 on the first snapshot). WHOOP's servers are used only through that official, signed-in, read-only API.
 
 - **Sleep need** is baseline + debt + recent strain + nap credit, on all 4 sleeps.
 - **Export minutes are cut off, not rounded,** for need, asleep and time in bed.
@@ -452,8 +453,10 @@ and fails if one stops holding (14 of 14 on the first snapshot). WHOOP's servers
 - **Efficiency** is asleep / in bed on 2 of 4 sleeps and 0.12 and 0.40 points higher on the other 2. Open.
 - **Recovery and Sleep performance are whole numbers in the API too,** so no decimals are hidden there. Strain has decimals.
 - **WHOOP flags all 3 recoveries as calibrating,** so a formula fitted on them may not hold after calibration.
-- **Maximum heart rate.** WHOOP reports 187. That rejects the 214 from `re/workout_zones.py`. Zones at % of 187 do not reproduce the
-  workout from raw heart rate either, so the zone definition is open. A second workout is in the API and needs its raw heart rate.
+- **WHOOP's heart-rate zones are heart rate reserve,** with edges at 40, 60, 70, 80 and 90 %, WHOOP's reported maximum HR and a resting HR
+  of 58. From raw R18 heart rate, with no time shift, one workout matches in all 6 zones to the second (1379 of 1379 s). A second workout
+  has 26 of 1978 s one zone off, all at the 60 % edge. This also shows R18 heart rate and its clock line up with what WHOOP scored. An
+  earlier fit with a maximum of 214 and an 11-minute shift was wrong. `re/hrr_zones.py`.
 - **Recent-strain need** grows about with strain squared on 2 cycles (power 2.05). Two points, so a lead.
 
 ### Candidate formulas

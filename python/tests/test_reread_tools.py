@@ -1,6 +1,5 @@
 import importlib.util
 import os
-import random
 import unittest
 
 RE = os.path.join(os.path.dirname(__file__), "..", "..", "re")
@@ -42,6 +41,11 @@ class BackfillRefusal(unittest.TestCase):
     def test_refuses_a_page_not_older_than_trim(self):
         self.assertIn("not older", self.probe.backfill_refusal(1000, 1100, 100, 100, 5000))
 
+    def test_leftover_records_past_stop_do_not_count_as_reaching_it(self):
+        self.assertEqual(self.probe.span_progress([900, 950], 500), (False, False, 0))
+        self.assertEqual(self.probe.span_progress([900, 100, 200], 500), (True, False, 200))
+        self.assertEqual(self.probe.span_progress([900, 100, 600], 500), (True, True, 600))
+
     def test_refuses_a_future_start(self):
         self.assertIn("future", self.probe.backfill_refusal(6000, 6000, 500, 100, 5000))
 
@@ -65,16 +69,15 @@ class RegisteredModels(unittest.TestCase):
         self.assertFalse(sp.in_rounding(new["SD-CAP"]))
 
 
-class WorkoutZones(unittest.TestCase):
-    def test_recovers_a_planted_shift_and_maximum(self):
-        wz = _load("workout_zones")
-        rng = random.Random(7)
-        series = [rng.randint(90, 160) for _ in range(1200)]
-        hr = {1000 + i + 600: h for i, h in enumerate(series)}
-        target = wz.zone_shares(series, 200)
-        best = wz.fit(hr, 1000, 2199, target)[0]
-        self.assertEqual(best["shift_s"], 600)
-        self.assertIn(best["max_hr"], (199, 200))  # whole-bpm heart rates cannot separate neighbouring maximums
+class HrrZones(unittest.TestCase):
+    def test_counts_seconds_in_each_zone_from_heart_rate_reserve(self):
+        try:
+            hz = _load("hrr_zones")
+        except ImportError:
+            self.skipTest("needs numpy")
+        # With rest 50 and maximum 150 the edges are 90, 110, 120, 130 and 140 bpm.
+        self.assertEqual(hz.zone_seconds([89, 90, 109, 110, 120, 130, 140, 150], 50, 150), [1, 2, 1, 1, 1, 2])
+        self.assertEqual(hz.zone_error([89, 90], [1, 1, 0, 0, 0, 0], 50, 150), 0)
 
 
 if __name__ == "__main__":
