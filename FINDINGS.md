@@ -436,6 +436,12 @@ time in heart-rate zones, which the per-second heart rate adds (`--frames`).
 
 Effort reads 2.4 and 3.1 below WHOOP on 2 cycles. Charge does not score yet: it needs 4 nights of baseline.
 
+### Candidate formulas
+
+[re/SCORE_MODELS.md](re/SCORE_MODELS.md) freezes the first candidates and what is ruled out; `re/score_predictions.py` tests them on later
+cycles only. None is proven. The strongest results so far are the exclusions: sleep performance is not plain asleep/need, and strain is
+not one function of Edwards TRIMP.
+
 ## 19. Command request bodies from the official app (APK, new)
 
 Each command this project had only named is built by its own class in the app (a subclass of the `xj0.b` packet base,

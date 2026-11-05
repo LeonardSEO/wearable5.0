@@ -32,6 +32,7 @@ with NOOP's real code (`re/noop_compare.py`). Never pull scores from WHOOP's ser
 | [FINDINGS.md](FINDINGS.md) | The proof. The status table on top is the state of the project |
 | [re/RE_OPPORTUNITIES.md](re/RE_OPPORTUNITIES.md) | What is left to reverse-engineer, ranked |
 | [re/README.md](re/README.md) | Every analysis script |
+| [re/SCORE_MODELS.md](re/SCORE_MODELS.md) | Frozen candidate score formulas and what is ruled out |
 | `protocol/whoop5_protocol.json` | The schema. Edit only this, then run `scripts/sync-schema.sh` |
 | `../whoop5-data/own_strap/` | The owner's raw data and `REPORT.md`. Never commit it |
 
@@ -65,7 +66,7 @@ Split nights by firmware when a check fails. Nights after 5 November 11:03 are o
 - Never redistribute WHOOP code, firmware or assets. Never write firmware to a strap. Commands marked `destructive` in the schema
   are documentation only.
 - Keep the re-read method out of anything sent to NOOP, including NOOP_HANDOFF.md. The owner decided this.
-- Raw captures and personal data stay out of git.
+- Raw captures and personal data stay out of git. The repository is public: no dated per-day health values in any tracked file.
 - Commit or post to NOOP only when the owner asks.
 
 ## Checks
