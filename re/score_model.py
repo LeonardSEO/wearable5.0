@@ -1,6 +1,6 @@
 """Reverse-engineer WHOOP's recovery, strain and sleep scores from your own account, empirically.
 
-WHOOP computes the scores server-side (FINDINGS 19 / the RE ledger), so there is no formula to read out of the app.
+WHOOP computes the scores server-side (RE_OPPORTUNITIES §3), so there is no formula to read out of the app.
 But your WHOOP data export pairs each cycle's inputs (HRV, resting HR, respiratory rate, sleep) with the score WHOOP
 assigned, and those input/output pairs are yours. This fits a model per score on that history and reports how well it
 reproduces WHOOP, so a client can show the same numbers from the inputs this library already decodes.
@@ -15,7 +15,7 @@ history, not one week.
   python re/score_model.py <export.zip | physiological_cycles.csv | folder>
 
 Targets:
-  sleep_performance  asleep / sleep-need, the simplest; expected near-exact.
+  sleep_performance  compared with asleep / sleep-need; 33 % off on the first 3 cycles, so it is not that plain ratio.
   recovery           linear fit of recovery % on HRV, resting HR, respiratory rate and sleep performance (standardized).
   strain             documented only here: a 0-21 logarithmic cardiovascular load that needs intraday HR time-in-zone,
                      not just the per-cycle export columns. Settled once per-second day HR (re-read frames) is joined.

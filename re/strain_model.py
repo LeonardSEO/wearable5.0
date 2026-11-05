@@ -8,10 +8,8 @@ Method (reusable regardless of the fit): per second, place HR in a WHOOP zone by
 minutes per zone, and form Edwards TRIMP = sum(minutes_in_zone_i * i) for i = 1..5 (higher zones weigh more). Strain is
 logarithmic, so the fit is day_strain ~ a * ln(1 + TRIMP) + b.
 
-What it needs, and the current gap: a day that has BOTH a WHOOP Day Strain AND near-complete waking HR. In the data so
-far these do not overlap — the full-coverage days synced to NOOP (no WHOOP strain) and the days with a WHOOP strain were
-only re-read overnight. Re-read the daytime spans of those days (re/REREAD_HISTORY.md, a 24 h --span, not just the
-night) to close it. Until then this reports the load mechanism on whatever HR is present, not a fitted strain.
+A cycle counts once it has a WHOOP Day Strain and at least 80 % HR coverage; the fit needs 5 such cycles. Re-read each
+strain cycle's whole span (re/REREAD_HISTORY.md), not just its night. HR comes from frames.jsonl files and HCI captures.
 
   python re/strain_model.py <frames-folder> [export.zip]
 """
@@ -27,6 +25,8 @@ import sys
 import numpy as np
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "python"))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from validate_own_strap import frames_in  # noqa: E402
 from whoop5.decode import decode_frame  # noqa: E402
 
 ZONE_EDGES = [0.50, 0.60, 0.70, 0.80, 0.90]  # WHOOP HR zones as a fraction of max HR; zone i is edge i..i+1
@@ -34,13 +34,10 @@ ZONE_EDGES = [0.50, 0.60, 0.70, 0.80, 0.90]  # WHOOP HR zones as a fraction of m
 
 def hr_by_second(folder: str) -> dict[int, int]:
     hr = {}
-    for path in glob.glob(os.path.join(folder, "**", "frames.jsonl"), recursive=True):
-        for line in open(path):
-            if '"hex"' not in line:
-                continue
-            d = decode_frame(bytes.fromhex(json.loads(line)["hex"]))
-            if d.get("layout") == 18 and d.get("unix_s") and 25 <= (d.get("heart_rate") or 0) <= 230:
-                hr[d["unix_s"]] = d["heart_rate"]
+    for frame in frames_in(folder):
+        d = decode_frame(frame)
+        if d.get("layout") == 18 and d.get("unix_s") and 25 <= (d.get("heart_rate") or 0) <= 230:
+            hr[d["unix_s"]] = d["heart_rate"]
     return hr
 
 
