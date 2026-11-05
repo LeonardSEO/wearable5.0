@@ -11,7 +11,7 @@ the evidence, and where it goes. NOOP's rules apply to all of it: facts only, no
 | 1 | Pass `feedsSync: true` for 5/MG, reading the newest-page clock at body offset 57 | 589 replies from 21 sessions, FINDINGS §3 | `Strand/BLE/BLEManager.swift`, `handleDataRangeResponse` | [#2824](https://github.com/ryanbr/noop/pull/2824) |
 | 2 | Stop the history auto-continue at 0 pages behind | backlog = write − trim, FINDINGS §3 | `Strand/BLE/BLEManager.swift` | [#2823](https://github.com/ryanbr/noop/pull/2823) |
 | 3 | Name commands 146, 147 and 155–159; mark 10 and 11 deprecated; add events 109 and 123 | `re/compare_noop.py`, same in app 5.473.0 and 5.475.0 | `Resources/whoop_protocol.json` | 155–159 in [#2828](https://github.com/ryanbr/noop/pull/2828) |
-| 4 | Add R26 heart rate from autocorrelation, with the acceptance filter | 1.46 bpm on 184 of 528 bursts, 5.78 for a shuffled control, 0.92 on 82 bursts the filter had not seen. Asleep only. FINDINGS §16, §18 | new; NOOP's packages and docs have no R26 heart rate | none |
+| 4 | Add R26 heart rate from autocorrelation, with the acceptance filter | 1.46 bpm on 184 of 529 bursts, 5.78 for a shuffled control, 0.92 on 82 bursts the filter had not seen. Asleep only. FINDINGS §16, §18 | new; NOOP's packages and docs have no R26 heart rate | none |
 
 ## Ready at 5 paired nights
 
@@ -37,6 +37,7 @@ least 27 for a model that uses personal baselines. NOOP's offline rule is unaffe
 | Recovery | Logistic over weighted z-scores: HRV 0.55, resting HR 0.20, sleep 0.15, respiration 0.05, skin temperature 0.05; baselines with a 14-night half-life | This same shape with free weights and half-lives of 7, 14 and 30, plus every other input |
 | Strain | Edwards TRIMP on %HRR zones, then 100 x ln(TRIMP + 1) / ln(7201) | Log and logit shapes on TRIMP, per-zone minutes and heart-rate summaries |
 | Sleep performance | Rest composite | Sleep durations, need, debt, efficiency and consistency |
+| Sleep need and debt | see `SleepDebt.swift` | **Measured from WHOOP's official API:** need = baseline + debt + recent strain - nap asleep; debt = half the last main sleep's shortfall; a nap holds it (FINDINGS §18) |
 
 First numbers: Effort reads 2.4 and 3.1 below WHOOP's Day Strain on 2 cycles (FINDINGS §18).
 

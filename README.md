@@ -153,7 +153,7 @@ owners. None of them blocks using the library; they limit how far a client shoul
 |---|---|---|---|
 | H1 | Full connect → bond → hello → sync session on iOS, macOS and Android | **macOS done** on one strap with `re/probe_read_pointer.py` on this library's framing; iOS and Android not run | Same session through a client on those platforms |
 | H2 | Bonding refusals on some Android phones | Strap refuses SMP pairing in an HCI capture (NOOP #1635); cause open | Controlled pairing attempts with HCI logging |
-| H9 | Re-reading trimmed history | **Works on one strap** (fw 50.43.2): an older `HISTORICAL_DATA_RESULT` during a burst moves trim back, about 120x realtime; the official app syncs on from a moved trim; [guide](re/REREAD_HISTORY.md), §17 | Whether WHOOP's server double-counts re-sent pages; other firmware and straps |
+| H9 | Re-reading trimmed history | **Works on one strap** (fw 50.43.2): an older `HISTORICAL_DATA_RESULT` during a burst moves trim back, about 120x realtime; the official app syncs on from a moved trim; [guide](re/REREAD_HISTORY.md), §17 | Other firmware and straps |
 | H4 | HISTORY_END token second word (write-wrap state) | **Closed on one strap**: the firmware calls it the wrap count, and pages above the write head are one lower (§17) | Other firmware |
 | H5 | R21 IMU scale (4096 LSB/g, ±2000 °/s) and 100 Hz rate | **Accel closed on one strap**: 1.003 g over 71,019 still seconds (§18). Gyro samples are present, gyro scale open | One timed 360° rotation |
 | H6 | Dedicated IMU stream packets 51/52 | Layout documented, never observed | Enable IMU streaming and capture |

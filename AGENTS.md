@@ -14,7 +14,8 @@ Three streams feed that list:
    there is no formula to read. Input and output pairs replace it.
 
 Also compare each new WHOOP app version with NOOP, so new commands and behaviour show up (`re/compare_noop.py`). Compare scores
-with NOOP's real code (`re/noop_compare.py`). Never pull scores from WHOOP's server endpoints: the owner's export is the source.
+with NOOP's real code (`re/noop_compare.py`). Server data comes only from the owner's export and WHOOP's official developer API (`re/whoop_api_fetch.py`), read-only and signed in
+by the owner. Never use other endpoints.
 
 ## How to write results
 
@@ -45,7 +46,9 @@ and proof that the scores are server-side.
 
 **Failing.** Wake time (33.6 min, bar 15) and resting heart rate (3.75 bpm, bar 3).
 
-**Not done.** Score formulas (3 cycles; `re/score_search.py` is ready), sleep stages, gyro scale.
+**Done from the official API.** Sleep need, sleep debt and nap credit rules (FINDINGS §18).
+
+**Not done.** Recovery, strain and sleep performance formulas (3 cycles; `re/score_search.py` is ready), sleep stages, gyro scale.
 
 ## The data routine
 
@@ -57,7 +60,7 @@ formula takes about 45 (FINDINGS §18).
    nobody notes them by hand.
 3. Pair the Mac and re-read those nights (`re/REREAD_HISTORY.md`). The ring holds about 22 days (131,072 pages at 245 per hour).
    Always pass `--restore`.
-4. Run `re/pipeline.sh <data folder> <export.zip>`, then update FINDINGS and NOOP_HANDOFF.
+4. Run `re/pipeline.sh <data folder> <export.zip>` and `re/verify_findings.py`, then update FINDINGS and NOOP_HANDOFF.
 
 Split nights by firmware when a check fails. Nights after 5 November 11:03 are on 50.43.2.0.
 
@@ -67,6 +70,7 @@ Split nights by firmware when a check fails. Nights after 5 November 11:03 are o
   are documentation only.
 - Keep the re-read method out of anything sent to NOOP, including NOOP_HANDOFF.md. The owner decided this.
 - Raw captures and personal data stay out of git. The repository is public: no dated per-day health values in any tracked file.
+- `credentials.env` and `tokens.json` in `own_strap/api/` are secrets. Never read, print or commit them.
 - Commit or post to NOOP only when the owner asks.
 
 ## Checks

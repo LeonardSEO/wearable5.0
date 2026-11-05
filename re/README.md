@@ -16,6 +16,9 @@ demand into `re/corpus/` (gitignored); only scripts and results are committed.
 | `export_diff.py` | What changed between two WHOOP exports: cycles added, removed or rescored | table on stdout |
 | `score_predictions.py` | Test the frozen candidate formulas in [SCORE_MODELS.md](SCORE_MODELS.md) on later cycles only | table on stdout |
 | `workout_zones.py` | Which maximum HR and time shift reproduce WHOOP's zone shares for a workout | best fits on stdout |
+| `whoop_api_fetch.py` | Save your own data from WHOOP's official developer API, read-only, untouched | JSON per run, outside git |
+| `api_checks.py` | Check the sleep need, debt and nap rules against an API snapshot | rule hits on stdout |
+| `verify_findings.py` | Recompute every claim from the export and API, and fail if one no longer holds | pass or fail per claim, counts only |
 | `pipeline.sh` | One command: validate + score + strain over your data folder and WHOOP export (SpO2 standing on top) | combined report |
 | `score_model.py` | Reverse-engineer WHOOP's recovery/strain/sleep scores empirically from your own export (input/output pairs) | fit stats on stdout |
 | `validate_own_strap.py` | Every open claim checked on one owner's strap and WHOOP export, with thresholds fixed in advance | `REPORT.md`, `report.json` in the data folder |

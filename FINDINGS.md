@@ -7,7 +7,7 @@ owners published), **apk** (static analysis of the official Android app 5.473.0 
 **noop / goose / johga** (community sources), **constructed** (arithmetic only).
 
 The corpus is 31,489 CRC-valid 5/MG frames from public repositories, issue attachments and two HCI captures.
-The own-strap data is 1,063,111 unique frames from one WHOOP 5.0. Raw data is not redistributed here; the tools
+The own-strap data is 1,066,054 unique frames from one WHOOP 5.0. Raw data is not redistributed here; the tools
 in `re/` rebuild the corpus locally (see `re/README.md`). WHOOP 4.0 material was excluded file by file. Section
 numbers are stable because outside links use them; there is no §7.
 
@@ -42,12 +42,13 @@ exist but the bar fixed in advance (`CRITERIA` in `re/validate_own_strap.py`, 5 
 | HRV (RMSSD) | Measured | 1.48 ms, r = 0.92, 3 of 5 nights, §18 | own strap |
 | Skin temperature | Measured | 0.12 °C, r = 1.00, 3 of 5 nights, §18 | own strap |
 | Sleep onset | Measured | 13.8 min, 3 of 5 nights, §18 | own strap |
-| R26 heart rate, on accepted bursts | Proven asleep | 1.46 bpm on 184 of 528 bursts, §16, §18 | own strap |
+| R26 heart rate, on accepted bursts | Proven asleep | 1.46 bpm on 184 of 529 bursts, §16, §18 | own strap |
 | R26 heart rate awake and moving | Failed | motion noise, §16 | own strap |
 | R20 heart rate outside one resting session | Failed | 12–28 bpm off, §14 | corpus |
 | **Wake time** | Failing | 33.6 min off, bar is 15, §18 | own strap |
 | **Resting heart rate** | Failing | 3.75 bpm too low, bar is 3, §18 | own strap |
-| WHOOP's recovery, strain and sleep formulas | Open | 3 cycles of 20; strain 2 of 5, §18 | own strap |
+| **Sleep need, sleep debt and nap credit rules** | Measured | exact to the millisecond on every case so far, §18 | official API |
+| WHOOP's recovery, strain and sleep performance formulas | Open | §18; recovery is still in WHOOP's calibration | own strap |
 | Sleep stages | Open | not attempted; the export holds per-stage minutes | |
 | R21 gyro scale, R22 v9 channels, R26 sample units | Open | README D9, H5 | |
 
@@ -379,8 +380,10 @@ with write at 3064.
 every acknowledgement moving forward. That this was the app is inferred: the Mac had stopped writing and lost its
 encrypted link. The next two app captures run normally and end with trim equal to write, at page 3518.
 
-So a moved trim does not stall the app; an unrestored one makes the strap serve those pages again. Open: whether WHOOP's
-server double-counts re-sent pages. A new export settles that.
+So a moved trim does not stall the app; an unrestored one makes the strap serve those pages again. WHOOP did not rescore the
+re-sent day: the official API shows its strain unchanged and its last update hours before the re-send. Pages that reached WHOOP
+for the first time were scored even when days old, which is the case for the first sync. Whether older pages sent after that get
+scored is not tested.
 
 ## 18. First comparison with the WHOOP app on the same nights (own strap, new)
 
@@ -401,10 +404,10 @@ checks as waiting until 2 more nights are paired.
 - **Byte scan.** Byte 82 ranked fifth at r = 0.95 and byte 71 first at r = 0.999. With about 100 bytes and three points a
   high r is expected by chance. The script's check that byte 82 ranks first runs at 5 nights.
 - **The R26 filter of §16 held on data it had not seen:** on bursts after 1 November it accepted 82 of 98, MAE 0.92 bpm,
-  93 % within 3 bpm, reference 52-75 bpm. Over all bursts now: 184 of 528 accepted, MAE 1.46 bpm, against 5.78 for a
-  shuffled control and 19.0 unfiltered. These nights are mostly asleep, so this says nothing new about awake use.
+  93 % within 3 bpm, reference 52-75 bpm. Over all bursts now: 184 of 529 accepted, MAE 1.46 bpm, against 5.78 for a
+  shuffled control and 19.1 unfiltered. These nights are mostly asleep, so this says nothing new about awake use.
 - The R-R unit (0.996 over 166,882 records) and the R21 scale (1.003 g over 71,019 still seconds) pass on this
-  strap, and all 1,063,111 frames decode.
+  strap, and all 1,066,054 frames decode.
 
 ### The export pairs inputs with scores
 
@@ -435,6 +438,23 @@ time in heart-rate zones, which the per-second heart rate adds (`--frames`).
 `re/noop_compare.py` runs NOOP's real code, `main` at `2a1de760`.
 
 Effort reads 2.4 and 3.1 below WHOOP on 2 cycles. Charge does not score yet: it needs 4 nights of baseline.
+
+### What the official API settled
+
+`re/whoop_api_fetch.py` saves the owner's data from WHOOP's official developer API, and `re/verify_findings.py` recomputes each claim
+and fails if one stops holding (14 of 14 on the first snapshot). WHOOP's servers are used only through that official, signed-in, read-only API.
+
+- **Sleep need** is baseline + debt + recent strain + nap credit, on all 4 sleeps.
+- **Export minutes are cut off, not rounded,** for need, asleep and time in bed.
+- **Sleep debt** is half the shortfall of the last main sleep, to the millisecond: 3 of 3 cases, of which one positive, one held
+  across a nap and one zero. Whether carried debt adds up is not separated yet.
+- **Nap credit** is exactly the nap's asleep time, on the one nap.
+- **Efficiency** is asleep / in bed on 2 of 4 sleeps and 0.12 and 0.40 points higher on the other 2. Open.
+- **Recovery and Sleep performance are whole numbers in the API too,** so no decimals are hidden there. Strain has decimals.
+- **WHOOP flags all 3 recoveries as calibrating,** so a formula fitted on them may not hold after calibration.
+- **Maximum heart rate.** WHOOP reports 187. That rejects the 214 from `re/workout_zones.py`. Zones at % of 187 do not reproduce the
+  workout from raw heart rate either, so the zone definition is open. A second workout is in the API and needs its raw heart rate.
+- **Recent-strain need** grows about with strain squared on 2 cycles (power 2.05). Two points, so a lead.
 
 ### Candidate formulas
 

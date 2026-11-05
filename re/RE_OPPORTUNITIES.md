@@ -81,6 +81,8 @@ documented only.
   personal baseline, and judges them on the newest 30 % of cycles and against shuffled scores. Measured on a planted
   formula with no noise: 27-30 cycles give a usable model about 3 points off, 45 give the exact formula. WHOOP's real
   formula can only be harder, so one free month gives a model, and exactness needs about 45 nights or more accounts.
+  **Official API:** sleep need, debt and nap credit are settled (FINDINGS §18). Open: recovery, strain, sleep performance, the sleep
+  baseline and efficiency.
 - **What the strap uploads (the raw inputs to the server model).** The app ships, over `api.prod.whoop.com`:
   raw frames (`research-metrics-service/v1/{raw,imu,optical}/upload`, `com.whoop.dataSyncService.rawdata`
   `RawDataUploadWorker`), sensor metrics (`metrics-service/v1/metrics/sensor`), strap and firmware events

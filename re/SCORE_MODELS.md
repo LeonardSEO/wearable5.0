@@ -36,12 +36,26 @@ a new night without its components.
 
 - **Time in bed is truncated, not rounded.** It equals whole minutes of wake - onset, rounded down, on all 4 sleeps (`417.62` gives
   417).
-- **Workout zones (`re/workout_zones.py`).** One workout: zone shares match within 1.6 points in total at a maximum HR of 214 with
-  the window 660-690 s later than exported. The unfitted mean (118.5 against 119) and maximum (157 against 157) agree too. Without the
-  shift the error is at least 11 points at any maximum. This search covered 241 shifts and 71 maximums on one workout, so it is a
-  lead. Test: a second workout should give the same maximum. The cause of the shift is unknown; no strap clock correction of that
-  size shows on that day.
+- **The 214 lead is rejected.** WHOOP reports a maximum HR of 187. `re/workout_zones.py` had fitted 214 with a shifted window on one
+  workout. Zones at % of 187 do not fit either, so the zone definition stays open.
+
+## Settled by the official API
+
+`re/api_checks.py`, in milliseconds. The rules below replace the candidates they settle: SN-C holds with a nap factor of exactly 1, and
+SD-CAP's 53 and every other nap factor are unlikely, though the next debt is the first test on unseen data.
+
+| Rule | Cases |
+|---|---:|
+| need = baseline + debt + recent strain + nap credit | 4 of 4 |
+| debt = floor(0.5 x (need - asleep)) of the last main sleep; a nap holds it | 3 of 3 |
+| nap credit = -(the nap's asleep time) | 1 of 1 |
+| export minutes = floor of the milliseconds | all checked |
+
+The frozen strain models fit to 0.1 only: the API's decimals show they are not exact, for example DS-C is off by 0.02-0.03. Recovery was
+in WHOOP's calibration on all cycles here. Sleep need's baseline itself is still unexplained: it dropped sharply after the first
+night, then fell by about 285 ms a night.
 
 ## Next test
 
-The first debt after the 5 November sleep decides the debt family: SD-R, SD-A and SD-G predict 26 minutes, SD-CAP 53.
+The first debt after the newest sleep decides: the rule above predicts 26 minutes, SD-CAP 53. After that, a night with positive debt
+and a new shortfall separates replacing debt from adding to it.

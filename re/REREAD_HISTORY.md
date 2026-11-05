@@ -70,7 +70,7 @@ weeks, you can sleep and sync normally and do this once for a whole batch of nig
 
 Under test. Nights that went to another client never reached WHOOP. Moving trim back and leaving it there makes the strap
 serve them to the app, along with everything after them. Whether WHOOP scores them is the open question, and it touches the
-owner's real account, so go one night at a time. Make a WHOOP export first, then compare with `re/export_diff.py`.
+owner's real account, so go one night at a time. Save the current state first, with `re/whoop_api_fetch.py` or an export.
 
 ```bash
 open -W --stdout run.log --stderr run.log --env PYTHONPATH="$PWD/.venv/lib/python3.14/site-packages" \
@@ -84,4 +84,4 @@ That only reports the page. Add `--apply` to move trim, and `--undo PAGE:WRAP` t
 - The phone loses its bond each time the Mac pairs.
 - An acknowledgement moves trim. With trim moved forward past unsynced pages, the official app misses them, so restore it.
 - Reads without `--restore` leave trim at the end of the span. With a span in the past, the strap serves everything after
-  it to the app again (FINDINGS §17). Whether WHOOP's server double-counts that is open.
+  it to the app again. WHOOP did not rescore the re-sent day (FINDINGS §17).
