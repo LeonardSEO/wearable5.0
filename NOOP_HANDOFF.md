@@ -36,9 +36,9 @@ least 27 for a model that uses personal baselines. NOOP's offline rule is unaffe
 |---|---|---|
 | Recovery | Logistic over weighted z-scores: HRV 0.55, resting HR 0.20, sleep 0.15, respiration 0.05, skin temperature 0.05; baselines with a 14-night half-life | This same shape with free weights and half-lives of 7, 14 and 30, plus every other input |
 | Strain | Edwards TRIMP on %HRR zones, then 100 x ln(TRIMP + 1) / ln(7201) | Log and logit shapes on TRIMP, per-zone minutes and heart-rate summaries |
-| Heart-rate zones | `HRZones.swift` | **Proven on one account:** WHOOP's zones are 40/60/70/80/90 % of heart rate reserve; NOOP's zones start at 50 %, on %HRmax for display and %HRR for strain. Exact to the second on one workout (FINDINGS §18) |
+| Heart-rate zones | `HRZones.swift` | **Measured on one account:** WHOOP's zones fit 40/60/70/80/90 % of heart rate reserve; NOOP's zones start at 50 %, on %HRmax for display and %HRR for strain. Exact on one workout, 98.69 % on another; new workouts still have to confirm it (FINDINGS §18) |
 | Sleep performance | Rest composite | Sleep durations, need, debt, efficiency and consistency |
-| Sleep need and debt | see `SleepDebt.swift` | **Measured from WHOOP's official API:** need = baseline + debt + recent strain - nap asleep; debt = half the last main sleep's shortfall; a nap holds it (FINDINGS §18) |
+| Sleep need and debt | see `SleepDebt.swift` | **Measured from WHOOP's official API:** need = baseline + debt + recent strain - nap asleep; half the last main sleep's shortfall reproduces debt so far, and a nap holds it; carry-over of existing debt is open (FINDINGS §18) |
 
 First numbers: Effort reads 2.4 and 3.1 below WHOOP's Day Strain on 2 cycles (FINDINGS §18).
 

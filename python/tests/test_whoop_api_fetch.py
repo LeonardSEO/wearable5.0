@@ -144,5 +144,20 @@ class VerifyFindings(unittest.TestCase):
         self.assertFalse(self.results(self.export_sleeps)["nap credit = the nap's asleep time"])
 
 
+class FrozenOnApi(unittest.TestCase):
+    def test_uses_exact_inputs_and_links_recovery_to_its_own_sleep(self):
+        spec = importlib.util.spec_from_file_location("api_checks", os.path.join(os.path.dirname(__file__), "..", "..", "re", "api_checks.py"))
+        checks = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(checks)
+        sleep = ApiChecks.sleep(False, 60000 * 400, (60000 * 400, 0, 0, 0))
+        sleep["id"] = "s1"
+        sleep["score"]["sleep_performance_percentage"] = 93.0
+        rows = checks.frozen_on_api([sleep], [{"sleep_id": "s1", "score": {"hrv_rmssd_milli": 40.0, "recovery_score": 40.0}}])
+        by_model = {r["model"]: r for r in rows}
+        self.assertAlmostEqual(by_model["R-SLEEP"]["predicted"], 0.13 * 400 - 11.17)
+        self.assertAlmostEqual(by_model["R-HRV"]["predicted"], 119.5 - 2.25 * 40)
+        self.assertEqual(by_model["SP-Q"]["actual"], 93.0)
+
+
 if __name__ == "__main__":
     unittest.main()

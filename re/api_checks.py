@@ -59,12 +59,35 @@ def check_sleep_chain(sleeps: list[dict]) -> list[str]:
     return lines
 
 
+def frozen_on_api(sleeps: list[dict], recoveries: list[dict]) -> list[dict]:
+    """Recheck the frozen candidates on the API's exact inputs. These are the same nights, so this is not a test on new data."""
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from score_predictions import RECOVERY_MODELS, SLEEP_MODELS
+    rows = []
+    by_id = {s["id"]: s for s in sleeps}
+    for s in sleeps:
+        inputs = {"asleep": asleep_ms(s["score"]["stage_summary"]) / MS_PER_MIN, "need": need_ms(s["score"]["sleep_needed"]) / MS_PER_MIN}
+        for name, f in SLEEP_MODELS.items():
+            rows.append({"model": name, "predicted": f(inputs), "actual": s["score"]["sleep_performance_percentage"]})
+    for r in recoveries:
+        inputs = {"asleep": asleep_ms(by_id[r["sleep_id"]]["score"]["stage_summary"]) / MS_PER_MIN, "hrv": r["score"]["hrv_rmssd_milli"]}
+        for name, f in RECOVERY_MODELS.items():
+            rows.append({"model": name, "predicted": f(inputs), "actual": r["score"]["recovery_score"]})
+    return rows
+
+
 def main() -> None:
     folder = sys.argv[1]
     load = lambda n: json.load(open(os.path.join(folder, f"{n}.json")))
     sleeps = sorted(load("sleeps"), key=lambda r: r["start"])
     for line in check_sleep_chain(sleeps):
         print(line)
+    rows = frozen_on_api(sleeps, load("recoveries"))
+    print("\nfrozen candidates on the API's exact inputs (same nights, not a new test):")
+    for model in sorted({r["model"] for r in rows}):
+        mine = [r for r in rows if r["model"] == model]
+        hits = sum(abs(r["predicted"] - r["actual"]) < 0.5 for r in mine)
+        print(f"  {model:8} {hits} of {len(mine)} within rounding; {[round(r['predicted'], 2) for r in mine]}")
     print("\nnext-debt prediction after the newest main sleep:")
     last = [s for s in sleeps if not s["nap"] and s.get("score")][-1]["score"]
     expect = debt_after(need_ms(last["sleep_needed"]), asleep_ms(last["stage_summary"]))

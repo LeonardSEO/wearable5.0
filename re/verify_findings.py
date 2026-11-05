@@ -25,6 +25,7 @@ Z5_EDGE = 0.9
 REJECTED_MAX_HR = 214
 ZONE_REST_HR = 58  # the resting HR that fits best, re/hrr_zones.py
 ZONE_MIN_SHARE = 0.99
+ZONE_RULE_FROZEN_UTC = "2026-11-05T18:00:00+00:00"  # workouts from here on did not shape the rule
 
 
 def read_export(path: str, name: str) -> list[dict]:
@@ -113,20 +114,27 @@ def verify(export_sleeps: list[dict], export_cycles: list[dict], sleeps: list[di
 
 
 def zone_claims(results: list, workouts: list[dict], hr: dict[int, int], max_hr: int) -> None:
-    """WHOOP's zones as heart rate reserve, from raw strap heart rate at the exported times, with no shift."""
+    """The frozen zone rule ZR-1 on raw strap heart rate. Later workouts count as tests; rest and edges are not chosen again."""
     from hrr_zones import ZONE_KEYS, unix, zone_error
-    total = off = exact = 0
+    shaped_total, shaped_right, new_ok, new_total = 0, 0, 0, 0
     for w in workouts:
         hrs = [hr[t] for t in range(unix(w["start"]), unix(w["end"])) if t in hr]
-        wrong = zone_error(hrs, [w["score"]["zone_durations"][k] / 1000 for k in ZONE_KEYS], ZONE_REST_HR, max_hr)
-        total += len(hrs)
-        off += wrong / 2  # each misplaced second counts in two zones
-        exact += wrong == 0
-    claim(results, f"at least {ZONE_MIN_SHARE:.0%} of workout seconds land in WHOOP's zone", int(total - off),
-          total, need_all=False)
-    results[-1]["ok"] = total > 0 and (total - off) / total >= ZONE_MIN_SHARE
-    claim(results, "at least one workout matches WHOOP's zones to the second", exact, len(workouts), need_all=False)
-    results[-1]["ok"] = exact >= 1
+        if not hrs:
+            continue
+        wrong = zone_error(hrs, [w["score"]["zone_durations"][k] / 1000 for k in ZONE_KEYS], ZONE_REST_HR, max_hr) / 2
+        share = 1 - wrong / len(hrs)
+        is_new = utc(w["start"]) >= utc(ZONE_RULE_FROZEN_UTC)
+        print(f"zones {w['sport_name']}: {share:.2%} of {len(hrs)} s in WHOOP's zone{' (new workout)' if is_new else ''}")
+        if is_new:
+            new_total += 1
+            new_ok += share >= ZONE_MIN_SHARE
+        else:
+            shaped_total += len(hrs)
+            shaped_right += int(len(hrs) - wrong)
+    claim(results, "the workouts that chose the zone rule land in WHOOP's zones (at least 99 % together)", shaped_right, shaped_total, need_all=False)
+    results[-1]["ok"] = shaped_total > 0 and shaped_right / shaped_total >= ZONE_MIN_SHARE
+    if new_total:
+        claim(results, "each new workout lands at least 99 % in WHOOP's zones under the frozen rule", new_ok, new_total)
 
 
 def main() -> int:

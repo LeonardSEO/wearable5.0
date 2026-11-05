@@ -23,6 +23,18 @@ Rules: keep coefficients frozen, and give any refit a new id. A miss can reject 
 T is Edwards TRIMP with zones on 172 bpm. Sleep need has a component model only (baseline + strain + debt - nap); it cannot predict
 a new night without its components.
 
+## Fit on the export against fit on the API's exact inputs
+
+These are the same nights, so neither column is a test on new data. A miss rejects the frozen coefficients, not the family.
+
+| Id | On export values | On API inputs |
+|---|---:|---:|
+| SP-Q | 4 of 4 | **3 of 4**: 75.52 rounds to 76, WHOOP reports 75 |
+| SP-E | 4 of 4 | 4 of 4 |
+| R-SLEEP | 3 of 3 | 3 of 3, one very close to the rounding edge |
+| R-HRV | 3 of 3 | **2 of 3**: 41.61 rounds to 42, WHOOP reports 43 |
+| DS-C, DS-LOG, DS-LIN, DS-POW | fit to 0.1 | fit to 0.1, not the API's decimals |
+
 ## Ruled out
 
 - **Sleep performance = plain asleep/need.** It gives 69, 62, 100 and 89 where WHOOP reports 81, 75, 95 and 90.
@@ -39,15 +51,15 @@ a new night without its components.
 - **The 214 lead and its 11-minute shift were wrong.** They came from assuming zones start at 50 % of maximum HR. The zones below need
   no shift.
 
-## WHOOP's heart-rate zones (`re/hrr_zones.py`)
+## Zone rule ZR-1, frozen (`re/hrr_zones.py`)
 
-Zones are percentages of heart rate reserve, (HR - rest) / (max - rest), with edges at **40, 60, 70, 80 and 90 %**, using WHOOP's maximum
-HR from the API and a resting HR of 58.
+Zones are percentages of heart rate reserve, (HR - rest) / (max - rest), with edges at **40, 60, 70, 80 and 90 %**, WHOOP's maximum HR from the
+API and a resting HR of 58. These values are now frozen. New workouts test the rule without choosing rest or edges again.
 
-From raw strap heart rate at the exported times, no shift or fitting of time: one workout matches in all 6 zones to the second, 1379 of
-1379 s. A second workout matches 4 of 5 edges to the second: 26 of 1978 s are one zone off, all at the 60 % edge. The 50 % edge
-is off by 2170 s on the same data. Fitted: only the resting HR, out of 16 values, and the edge set, out of 4. That also shows R18 heart
-rate and its clock line up with what WHOOP scored.
+From raw strap heart rate at the exported times, with no time shift: one workout is reproduced in all 6 zones to the second, 1379 of 1379 s. A
+second workout is nearly reproduced: 98.69 %, with 26 of 1978 s one zone off, all at the 60 % edge. Together that is 99.23 %. Resting HR (of 16
+values) and the edge set (of 4) were chosen on these same two workouts, so independent confirmation is still to come. A first edge at 50 % is
+off by 2170 s on the same data. The match also shows R18 heart rate and its clock line up with what WHOOP scored.
 
 Open: why the 60 % edge misses by 26 s on the second workout, whether the resting HR is fixed or changes, and why WHOOP's mean HR reads
 about 4 bpm lower than the raw mean on both workouts.
@@ -63,7 +75,7 @@ SD-CAP's 53 and every other nap factor are unlikely, though the next debt is the
 | Rule | Cases |
 |---|---:|
 | need = baseline + debt + recent strain + nap credit | 4 of 4 |
-| debt = floor(0.5 x (need - asleep)) of the last main sleep; a nap holds it | 3 of 3 |
+| debt = floor(0.5 x (need - asleep)) of the last main sleep; a nap holds it. This reproduces the transitions so far; how existing debt carries over is open | 3 of 3 |
 | nap credit = -(the nap's asleep time) | 1 of 1 |
 | export minutes = floor of the milliseconds | all checked |
 
