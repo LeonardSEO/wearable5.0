@@ -66,12 +66,22 @@ documented only.
 
 ## 3. The app itself
 
-- **Score model inputs.** How the app turns R18/R20/R26 into recovery, strain and sleep. Static analysis can show
-  which decoded fields feed which score, which is what a client needs to reproduce them.
-- **The API surface.** `api.prod.whoop.com` and `app-cdn.prod.whoop.com` — the sync/upload endpoints and payloads.
-  An HCI or TLS-aware capture of a login + sync would map these. Credentials and personal data stay out.
-- **What the app uploads.** `firmware-service/v1/events` and the raw-data uploaders show the app ships strap events
-  and raw frames to WHOOP; worth knowing what leaves the device.
+- **Score model inputs — settled: the scores are not in the app.** Recovery, strain and sleep are computed
+  server-side, not on the device. The decompiled app has no HRV/strain/recovery formula (no Kubios/RMSSD/TRIMP
+  constants, no calculator or engine class); the `recovery`, `strain` and `sleep` values arrive as deserialized DTO
+  fields and every score path is a fetch or a leaderboard read (`community-service/.../recovery/score`, etc.). So a
+  client **cannot** extract WHOOP's scoring model from the app — it would have to reproduce it from the raw inputs
+  itself, which is exactly what this project's experimental metrics do. The useful half is the input list below.
+- **What the strap uploads (the raw inputs to the server model).** The app ships, over `api.prod.whoop.com`:
+  raw frames (`research-metrics-service/v1/{raw,imu,optical}/upload`, `com.whoop.dataSyncService.rawdata`
+  `RawDataUploadWorker`), sensor metrics (`metrics-service/v1/metrics/sensor`), strap and firmware events
+  (`firmware-service/v1/events`, `hardware-observability-service/v1/events/relative`), console logs
+  (`NewConsolePacketUploader`) and GPS. In other words the server gets the same R18/R20/R21/R26 streams and events this
+  library already decodes, and derives the scores from them; nothing extra is measured on the phone.
+- **The API surface.** `api.prod.whoop.com` and `app-cdn.prod.whoop.com`, a large set of `*-service/vN/` REST
+  endpoints (firmware, metrics, research-metrics, coaching, community, health, …). Mapping the request/response bodies
+  needs a TLS-aware capture of a login + sync and will meet certificate pinning; the endpoint paths are already
+  readable statically. Credentials and personal data stay out of the repo.
 
 ## 4. Gaps worth closing (what is missing or weak today)
 
