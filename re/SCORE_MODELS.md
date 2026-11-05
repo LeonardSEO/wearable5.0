@@ -35,6 +35,22 @@ These are the same nights, so neither column is a test on new data. A miss rejec
 | R-HRV | 3 of 3 | **2 of 3**: 41.61 rounds to 42, WHOOP reports 43 |
 | DS-C, DS-LOG, DS-LIN, DS-POW | fit to 0.1 | fit to 0.1, not the API's decimals |
 
+## SP-M, a composite with stress from the app, frozen
+
+P = (0.4 sufficiency + 0.2 efficiency + 0.2 consistency + 0.2 (100 - stress share)) / (0.8 + 0.2 if consistency exists), with sufficiency =
+min(100, 100 asleep/need) and stress share = (medium + high) / (low + medium + high) from the WHOOP app, which the API does not give.
+
+The two main sleeps with their own stress reading both fit within rounding. The weights come from the earlier illustration and treating medium stress
+as the stress input was chosen after seeing the numbers. On a cycle with a nap the app gives one combined reading and the nap's score does not fit any
+split of it, so naps are excluded. **Two points, so a lead.** New mornings test it unchanged.
+
+Dossier SP-C used stress = high sleep stress and needed 7-18 %. The app reports 0 %, which rejects SP-C with those weights: it gives 83.6, 79.7, 96.4 and
+92.3 against 81, 75, 95 and 90. No choice of non-negative weights on sufficiency, efficiency, consistency and a fixed calm term fits all 4 sleeps either: the
+best is 0.53 off, just past the rounding limit of 0.5. That margin is thin, so it points to a missing input rather than settling the form.
+
+Stress hours add up to time in bed within 1.3 minutes, including the nap on the cycle that has one. A weak lead for where stress comes from: 5-minute mean HR
+of at least 1.07 x the night's median gives 75, 35 and 55 minutes against 74, 39 and 54. This was picked from a search over thresholds and window lengths.
+
 ## Ruled out
 
 - **Sleep performance = plain asleep/need.** It gives 69, 62, 100 and 89 where WHOOP reports 81, 75, 95 and 90.

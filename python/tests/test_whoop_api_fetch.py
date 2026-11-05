@@ -145,6 +145,14 @@ class VerifyFindings(unittest.TestCase):
 
 
 class FrozenOnApi(unittest.TestCase):
+    def test_sp_m_drops_consistency_when_missing(self):
+        spec = importlib.util.spec_from_file_location("api_checks", os.path.join(os.path.dirname(__file__), "..", "..", "re", "api_checks.py"))
+        checks = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(checks)
+        self.assertAlmostEqual(checks.sp_m(100, 100, None, 0), 100)
+        self.assertAlmostEqual(checks.sp_m(50, 90, 0, 10), (20 + 18 + 18) / 0.8)
+        self.assertAlmostEqual(checks.sp_m(50, 90, 80, 10), 20 + 18 + 18 + 16)
+
     def test_uses_exact_inputs_and_links_recovery_to_its_own_sleep(self):
         spec = importlib.util.spec_from_file_location("api_checks", os.path.join(os.path.dirname(__file__), "..", "..", "re", "api_checks.py"))
         checks = importlib.util.module_from_spec(spec)

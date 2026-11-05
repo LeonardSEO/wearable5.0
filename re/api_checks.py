@@ -1,11 +1,13 @@
 """Check the rules behind WHOOP's sleep need, sleep debt and exports against an API snapshot from re/whoop_api_fetch.py.
 
-  python re/api_checks.py <snapshot folder>
+  python re/api_checks.py <snapshot folder> [app stress csv]
 
 Times in the API are in milliseconds, so a rule that fits here has little room to be chance.
 """
 from __future__ import annotations
 
+import csv
+import datetime as dt
 import json
 import os
 import sys
@@ -59,6 +61,44 @@ def check_sleep_chain(sleeps: list[dict]) -> list[str]:
     return lines
 
 
+def sp_m(sufficiency: float, efficiency: float, consistency: float | None, stress_share: float) -> float:
+    """Frozen candidate SP-M: sufficiency, efficiency, consistency and calm sleep, with consistency dropped when missing."""
+    has_consistency = bool(consistency)
+    total = 0.4 * sufficiency + 0.2 * efficiency + 0.2 * (100 - stress_share) + (0.2 * consistency if has_consistency else 0)
+    return total / (0.8 + (0.2 if has_consistency else 0))
+
+
+def stress_rows(sleeps: list[dict], stress_csv: str) -> list[dict]:
+    """SP-M per main sleep with app stress hours. A cycle with a nap only has a combined stress reading, so it is skipped."""
+    rows = []
+    by_cycle = {}
+    for s in sleeps:
+        by_cycle.setdefault(s["cycle_id"], []).append(s)
+    with open(stress_csv, encoding="utf-8") as f:
+        readings = {r["sleep_cycle_start"]: r for r in csv.DictReader(f)}
+    for group in by_cycle.values():
+        if len(group) != 1 or group[0]["nap"]:
+            continue
+        s = group[0]
+        reading = readings.get(local_start(s))
+        if not reading:
+            continue
+        low, medium, high = (float(reading[k]) for k in ("low_min", "medium_min", "high_min"))
+        share = 100 * (medium + high) / (low + medium + high)
+        score = s["score"]
+        predicted = sp_m(100 * min(1, asleep_ms(score["stage_summary"]) / need_ms(score["sleep_needed"])), score["sleep_efficiency_percentage"],
+                         score["sleep_consistency_percentage"], share)
+        rows.append({"start": local_start(s), "predicted": predicted, "actual": score["sleep_performance_percentage"]})
+    return rows
+
+
+def local_start(s: dict) -> str:
+    moment = dt.datetime.fromisoformat(s["start"].replace("Z", "+00:00"))
+    sign = -1 if s["timezone_offset"].startswith("-") else 1
+    hours, minutes = s["timezone_offset"].lstrip("+-").split(":")
+    return (moment + sign * dt.timedelta(hours=int(hours), minutes=int(minutes))).strftime("%Y-%m-%d %H:%M:%S")
+
+
 def frozen_on_api(sleeps: list[dict], recoveries: list[dict]) -> list[dict]:
     """Recheck the frozen candidates on the API's exact inputs. These are the same nights, so this is not a test on new data."""
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -88,6 +128,10 @@ def main() -> None:
         mine = [r for r in rows if r["model"] == model]
         hits = sum(abs(r["predicted"] - r["actual"]) < 0.5 for r in mine)
         print(f"  {model:8} {hits} of {len(mine)} within rounding; {[round(r['predicted'], 2) for r in mine]}")
+    if len(sys.argv) > 2:
+        print("\nSP-M with app stress hours:")
+        for r in stress_rows(sleeps, sys.argv[2]):
+            print(f"  predicted {r['predicted']:.2f}  WHOOP {r['actual']:.0f}  {'in rounding' if abs(r['predicted'] - r['actual']) < 0.5 else 'MISS'}")
     print("\nnext-debt prediction after the newest main sleep:")
     last = [s for s in sleeps if not s["nap"] and s.get("score")][-1]["score"]
     expect = debt_after(need_ms(last["sleep_needed"]), asleep_ms(last["stage_summary"]))

@@ -452,6 +452,8 @@ and fails if one stops holding (all claims on the first snapshot). WHOOP's serve
   one positive, one held across a nap and one zero. How existing debt carries over is open.
 - **Nap credit** is exactly the nap's asleep time, on the one nap.
 - **Efficiency** is asleep / in bed on 2 of 4 sleeps and 0.12 and 0.40 points higher on the other 2. Open.
+- **Sleep stress is in the app, not the API,** as hours of low, medium and high stress that add up to time in bed within 1.3 minutes. A composite
+  using medium stress fits the 2 main sleeps that have their own reading (`SP-M` in `re/SCORE_MODELS.md`). Two points, so a lead.
 - **Recovery and Sleep performance are whole numbers in the API too,** so no decimals are hidden there. Strain has decimals.
 - **WHOOP flags all 3 recoveries as calibrating,** so a formula fitted on them may not hold after calibration.
 - **WHOOP's heart-rate zones fit heart rate reserve,** with edges at 40, 60, 70, 80 and 90 %, WHOOP's reported maximum HR and a resting HR
