@@ -77,4 +77,5 @@ documented only.
 ## Evidence
 
 APK class/endpoint names and command list: static analysis of `com.whoop.android` 5.473.0 (decompiled, not in the
-repo). On-strap command numbers and destructive set: `protocol/whoop5_protocol.json`. Night comparisons: §18.
+repo). The five `firmware-service/v4` endpoints, the request/response model fields and the on-strap command names are
+byte-for-byte identical in 5.475.0 (strings of its `classes*.dex`), so this holds for both app versions. On-strap command numbers and destructive set: `protocol/whoop5_protocol.json`. Night comparisons: §18.
