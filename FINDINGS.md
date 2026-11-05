@@ -324,7 +324,7 @@ capture of the official app; the owner reads the full version as **50.43.2.0.3.3
 numbers mean is unknown). The update happened between those dates. All of §16 is on 50.43.1.0. On 50.43.2.0
 so far: 48 minutes of awake R18 and R26 decode without errors; no night yet, so byte 82 is unconfirmed there.
 
-## 17. SET_READ_POINTER moves a read head, not the served position (own strap, new)
+## 17. Re-reading trimmed history: an older acknowledgement during a burst moves trim back (own strap, new)
 
 Firmware 50.43.2.0, one strap, `re/probe_read_pointer.py`; the official app never sends this command in our captures.
 
@@ -347,8 +347,33 @@ Firmware 50.43.2.0, one strap, `re/probe_read_pointer.py`; the official app neve
 So trimmed history can be re-read while the ring still holds it (about 3 weeks at this data rate). A night can go to
 the official app and still be read raw afterwards. `FORCE_TRIM` (25) was not needed and was not tried. Tried on one
 strap and one firmware; whether the official app is affected by the moves is not known beyond trim being restored.
+Steps and setup: `re/REREAD_HISTORY.md`.
 
-## 18. Sources
+## 18. First comparison with the WHOOP app on the same nights (own strap, new)
+
+Three nights synced by the official app, then re-read raw with §17: `re/validate_own_strap.py` against the WHOOP export of
+the same nights. One wearer, firmware 50.43.x, **below the bar of 5 nights**, so the script still reports these as
+waiting. r over three points says little.
+
+| Metric | Mean difference from WHOOP | r | Against the fixed criterion |
+|---|---:|---:|---|
+| SpO₂ (mean of R18 byte 82 window medians) | **0.33 %** (bias +0.11) | 0.85 | meets ≤ 1.0 % |
+| Respiratory rate from R-R | 0.13 per min | 0.87 | meets ≤ 1.0 |
+| HRV (median 5-minute RMSSD) | 1.4 ms | 0.92 | meets r ≥ 0.7 |
+| Skin temperature | 0.13 °C | 0.999 | meets r ≥ 0.7 |
+| Sleep onset | median 14 min | | meets ≤ 15 min |
+| Wake time | median 31 min | | **misses** ≤ 15 min |
+| Resting heart rate (lowest 5-minute mean) | 3.7 bpm too low | 0.39 | **misses** ≤ 3 bpm |
+
+- **Byte 82 is not yet the best byte.** It ranks fifth at r = 0.95; byte 71 leads at 0.999. With about 100 bytes and three
+  points a high r is expected by chance, so this needs more nights.
+- **Byte 82 still carries the windows on 50.43.x** and stays close to WHOOP there.
+- **The R26 filter of §16 held on data it had not seen:** on bursts after 1 November it accepted 82 of 98, MAE 0.92 bpm,
+  93 % within 3 bpm, reference 52-75 bpm. These nights are mostly asleep, so this says nothing new about awake use.
+- The R-R unit (0.996 over 165,746 asleep records) and the R21 scale (1.003 g over 71,019 still seconds) pass on this
+  strap, and all 860,806 frames decode.
+
+## 19. Sources
 
 - Official WHOOP Android app 5.473.0 (static analysis for interoperability; nothing reproduced).
 - [ryanbr/noop](https://github.com/ryanbr/noop) protocol docs, test vectors and the #1992 corpus

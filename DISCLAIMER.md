@@ -14,6 +14,8 @@ app binaries, decompiled source, assets or credentials are included, linked or r
 decompiled app and any captures stay outside this repository (see `.gitignore`).
 
 **Your device, your data, your risk.** The library builds and parses bytes; it does not connect to
-anything. Never send the commands listed as `destructive` in the schema.
+anything. Never send the commands listed as `destructive` in the schema. The one exception in this repository is
+`re/probe_read_pointer.py`, a research tool that sends `SET_READ_POINTER` and moves the strap's trim position on your
+own strap; read `re/REREAD_HISTORY.md` first.
 
 Good-faith takedown or correction requests: open an issue.

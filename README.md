@@ -151,11 +151,11 @@ owners. None of them blocks using the library; they limit how far a client shoul
 
 | # | Item | Current state | How to verify |
 |---|---|---|---|
-| H1 | Full connect → bond → hello → sync session on iOS, macOS and Android | Built from verified frames, never run end-to-end by this project | Pair a 5.0 and run a complete offload through a client using this library |
+| H1 | Full connect → bond → hello → sync session on iOS, macOS and Android | **macOS done** on one strap with `re/probe_read_pointer.py` on this library's framing; iOS and Android not run | Same session through a client on those platforms |
 | H2 | Bonding refusals on some Android phones | Strap refuses SMP pairing in an HCI capture (NOOP #1635); cause open | Controlled pairing attempts with HCI logging |
-| H9 | Re-reading trimmed history | **Works on one strap** (fw 50.43.2): an older `HISTORICAL_DATA_RESULT` during a burst moves trim back, about 120x realtime; §17 | Other firmware and straps |
-| H4 | HISTORY_END token second word (write-wrap state) | Echoed verbatim, meaning inferred | Offload across a ring wrap |
-| H5 | R21 IMU scale (4096 LSB/g, ±2000 °/s) and 100 Hz rate | Candidate only | Strap flat on a table (‖a‖ = 1 g) plus one timed 360° rotation |
+| H9 | Re-reading trimmed history | **Works on one strap** (fw 50.43.2): an older `HISTORICAL_DATA_RESULT` during a burst moves trim back, about 120x realtime; [guide](re/REREAD_HISTORY.md), §17 | The official app's next sync after a restore; other firmware and straps |
+| H4 | HISTORY_END token second word (write-wrap state) | **Closed on one strap**: the firmware calls it the wrap count, and pages above the write head are one lower (§17) | Other firmware |
+| H5 | R21 IMU scale (4096 LSB/g, ±2000 °/s) and 100 Hz rate | **Accel closed on one strap**: 1.003 g over 71,019 still seconds (§18). Gyro scale and rate open; no gyro samples seen | One timed 360° rotation with gyro on |
 | H6 | Dedicated IMU stream packets 51/52 | Layout documented, never observed | Enable IMU streaming and capture |
 | H7 | Command bodies for alarms, haptics, LED/TIA config | Feature-flag and device-config writes now documented from the official app (FINDINGS §10); alarm/haptic/LED payloads still missing | Capture the official app setting each one |
 | H8 | Format-2 envelope | Exists, negotiation unknown | Observe a session that switches format |
@@ -165,12 +165,12 @@ owners. None of them blocks using the library; they limit how far a client shoul
 | # | Item | Current state | Data that settles it |
 |---|---|---|---|
 | D1 | R20 LED wavelengths (which source is green, red, infrared) | Source codes 1–4 seen; identity unknown | Captures across a toggle of the `ir_hw_switching` feature flag, or with a known light source |
-| D2 | SpO₂ | 🧪 **Decoded, experimental**: R18 byte 82 per second in 30 s windows every 20 min during sleep; 7 windows of 93–99 % on the captured night (FINDINGS §13) | Compare with the WHOOP app's SpO₂ for a captured night; more wearers |
-| D3 | Sleep detection and stages | 🧪 Sleep periods from R18 band state (`sleep_periods`, experimental): one 5.2 h period on the captured night (§15). No stages; no R21 overnight, no sleep reference | A night with R21 and a sleep reference (watch stages or WHOOP export) |
-| D4 | HR from optical | R26: 1.7 bpm on the 98 of 286 bursts `hr_from_r26` accepts, nearly all asleep; no usable reading awake and moving (§16). R20: r ≈ 0.8, ~2 bpm on one resting session; **fails** on a second, awake session with a sparse reference (§14) | R20 with motion and a dense reference; R26 filter on new nights; more wearers |
-| D5 | Dense overnight HRV | **Mostly closed**: R18 delivers 92 % of beats overnight with R-R in ms; RMSSD 47–102 ms per 5 min (§12) | Comparison with the WHOOP export's HRV |
-| D6 | Respiratory rate | 🧪 No field on the wire; derived from R-R sinus arrhythmia (`respiratory_rate`, experimental): median 14.1 breaths/min on the captured night (§15) | A night with the WHOOP export's respiratory rate |
-| D7 | Skin temperature (R18 `u16@73 / 100 °C`) across firmware | Plausible overnight curve 31.4–35.0 °C; agrees across three sources; firmware 50.37–50.43 seen | R18 from other firmware with the WHOOP export |
+| D2 | SpO₂ | 🧪 **Decoded, experimental**: R18 byte 82 per second in 30 s windows every 20 min during sleep; within 0.33 % of the WHOOP app over 3 nights of one wearer (§13, §18) | 5 or more nights; byte 82 ranks fifth among bytes so far; more wearers |
+| D3 | Sleep detection and stages | 🧪 Sleep periods from R18 band state (`sleep_periods`, experimental): onset within 14 min of WHOOP, wake 31 min off, over 3 nights (§15, §18). No stages | Better wake detection; stages from the WHOOP export |
+| D4 | HR from optical | R26: 1.7 bpm on the 98 of 286 bursts `hr_from_r26` accepts, 0.92 bpm on 82 new ones, nearly all asleep; no usable reading awake and moving (§16, §18). R20: r ≈ 0.8, ~2 bpm on one resting session; **fails** on a second, awake session with a sparse reference (§14) | R20 with motion and a dense reference; more wearers |
+| D5 | Dense overnight HRV | **Mostly closed**: R18 delivers 92 % of beats overnight with R-R in ms; RMSSD 47–102 ms per 5 min (§12); 1.4 ms from the WHOOP export over 3 nights (§18) | 5 or more nights; more wearers |
+| D6 | Respiratory rate | 🧪 No field on the wire; derived from R-R sinus arrhythmia (`respiratory_rate`, experimental): 0.13 per min from the WHOOP export over 3 nights (§15, §18) | 5 or more nights; more wearers |
+| D7 | Skin temperature (R18 `u16@73 / 100 °C`) across firmware | Plausible overnight curve 31.4–35.0 °C; agrees across three sources; 0.13 °C from the WHOOP export over 3 nights (§18); firmware 50.37–50.43 seen | R18 from other firmware with the WHOOP export |
 | D8 | R18 provisional fields | Byte 82 and status words 77/79 tied to the 20-minute measurement windows; bytes 106–113 characterised but unexplained (§12, §13) | Correlation against a WHOOP export over many nights |
 | D9 | R22 v9 channel meaning and R26 sample units | Structure only | Captures with the related feature flags toggled |
 | D10 | Event payloads | Header, payload length and BATTERY_LEVEL payload decoded; 8 unnamed event numbers seen; other payloads opaque (§9) | More captures of each event |

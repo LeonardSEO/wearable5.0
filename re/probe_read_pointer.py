@@ -89,7 +89,8 @@ class Strap:
             return None
         w, u, cap = (struct.unpack_from("<I", f, 13 + o)[0] for o in (9, 13, 21))
         pointer, at_pointer = struct.unpack_from("<I", f, 18)[0], struct.unpack_from("<I", f, 62)[0]
-        return {"pointer": pointer, "pointer_time": dt.datetime.fromtimestamp(at_pointer).strftime("%m-%d %H:%M:%S"),
+        wrap = struct.unpack_from("<I", f, 30)[0]
+        return {"wrap": wrap, "pointer": pointer, "pointer_time": dt.datetime.fromtimestamp(at_pointer).strftime("%m-%d %H:%M:%S"),
                 "write": w, "trim": u, "capacity": cap, "behind": (w - u) % cap if cap else None, "hex": f.hex()}
 
 
