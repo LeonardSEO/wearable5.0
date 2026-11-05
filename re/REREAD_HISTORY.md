@@ -66,6 +66,19 @@ open -W --stdout run.log --stderr run.log --env PYTHONPATH="$PWD/.venv/lib/pytho
 Pairing the Mac takes the bond from the phone, so re-pair in the WHOOP app afterwards. Because the ring keeps about 3
 weeks, you can sleep and sync normally and do this once for a whole batch of nights.
 
+## Sending older nights to the official app
+
+Under test. Nights that went to another client never reached WHOOP. Moving trim back and leaving it there makes the strap
+serve them to the app, along with everything after them. Whether WHOOP scores them is the open question, and it touches the
+owner's real account, so go one night at a time. Make a WHOOP export first, then compare with `re/export_diff.py`.
+
+```bash
+open -W --stdout run.log --stderr run.log --env PYTHONPATH="$PWD/.venv/lib/python3.14/site-packages" \
+  ~/whoop-tools/WhoopProbe.app --args "$PWD/re/probe_read_pointer.py" backfill --start "2026-10-31 22:00" --out my-data
+```
+
+That only reports the page. Add `--apply` to move trim, and `--undo PAGE:WRAP` to put it back before the app syncs.
+
 ## Costs seen so far
 
 - The phone loses its bond each time the Mac pairs.

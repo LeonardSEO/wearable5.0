@@ -8,6 +8,8 @@ fetch and midstream --ack-older move trim backwards (FINDINGS §17), which makes
   probe TARGET   try each payload, read back with GET_DATA_RANGE; stops as soon as the range changes
   fetch          re-read --span with an older acknowledgement during a burst, then optionally --restore trim
                  (--resume continues a dropped multi-day fetch from the current trim; re-launch until it reaches stop)
+  backfill       send older nights to the official app: find the page of --start and report; with --apply move trim
+                 back to it and stop, so the app's next sync serves everything from there. --undo PAGE:WRAP puts trim back
   drain          a normal sync with acknowledgements, up to --seconds
   midstream PAGE move the pointer while history is being served, no acknowledgement
   rewind STEP    IRREVERSIBLE RISK: acknowledge a page STEP behind trim, read back, then peek
@@ -39,6 +41,7 @@ SERVICE = "fd4b0001-cce1-4033-93ce-002d5875f58a"
 TO_STRAP = "fd4b0002-cce1-4033-93ce-002d5875f58a"
 NOTIFY = ["fd4b0003-cce1-4033-93ce-002d5875f58a", "fd4b0004-cce1-4033-93ce-002d5875f58a",
           "fd4b0005-cce1-4033-93ce-002d5875f58a"]
+MAX_PAGE_TIME_ERROR_S = 3600
 CLIENT_HELLO, SEND_HISTORY, HISTORY_RESULT, ABORT_HISTORY, SET_READ_POINTER, GET_DATA_RANGE = 145, 22, 23, 20, 33, 34
 
 
@@ -121,6 +124,38 @@ async def find_page(s: "Strap", when: float, r: dict) -> tuple[int, int]:
     return page_wrap(hi, r)
 
 
+def backfill_refusal(start: float, found: int, page_behind: int, trim_behind: int, now: float) -> str | None:
+    """Why trim must not move to this page, or None. The strap only moves trim on our word, so check before asking."""
+    if start >= now:
+        return "start is in the future"
+    if abs(found - start) > MAX_PAGE_TIME_ERROR_S:
+        return "the ring does not reach that time, or the page time is off by over an hour"
+    if page_behind <= trim_behind:
+        return "that page is not older than the current trim"
+    return None
+
+
+async def first_chunk(s: "Strap") -> bool:
+    s.meta.clear()
+    await s.send(SEND_HISTORY, b"\x00")
+    end = time.time() + 15
+    while time.time() < end and not any(m[0] == 2 for m in s.meta):
+        await asyncio.sleep(0.05)
+    return any(m[0] == 2 for m in s.meta)
+
+
+async def move_trim(s: "Strap", page: int, wrap: int) -> dict | None:
+    """An acknowledgement during a burst sets trim (FINDINGS §17); the app continues from there on its next sync."""
+    if not await first_chunk(s):
+        print("no first chunk; trim not moved")
+        return None
+    await s.send(HISTORY_RESULT, b"\x01" + struct.pack("<II", page, wrap))
+    await asyncio.sleep(1)
+    await s.send(ABORT_HISTORY, b"\x00")
+    await asyncio.sleep(1)
+    return await s.data_range()
+
+
 async def run(args) -> int:
     os.makedirs(args.out, exist_ok=True)
     print("scanning ...", flush=True)
@@ -191,6 +226,37 @@ async def run(args) -> int:
             await asyncio.sleep(1)
             r = await s.data_range()
             print("end:", {k: v for k, v in (r or {}).items() if k != "hex"}, flush=True)
+        elif args.mode == "backfill":
+            state = os.path.join(args.out, "backfill_state.jsonl")
+            shown = {k: v for k, v in before.items() if k != "hex"}
+            if args.undo:
+                page, wrap = (int(v) for v in args.undo.split(":"))
+                after = await move_trim(s, page, wrap)
+                print("undo end:", {k: v for k, v in (after or {}).items() if k != "hex"}, flush=True)
+                return 0 if after and after["trim"] == page else 6
+            start = dt.datetime.strptime(args.start, "%Y-%m-%d %H:%M").timestamp()
+            page, wrap = await find_page(s, start, before)
+            found = await time_of(s, page, wrap)
+            page_behind = (before["write"] - page) % before["capacity"]
+            print(f"start page {page} wrap {wrap} at {dt.datetime.fromtimestamp(found)}; "
+                  f"{page_behind} pages behind the head, trim is {before['behind']} behind", flush=True)
+            print(f"the app would receive about {page_behind / 245:.0f} hours of history again", flush=True)
+            refusal = backfill_refusal(start, found, page_behind, before["behind"], time.time())
+            if refusal:
+                print("refused, trim not moved:", refusal)
+                return 4
+            if not args.apply:
+                print("plan only: trim not moved. To undo after --apply: "
+                      f"--undo {before['trim']}:{before['wrap']}", flush=True)
+                return 0
+            with open(state, "a") as log:
+                log.write(json.dumps({"t": time.time(), "before": shown, "page": page, "wrap": wrap, "start": args.start}) + "\n")
+            after = await move_trim(s, page, wrap)
+            print("end:", {k: v for k, v in (after or {}).items() if k != "hex"}, flush=True)
+            if not after or after["trim"] != page:
+                print("trim did not reach the page; check before connecting the app")
+                return 6
+            print(f"trim moved. To undo before the app syncs: --undo {before['trim']}:{before['wrap']}", flush=True)
         elif args.mode == "drain":
             # A normal sync: every HISTORY_END is logged to frames.jsonl (flushed) before its acknowledgement.
             s.meta.clear()
@@ -312,7 +378,7 @@ async def run(args) -> int:
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("mode", choices=["range", "probe", "peek", "times", "rewind", "midstream", "drain", "fetch"])
+    ap.add_argument("mode", choices=["range", "probe", "peek", "times", "rewind", "midstream", "drain", "fetch", "backfill"])
     ap.add_argument("target", nargs="?", type=int)
     ap.add_argument("--out", required=True)
     ap.add_argument("--pages", type=int, nargs="*", default=[])
@@ -325,7 +391,12 @@ if __name__ == "__main__":
     ap.add_argument("--restore", help="PAGE:WRAP to leave trim at after a fetch")
     ap.add_argument("--resume", action="store_true", help="continue a dropped fetch from the current trim, no seek")
     ap.add_argument("--ack-older", action="store_true")
+    ap.add_argument("--start", help='backfill: "YYYY-MM-DD HH:MM", local time')
+    ap.add_argument("--apply", action="store_true", help="backfill: really move trim; without it this only reports")
+    ap.add_argument("--undo", help="backfill: PAGE:WRAP to put trim back to")
     a = ap.parse_args()
     if a.mode == "probe" and a.target is None:
         ap.error("probe needs TARGET")
+    if a.mode == "backfill" and not (a.start or a.undo):
+        ap.error("backfill needs --start or --undo")
     sys.exit(asyncio.run(run(a)))

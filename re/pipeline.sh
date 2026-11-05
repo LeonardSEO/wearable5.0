@@ -37,4 +37,9 @@ echo " 4. Formula search over every input combination, with holdout and shuffle 
 echo "============================================================"
 "$PY" -I "$HERE/score_search.py" "$EXPORT" --frames "$DATA"
 echo
+echo "============================================================"
+echo " 5. Frozen candidate formulas on later cycles (re/SCORE_MODELS.md)"
+echo "============================================================"
+"$PY" -I "$HERE/score_predictions.py" "$EXPORT" --frames "$DATA"
+echo
 echo "Done. Full SpO2 and metric detail: $DATA/REPORT.md and $DATA/report.json."
