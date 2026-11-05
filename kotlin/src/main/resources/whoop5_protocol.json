@@ -81,6 +81,18 @@
     "dual_response": [34],
     "not_in_app_5_473": [48, 61, 62, 99, 100],
     "not_in_app_5_473_note": "Firmware commands documented by ryanbr/noop that the official app 5.473.0 does not name.",
+    "request_bodies": {
+      "_note": "Inner args (after [cmd][seq]), little-endian, read statically from app 5.473.0; not sent to a strap. See FINDINGS 19. revision = 1..4.",
+      "79": "patternId u8, numberOfLoops u8, 00, 00, 00",
+      "68": "revision u8 [, strapAlarmId u8]",
+      "69": "revision u8 [, alarmId u8 (0xFF = all)]",
+      "67": "revision u8 [, alarmId u8]",
+      "66": "rev1: 01, alarmTime u32, field u16 | rev4: 04, strapAlarmId u8, alarmTime u32, field u16, AlarmHapticsPattern",
+      "123": "01, input u8",
+      "107": "01, on u8",
+      "108": "01, on u8",
+      "AlarmHapticsPattern": "waveformEffect1..8 u8, loopControlForEffects u16, overallWaveformLoopControl u8, alarmDurationInSeconds u8 (12 bytes)"
+    },
     "evidence": ["apk", "noop"]
   },
   "feature_flags": {

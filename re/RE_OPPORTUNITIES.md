@@ -51,11 +51,13 @@ plaintext URL to fetch and no separate checksum field in the model.
 The app names commands this project has not exercised. Highest-value, lowest-risk first; the destructive ones are
 documented only.
 
-- **`GET_BODY_LOCATION_AND_STATUS` (84)** — read-only; would confirm on-wrist / body-location state cleanly.
+- **`GET_BODY_LOCATION_AND_STATUS` (84), `GET_EXTENDED_BATTERY_INFO` (98), feature-flag/config reads (128/121)** —
+  their builder classes were not located in a quick pass (likely a shared empty-body sender); the response layouts
+  are the open part. Still worth a capture.
 - **`GET_EXTENDED_BATTERY_INFO` (98), `GET_BATTERY_PACK_INFO` (151)** — battery health beyond the SoC/mV we decode.
-- **Alarm/haptics bodies** — `SET_ALARM_TIME` (66), `GET_ALARM_TIME` (67), `RUN_ALARM` (68), `RUN_HAPTICS_PATTERN`
-  (79), `GET_ALL_HAPTICS_PATTERN` (80): the app builds these payloads; capturing it setting an alarm would fill
-  README item H7 (alarm/haptic/LED bodies).
+- **Alarm/haptics bodies — DONE from the app (§19).** Request bodies for 66/67/68/69/79, `SELECT_WRIST` (123),
+  `ENABLE_OPTICAL_DATA` (107) and `TOGGLE_OPTICAL_MODE` (108) are decoded and in `protocol/whoop5_protocol.json`
+  (`request_bodies`). Still open: `GET_ALL_HAPTICS_PATTERN` (80), LED/TIA bodies, and the on-strap *responses*.
 - **Optical / raw-data toggles** — `ENABLE_OPTICAL_DATA` (107), `TOGGLE_OPTICAL_MODE` (108), `START_RAW_DATA` (81),
   `STOP_RAW_DATA` (82): the hooks behind R20/R26. See §4 for the on-demand idea.
 - **`SELECT_WRIST` (123), advertising name get/set (141/140)** — small, read-mostly configuration.

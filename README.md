@@ -157,7 +157,7 @@ owners. None of them blocks using the library; they limit how far a client shoul
 | H4 | HISTORY_END token second word (write-wrap state) | **Closed on one strap**: the firmware calls it the wrap count, and pages above the write head are one lower (§17) | Other firmware |
 | H5 | R21 IMU scale (4096 LSB/g, ±2000 °/s) and 100 Hz rate | **Accel closed on one strap**: 1.003 g over 71,019 still seconds (§18). Gyro samples are present, gyro scale open | One timed 360° rotation |
 | H6 | Dedicated IMU stream packets 51/52 | Layout documented, never observed | Enable IMU streaming and capture |
-| H7 | Command bodies for alarms, haptics, LED/TIA config | Feature-flag and device-config writes now documented from the official app (FINDINGS §10); alarm/haptic/LED payloads still missing | Capture the official app setting each one |
+| H7 | Command bodies for alarms, haptics, LED/TIA config | Feature-flag and device-config writes now documented from the official app (FINDINGS §10); alarm/haptic bodies decoded from the app (§19); LED/TIA bodies and on-strap responses still missing | Capture the official app setting an alarm/LED; read back the responses |
 | H8 | Format-2 envelope | Exists, negotiation unknown | Observe a session that switches format |
 
 ### Needs more data (a strap, or donated captures)

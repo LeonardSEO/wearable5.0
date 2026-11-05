@@ -373,7 +373,35 @@ waiting. r over three points says little.
 - The R-R unit (0.996 over 165,746 asleep records) and the R21 scale (1.003 g over 71,019 still seconds) pass on this
   strap, and all 860,806 frames decode.
 
-## 19. Sources
+## 19. Command request bodies from the official app (APK, new)
+
+Each command this project had only named is built by its own class in the app (a subclass of the `xj0.b` packet base,
+like `FORCE_TRIM` in §17). Reading those builders gives the exact request body, little-endian, for the command's inner
+args (after `[cmd][seq]`). These are **request shapes read statically from app 5.473.0; this project has not sent any of
+them to a strap.** A leading revision byte uses `REVISION_1..4` = 1..4.
+
+| Command | Body (little-endian) |
+|---|---|
+| `RUN_HAPTICS_PATTERN` (79) | `patternId u8, numberOfLoops u8, 00, 00, 00` (5 B). Matches NOOP's observed `02 03 00 00 00` = preset 2, 3 loops |
+| `RUN_ALARM` (68) | `revision u8` alone, or `revision u8, strapAlarmId u8` |
+| `DISABLE_ALARM` (69) | `revision u8, alarmId u8` (alarmId `0xFF` = all), or `revision u8` alone |
+| `GET_ALARM_TIME` (67) | `revision u8, alarmId u8`, or `revision u8` alone |
+| `SET_ALARM_TIME` (66) rev 1 | `01, alarmTime u32, field u16` (7 B) |
+| `SET_ALARM_TIME` (66) rev 4 | `04, strapAlarmId u8, alarmTime u32, field u16, AlarmHapticsPattern` (~21 B) |
+| `SELECT_WRIST` (123) | `01, input u8` (wrist selection) |
+| `ENABLE_OPTICAL_DATA` (107) | `01, on u8` (0 or 1) |
+| `TOGGLE_OPTICAL_MODE` (108) | `01, on u8` (0 or 1) |
+| `GET_BATTERY_PACK_INFO` (151), `STOP_RAW_DATA` (82) | no args (shared empty-body helper) |
+
+`AlarmHapticsPattern` (12 B): `waveformEffect1..8 u8` (eight bytes), `loopControlForEffects u16`,
+`overallWaveformLoopControl u8`, `alarmDurationInSeconds u8`.
+
+`alarmTime` is a u32 (the app truncates a long to 32 bits); the `field u16` next to it is the time's second component,
+likely a timezone or local-minute offset — **inferred, not confirmed**. This closes most of README item H7 (alarm and
+haptic bodies) from the app side; LED/TIA-config bodies and the on-strap responses to these commands are still open, and
+nothing here has been exercised on a strap.
+
+## 20. Sources
 
 - Official WHOOP Android app 5.473.0 (static analysis for interoperability; nothing reproduced).
 - [ryanbr/noop](https://github.com/ryanbr/noop) protocol docs, test vectors and the #1992 corpus
