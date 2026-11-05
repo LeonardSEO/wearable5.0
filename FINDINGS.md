@@ -324,7 +324,20 @@ capture of the official app; the owner reads the full version as **50.43.2.0.3.3
 numbers mean is unknown). The update happened between those dates. All of §16 is on 50.43.1.0. On 50.43.2.0
 so far: 48 minutes of awake R18 and R26 decode without errors; no night yet, so byte 82 is unconfirmed there.
 
-## 17. Sources
+## 17. SET_READ_POINTER moves a read head, not the served position (own strap, new)
+
+Firmware 50.43.2.0, one strap, `re/probe_read_pointer.py`; the official app never sends this command in our captures.
+
+- `SET_READ_POINTER` (33) with a **u32 little-endian page** answers result 1. In the `GET_DATA_RANGE` body, the word at
+  frame offset 18 becomes that page (a larger value is masked to the ring size, 0x1FFFF), and the word at offset 62
+  becomes a time for that page. Write (@22), trim (@26) and capacity (@34) do not change.
+- **The strap keeps a time for old pages.** Pages read back in order over about 6 days (30 Oct to 5 Nov), far behind
+  trim, with about 245 pages per hour. This suggests trimmed history stays on flash, but only the time was read back,
+  not a record.
+- **`SEND_HISTORICAL_DATA` ignores it.** With arguments 0 to 3 the pointer returns to the trim position and the same
+  records are served, so this command alone does not re-read history. Trim itself did not move at any point.
+
+## 18. Sources
 
 - Official WHOOP Android app 5.473.0 (static analysis for interoperability; nothing reproduced).
 - [ryanbr/noop](https://github.com/ryanbr/noop) protocol docs, test vectors and the #1992 corpus

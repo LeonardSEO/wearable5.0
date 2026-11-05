@@ -1,0 +1,164 @@
+"""Probe SET_READ_POINTER(33) on your own WHOOP 5.0 / MG: can the strap re-serve history it already trimmed?
+
+Untested on this strap family and not used by the official app. Never sends FORCE_TRIM(25) and never acknowledges
+history (no HISTORICAL_DATA_RESULT), so this script itself cannot advance the trim cursor. Every received frame goes
+to <out>/frames.jsonl. Quit NOOP and the WHOOP app first: the strap serves one central at a time.
+
+  range          read write/trim/capacity only
+  probe TARGET   try each payload, read back with GET_DATA_RANGE; stops as soon as the range changes
+  times --pages  move the pointer to each page and read the time stored there; no history is requested
+  peek [TARGET]  request history without acknowledging, optionally after one payload (--payload N), and report the
+                 record times and metadata cursors, then abort the transfer
+
+Usage: .venv/bin/python wearable5.0/re/probe_read_pointer.py range --out whoop5-data/own_strap/probe
+"""
+from __future__ import annotations
+
+import argparse
+import asyncio
+import datetime as dt
+import json
+import os
+import struct
+import sys
+import time
+
+from bleak import BleakClient, BleakScanner
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.join(HERE, "..", "python"))
+from whoop5.decode import decode_frame  # noqa: E402
+from whoop5.framing import Reassembler, build_command  # noqa: E402
+
+SERVICE = "fd4b0001-cce1-4033-93ce-002d5875f58a"
+TO_STRAP = "fd4b0002-cce1-4033-93ce-002d5875f58a"
+NOTIFY = ["fd4b0003-cce1-4033-93ce-002d5875f58a", "fd4b0004-cce1-4033-93ce-002d5875f58a",
+          "fd4b0005-cce1-4033-93ce-002d5875f58a"]
+CLIENT_HELLO, SEND_HISTORY, ABORT_HISTORY, SET_READ_POINTER, GET_DATA_RANGE = 145, 22, 20, 33, 34
+
+
+def payloads(target: int) -> list[tuple[str, bytes]]:
+    # Little-endian only: a byte-swapped or unknown-mode guess could point the strap anywhere.
+    u32 = struct.pack("<I", target)
+    return [("u32", u32), ("01+u32", b"\x01" + u32), ("u32+u32", u32 + bytes(4)), ("01+u32+u32", b"\x01" + u32 + bytes(4))]
+
+
+class Strap:
+    def __init__(self, client: BleakClient, out: str):
+        self.c, self.seq, self.replies, self.records, self.meta = client, 0, [], [], []
+        self.log = open(os.path.join(out, "frames.jsonl"), "a")
+        self.streams = {u: Reassembler() for u in NOTIFY}
+
+    def on_notify(self, uuid: str, data: bytearray) -> None:
+        for f in self.streams[uuid].feed(bytes(data)):
+            self.log.write(json.dumps({"hex": f.hex(), "t": time.time()}) + "\n")
+            self.log.flush()
+            d = decode_frame(f)
+            if d.get("packet") == "COMMAND_RESPONSE" or f[8] == 36:
+                self.replies.append(f)
+            elif d.get("layout") is not None and d.get("unix_s"):
+                self.records.append((d["layout"], d["unix_s"]))
+            if d.get("packet") == "METADATA":
+                self.meta.append((d.get("meta_type"), d.get("trim_cursor"), d.get("unix_s")))
+
+    async def send(self, command: int, args: bytes = b"") -> None:
+        self.seq = (self.seq + 1) & 0xFF
+        await self.c.write_gatt_char(TO_STRAP, build_command(command, args, sequence=self.seq), response=True)
+
+    async def reply(self, command: int, seconds: float = 3.0, min_len: int = 0) -> bytes | None:
+        """The newest reply to `command` after clearing older ones; None on timeout."""
+        end = time.time() + seconds
+        while time.time() < end:
+            for f in reversed(self.replies):
+                if f[10] == command and len(f) >= min_len:
+                    return f
+            await asyncio.sleep(0.05)
+        return None
+
+    async def data_range(self) -> dict | None:
+        self.replies.clear()
+        await self.send(GET_DATA_RANGE, b"\x00")
+        f = await self.reply(GET_DATA_RANGE, min_len=78)
+        if not f:
+            return None
+        w, u, cap = (struct.unpack_from("<I", f, 13 + o)[0] for o in (9, 13, 21))
+        pointer, at_pointer = struct.unpack_from("<I", f, 18)[0], struct.unpack_from("<I", f, 62)[0]
+        return {"pointer": pointer, "pointer_time": dt.datetime.fromtimestamp(at_pointer).strftime("%m-%d %H:%M:%S"),
+                "write": w, "trim": u, "capacity": cap, "behind": (w - u) % cap if cap else None, "hex": f.hex()}
+
+
+async def run(args) -> int:
+    os.makedirs(args.out, exist_ok=True)
+    print("scanning ...", flush=True)
+    dev = await BleakScanner.find_device_by_filter(lambda d, a: SERVICE in (a.service_uuids or []), timeout=20)
+    if dev is None:
+        print("strap not found: it is probably connected to the phone (quit the WHOOP app, Bluetooth off).")
+        return 2
+    print("found", dev.name, flush=True)
+    async with BleakClient(dev, timeout=30) as c:
+        s = Strap(c, args.out)
+        for u in NOTIFY:
+            await c.start_notify(u, lambda ch, d, u=u: s.on_notify(u, d))
+        await s.send(CLIENT_HELLO, b"\x01")
+        await asyncio.sleep(1)
+        before = await s.data_range()
+        print("range:", {k: v for k, v in (before or {}).items() if k != "hex"}, flush=True)
+        if not before:
+            return 3
+        if args.mode == "times":
+            for target in args.pages:
+                await s.send(SET_READ_POINTER, struct.pack("<I", target))
+                await asyncio.sleep(0.3)
+                r = await s.data_range()
+                print(f"page {target}: pointer {r['pointer']} time {r['pointer_time']}", flush=True)
+        elif args.mode == "probe":
+            oldest = max(0, before["write"] - before["capacity"])
+            if not oldest <= args.target < before["trim"]:
+                print("target is not behind trim; nothing sent")
+                return 4
+            for label, pl in payloads(args.target):
+                s.replies.clear()
+                await s.send(SET_READ_POINTER, pl)
+                resp = await s.reply(SET_READ_POINTER, seconds=2)
+                after = await s.data_range()
+                print(f"33 {label:12s} {pl.hex():20s} reply={resp.hex() if resp else None} -> "
+                      f"{ {k: v for k, v in (after or {}).items() if k != 'hex'} }", flush=True)
+                if not after or after["trim"] != before["trim"] or after["write"] != before["write"]:
+                    print("range changed: stopping")
+                    return 0
+            print("no payload moved trim")
+        elif args.mode == "peek":
+            if args.target is not None:
+                label, pl = payloads(args.target)[args.payload]
+                await s.send(SET_READ_POINTER, pl)
+                print(f"33 {label} {pl.hex()} reply={(await s.reply(SET_READ_POINTER, seconds=2) or b'').hex()}", flush=True)
+            s.records.clear()
+            s.meta.clear()
+            moved = await s.data_range()
+            print("before history:", {k: v for k, v in (moved or {}).items() if k != "hex"}, flush=True)
+            await s.send(SEND_HISTORY, bytes([args.history_arg]))
+            await asyncio.sleep(args.seconds)
+            await s.send(ABORT_HISTORY, b"\x00")
+            await asyncio.sleep(1)
+            times = [t for _, t in s.records]
+            fmt = lambda t: dt.datetime.fromtimestamp(t).strftime("%m-%d %H:%M:%S")
+            print(f"records {len(times)}" + (f", {fmt(min(times))} .. {fmt(max(times))}" if times else ""), flush=True)
+            print("metadata (type, trim, time):", [(m, u, fmt(t) if t else None) for m, u, t in s.meta[:8]], flush=True)
+            after = await s.data_range()
+            print("range after:", {k: v for k, v in (after or {}).items() if k != "hex"}, flush=True)
+    return 0
+
+
+if __name__ == "__main__":
+    ap = argparse.ArgumentParser()
+    ap.add_argument("mode", choices=["range", "probe", "peek", "times"])
+    ap.add_argument("target", nargs="?", type=int)
+    ap.add_argument("--out", required=True)
+    ap.add_argument("--pages", type=int, nargs="*", default=[])
+    ap.add_argument("--seconds", type=float, default=15)
+    ap.add_argument("--payload", type=int, default=0)
+    ap.add_argument("--history-arg", type=int, default=0)
+    a = ap.parse_args()
+    if a.mode == "probe" and a.target is None:
+        ap.error("probe needs TARGET")
+    sys.exit(asyncio.run(run(a)))
