@@ -415,6 +415,27 @@ for a whole history in one export. Nobody has to note them per day.
 Two cycles now have a Day Strain and at least 80 % heart-rate coverage: TRIMP 998 for strain 12.2 and TRIMP 379 for 4.8
 (`re/strain_model.py`). The strain fit needs 5, the recovery and sleep fits 20.
 
+### Searching for the score formulas
+
+`re/score_search.py` works from the export and raw frames only; WHOOP's servers are never contacted. Its verdicts were fixed
+before any data was seen.
+
+| Data | Result |
+|---|---|
+| Planted formula without noise, 8 runs each | 27-30 cycles: MODEL, about 3 points off. 45 cycles: FORMULA in 7 of 8, 0.3 off |
+| Scores unrelated to the inputs | NONE, as it should be |
+| Real Day Strain, one account, 336 days from a NOOP issue attachment | **MODEL**: 1.51 off on the newest 98 days, against 3.75 for guessing the mean and 3.49 for the best shuffled run. Only 2 % exact |
+| The owner's export | 3 cycles: does not run |
+
+The strain result uses daily max, mean and resting heart rate only. That 98 % of days stay inexact fits strain depending on
+time in heart-rate zones, which the per-second heart rate adds (`--frames`).
+
+### NOOP against WHOOP on the same cycles
+
+`re/noop_compare.py` runs NOOP's real code, `main` at `2a1de760`.
+
+Effort reads 2.4 and 3.1 below WHOOP on 2 cycles. Charge does not score yet: it needs 4 nights of baseline.
+
 ## 19. Command request bodies from the official app (APK, new)
 
 Each command this project had only named is built by its own class in the app (a subclass of the `xj0.b` packet base,

@@ -28,9 +28,17 @@ the evidence, and where it goes. NOOP's rules apply to all of it: facts only, no
 
 ## Coming: WHOOP's score mapping
 
-The WHOOP export pairs raw inputs with Recovery, Day Strain and Sleep performance for each cycle. With enough cycles this
-gives a measured reference for `RecoveryScorer` and `StrainScorer` in `StrandAnalytics`. State: 3 of 20 cycles for
-recovery and sleep, 2 of 5 for strain. NOOP's offline rule is unaffected: the fit uses one owner's own export.
+The WHOOP export pairs raw inputs with Recovery, Day Strain and Sleep performance for each cycle. `re/score_search.py` searches
+for the mapping, and `re/noop_compare.py` runs NOOP's real scorers on the same cycles. State: 3 cycles; the search needs at
+least 27 for a model that uses personal baselines. NOOP's offline rule is unaffected: this uses one owner's own export.
+
+| | NOOP now (`main` at `2a1de760`) | What the search tests |
+|---|---|---|
+| Recovery | Logistic over weighted z-scores: HRV 0.55, resting HR 0.20, sleep 0.15, respiration 0.05, skin temperature 0.05; baselines with a 14-night half-life | This same shape with free weights and half-lives of 7, 14 and 30, plus every other input |
+| Strain | Edwards TRIMP on %HRR zones, then 100 x ln(TRIMP + 1) / ln(7201) | Log and logit shapes on TRIMP, per-zone minutes and heart-rate summaries |
+| Sleep performance | Rest composite | Sleep durations, need, debt, efficiency and consistency |
+
+First numbers: Effort reads 2.4 and 3.1 below WHOOP's Day Strain on 2 cycles (FINDINGS §18).
 
 ## Not here
 

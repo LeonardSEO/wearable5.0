@@ -13,7 +13,8 @@ Three streams feed that list:
 3. **Scores.** Work out recovery, strain and sleep from raw data plus WHOOP's scores. WHOOP computes them on its servers, so
    there is no formula to read. Input and output pairs replace it.
 
-Also compare each new WHOOP app version with NOOP, so new commands and behaviour show up (`re/compare_noop.py`).
+Also compare each new WHOOP app version with NOOP, so new commands and behaviour show up (`re/compare_noop.py`). Compare scores
+with NOOP's real code (`re/noop_compare.py`). Never pull scores from WHOOP's server endpoints: the owner's export is the source.
 
 ## How to write results
 
@@ -43,11 +44,12 @@ and proof that the scores are server-side.
 
 **Failing.** Wake time (33.6 min, bar 15) and resting heart rate (3.75 bpm, bar 3).
 
-**Not done.** Score formulas (3 of 20 cycles, strain 2 of 5), sleep stages, gyro scale.
+**Not done.** Score formulas (3 cycles; `re/score_search.py` is ready), sleep stages, gyro scale.
 
 ## The data routine
 
-The owner has the WHOOP app free for one month. Target 20 nights, minimum 5.
+The owner has the WHOOP app free for one month. Minimum 5 nights for the metrics, at least 27 for a score model; the exact
+formula takes about 45 (FINDINGS §18).
 
 1. Wear the strap. Let the WHOOP app sync.
 2. Before the month ends, and within 3 weeks of the oldest unread night, make a WHOOP export. It holds every score per cycle, so

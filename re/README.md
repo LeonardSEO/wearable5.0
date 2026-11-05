@@ -11,6 +11,8 @@ demand into `re/corpus/` (gitignored); only scripts and results are committed.
 | `export_noop_db.py` | Export the raw frames NOOP keeps with `enableRawCapture` on (read-only snapshot of its database) | `frames.jsonl`, `whoop.sqlite` |
 | `strain_model.py` | Build WHOOP day strain from per-second HR (zones -> TRIMP -> log fit); needs each strain cycle's whole span re-read | fit stats on stdout |
 | `compare_noop.py` | Which commands, events and packet types differ between this schema and NOOP's | difference list on stdout |
+| `score_search.py` | Search all transforms and combinations of the export's inputs for WHOOP's scores, judged on a holdout and against shuffled scores | verdict per score, `results/score_search_strain_public.txt` |
+| `noop_compare.py` | NOOP's real Charge and Effort next to WHOOP's Recovery and Day Strain (builds on `noop_scores/`, which links a NOOP checkout) | table on stdout |
 | `pipeline.sh` | One command: validate + score + strain over your data folder and WHOOP export (SpO2 standing on top) | combined report |
 | `score_model.py` | Reverse-engineer WHOOP's recovery/strain/sleep scores empirically from your own export (input/output pairs) | fit stats on stdout |
 | `validate_own_strap.py` | Every open claim checked on one owner's strap and WHOOP export, with thresholds fixed in advance | `REPORT.md`, `report.json` in the data folder |

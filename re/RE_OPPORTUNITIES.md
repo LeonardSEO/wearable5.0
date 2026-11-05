@@ -77,6 +77,10 @@ documented only.
   baseline-relative, so a fit reproduces this account's mapping, and other accounts test whether it generalises. It needs
   20 cycles; there are 3. On those 3, sleep performance is not the plain asleep/need ratio (33 % off) and looks capped
   near 95 %, and recovery did not track absolute HRV or resting HR.
+  **Formula search (`re/score_search.py`):** tries every transform and combination of the inputs, including deviations from a
+  personal baseline, and judges them on the newest 30 % of cycles and against shuffled scores. Measured on a planted
+  formula with no noise: 27-30 cycles give a usable model about 3 points off, 45 give the exact formula. WHOOP's real
+  formula can only be harder, so one free month gives a model, and exactness needs about 45 nights or more accounts.
 - **What the strap uploads (the raw inputs to the server model).** The app ships, over `api.prod.whoop.com`:
   raw frames (`research-metrics-service/v1/{raw,imu,optical}/upload`, `com.whoop.dataSyncService.rawdata`
   `RawDataUploadWorker`), sensor metrics (`metrics-service/v1/metrics/sensor`), strap and firmware events
