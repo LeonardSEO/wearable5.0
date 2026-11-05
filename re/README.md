@@ -10,6 +10,7 @@ demand into `re/corpus/` (gitignored); only scripts and results are committed.
 | `prepare_donation.py` | Turn your own archive, logs, HCI capture and WHOOP export into a privacy-safe donation zip | `frames.jsonl`, `whoop_export/`, `MANIFEST.json` |
 | `export_noop_db.py` | Export the raw frames NOOP keeps with `enableRawCapture` on (read-only snapshot of its database) | `frames.jsonl`, `whoop.sqlite` |
 | `strain_model.py` | Build WHOOP day strain from per-second HR (zones -> TRIMP -> log fit); needs a daytime re-read of strain days | fit stats on stdout |
+| `pipeline.sh` | One command: validate + score + strain over your data folder and WHOOP export (SpO2 standing on top) | combined report |
 | `score_model.py` | Reverse-engineer WHOOP's recovery/strain/sleep scores empirically from your own export (input/output pairs) | fit stats on stdout |
 | `validate_own_strap.py` | Every open claim checked on one owner's strap and WHOOP export, with thresholds fixed in advance | `REPORT.md`, `report.json` in the data folder |
 | `pklg_extract.py` | Extract 5/MG frames from an iOS PacketLogger (.pklg) or Android btsnoop capture | frames JSONL with direction and ATT handle |
@@ -55,6 +56,16 @@ official app (`.pklg`, `btsnoop_hci.log`) and the WHOOP export (`physiological_c
 Each check reports PASS, FAIL or WAITING against the `CRITERIA` at the top of the script. Night checks
 need at least 5 nights that appear in both the frames and the export. A night synced by NOOP never reaches
 WHOOP's servers, so let the official app sync first and re-read the night afterwards.
+
+## Weekly loop to prove SpO2 (and feed the score models)
+
+SpO2 is the flagship claim and needs 5 paired nights (ours + WHOOP's own). Each round:
+
+1. Wear the strap overnight; let the official WHOOP app sync, and export your data from the app.
+2. Re-read the same night(s) raw from the strap: `re/refetch.sh <WhoopProbe.app> <venv-site-packages> <out> "<start>" "<stop>" 2654:7` (see REREAD_HISTORY.md). The strap keeps ~3 weeks, so a batch of nights re-reads in one pass.
+3. Drop the export .zip in the data folder and run `re/pipeline.sh <data-folder> <export.zip>`.
+
+`validate_own_strap.py` flips SpO2 from WAITING to PASS/FAIL once 5 nights are paired; the same nights also accrue toward the ~20-cycle score fits.
 
 ## Donating data
 
