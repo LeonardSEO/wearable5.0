@@ -93,32 +93,57 @@ def report(folder: str, export: str | None) -> None:
     print(f"{len(hr)} HR seconds; max HR seen {hr_max} (zone reference)\n")
     days = per_day(hr, hr_max)
     strain = {}
-    if export:
-        # Map each cycle's Day Strain to the calendar day of its start.
-        import csv as _csv, io as _io, zipfile as _zip
-        texts = []
-        if export.lower().endswith(".zip"):
-            with _zip.ZipFile(export) as z:
-                texts = [z.read(n).decode("utf-8-sig") for n in z.namelist()
-                         if os.path.basename(n).lower() == "physiological_cycles.csv"]
-        for text in texts:
-            for row in _csv.DictReader(_io.StringIO(text)):
-                start = next((v for k, v in row.items() if k.strip().lower().startswith("cycle start")), None)
-                ds = next((v for k, v in row.items() if k.strip().lower().startswith("day strain")), None)
-                if start and ds:
-                    strain[start[:10]] = float(ds)
-    print(f"{'day':>11} {'cover':>6} {'zone minutes (1..5)':>26} {'TRIMP':>7} {'WHOOP strain':>12}")
-    pairs = []
     for day in sorted(days):
         d = days[day]
-        ws = strain.get(day)
-        if ws is not None and d["covered_h"] >= 18:
-            pairs.append((d["trimp"], ws))
-        print(f"{day:>11} {d['covered_h']:>5.1f}h {str(d['zone_min']):>26} {d['trimp']:>7} "
-              f"{'' if ws is None else f'{ws:>12}'}")
-    print("\nfit (needs >=5 days with a WHOOP strain and >=18 h HR):", fit_strain(pairs))
-    if not pairs:
-        print("  no day has both yet — re-read the daytime spans of days that have a WHOOP Day Strain.")
+        print(f"  {day}  {d['covered_h']:>4.1f}h HR  zones {d['zone_min']}  TRIMP {d['trimp']}")
+    # Strain is per WHOOP cycle, not per calendar day: a cycle can span ~48 h (a merged night). Sum TRIMP over the
+    # cycle's exact [start, end) window and require the window to be near-fully covered by HR.
+    if export:
+        print(f"\n{'cycle start':>19} {'hours':>6} {'cover%':>6} {'TRIMP':>8} {'WHOOP strain':>12}")
+        pairs = []
+        for start_s, end_s, ws in cycle_strains(export):
+            hrs = [h for t, h in hr.items() if start_s <= t < end_s]
+            span_h = (end_s - start_s) / 3600
+            cover = len(hrs) / (end_s - start_s) if end_s > start_s else 0
+            trimp = round(edwards_trimp(zone_minutes(hrs, hr_max)), 1)
+            if cover >= 0.8:
+                pairs.append((trimp, ws))
+            print(f"{dt.datetime.fromtimestamp(start_s):%Y-%m-%d %H:%M} {span_h:>5.1f}h {cover:>6.0%} {trimp:>8} {ws:>12}")
+        print("\nfit (needs >=5 cycles with a WHOOP strain and >=80% HR coverage):", fit_strain(pairs))
+        if not pairs:
+            print("  no cycle has both yet — re-read each strain cycle's full [start,end) span, not just its night.")
+
+
+def cycle_strains(export: str) -> list[tuple[int, int, float]]:
+    """(start_unix, end_unix, day_strain) per export cycle that has a strain and an end time."""
+    import csv as _csv, io as _io, zipfile as _zip
+    texts = []
+    if export.lower().endswith(".zip"):
+        with _zip.ZipFile(export) as z:
+            texts = [z.read(n).decode("utf-8-sig") for n in z.namelist()
+                     if os.path.basename(n).lower() == "physiological_cycles.csv"]
+    else:
+        texts = [open(export, encoding="utf-8-sig").read()]
+
+    def ts(v: str, tz: str) -> int | None:
+        if not v:
+            return None
+        t = dt.datetime.fromisoformat(v.strip().replace("T", " ")[:19])
+        if tz and tz.upper().startswith("UTC") and len(tz) > 3:
+            sign = -1 if tz[3] == "-" else 1
+            hh, _, mm = tz[4:].partition(":")
+            t = t.replace(tzinfo=dt.timezone(sign * dt.timedelta(hours=int(hh), minutes=int(mm or 0))))
+        return int((t if t.tzinfo else t.astimezone()).timestamp())
+
+    out = []
+    for text in texts:
+        for row in _csv.DictReader(_io.StringIO(text)):
+            g = lambda p: next((v for k, v in row.items() if k.strip().lower().startswith(p)), None)
+            tz = g("cycle timezone") or ""
+            start, end, ds = ts(g("cycle start") or "", tz), ts(g("cycle end") or "", tz), g("day strain")
+            if start and end and ds not in (None, ""):
+                out.append((start, end, float(ds)))
+    return out
 
 
 def _self_test() -> None:
