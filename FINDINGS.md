@@ -369,7 +369,8 @@ Firmware 50.43.2.0, one strap, `re/probe_read_pointer.py`; the official app neve
   acknowledgement put trim back to where it started. The firmware's own log shows the read-pointer payload is page
   u32 + wrap u32 ("Force Read Pointer; read page:2554 wrap count:…").
 
-So trimmed history can be re-read while the ring still holds it (about 3 weeks at this data rate). A night can go to
+So trimmed history can be re-read while the ring still holds it: about 3 weeks at 245 pages an hour, and far less after raw capture at
+about 3600 pages an hour. A night can go to
 the official app and still be read raw afterwards. `FORCE_TRIM` (25) was not needed and was not tried. Tried on one
 strap. Steps and setup: `re/REREAD_HISTORY.md`.
 

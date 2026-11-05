@@ -2,8 +2,8 @@
 
 A strap gives each record to whichever client acknowledges it first. That used to force a choice for every night:
 the official app (WHOOP's scores and export) or a raw client (the frames). This method gets both from the same night,
-because the strap keeps trimmed pages on flash until the ring overwrites them, about 3 weeks at the observed rate of
-245 pages an hour.
+because the strap keeps trimmed pages on flash until the ring overwrites them: about 3 weeks at the normal rate of 245 pages an
+hour, and far less after raw capture, which writes about 3600 pages an hour.
 
 **Status:** works on one strap, firmware 50.43.2.0: four spans of 6 to 8 hours, all complete, with trim restored
 afterwards. The official app synced on normally after a later run that left trim moved (FINDINGS §17). Other firmware is untested.

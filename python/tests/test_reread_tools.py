@@ -46,6 +46,24 @@ class BackfillRefusal(unittest.TestCase):
         self.assertEqual(self.probe.span_progress([900, 100, 200], 500), (True, False, 200))
         self.assertEqual(self.probe.span_progress([900, 100, 600], 500), (True, True, 600))
 
+    def test_page_search_steps_over_pages_without_a_time(self):
+        import asyncio
+
+        async def time_at(behind):
+            return 0 if 4000 <= behind <= 4010 else 100000 - behind
+
+        distance = asyncio.run(self.probe.find_distance(time_at, 100000 - 5000, 131072))
+        self.assertLessEqual(abs(distance - 5000), 8)
+
+    def test_page_search_gives_up_when_no_page_has_a_time(self):
+        import asyncio
+
+        async def time_at(behind):
+            return 0
+
+        with self.assertRaises(RuntimeError):
+            asyncio.run(self.probe.find_distance(time_at, 500, 131072))
+
     def test_refuses_a_future_start(self):
         self.assertIn("future", self.probe.backfill_refusal(6000, 6000, 500, 100, 5000))
 

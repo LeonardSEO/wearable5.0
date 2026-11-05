@@ -42,6 +42,7 @@ TO_STRAP = "fd4b0002-cce1-4033-93ce-002d5875f58a"
 NOTIFY = ["fd4b0003-cce1-4033-93ce-002d5875f58a", "fd4b0004-cce1-4033-93ce-002d5875f58a",
           "fd4b0005-cce1-4033-93ce-002d5875f58a"]
 MAX_PAGE_TIME_ERROR_S = 3600
+TIME_SEARCH_PAGES, TIME_SEARCH_STEP = 2048, 32  # pages without a time can run for hundreds of pages
 CLIENT_HELLO, SEND_HISTORY, HISTORY_RESULT, ABORT_HISTORY, SET_READ_POINTER, GET_DATA_RANGE = 145, 22, 23, 20, 33, 34
 
 
@@ -112,16 +113,37 @@ async def time_of(s: "Strap", page: int, wrap: int) -> int:
     return struct.unpack_from("<I", bytes.fromhex(r["hex"]), 62)[0]
 
 
-async def find_page(s: "Strap", when: float, r: dict) -> tuple[int, int]:
+async def valid_time(time_at, behind: int) -> tuple[int, int] | None:
+    """The nearest page with a stored time; some pages hold 0 or the all-ones sentinel."""
+    for off in range(0, TIME_SEARCH_PAGES + 1, TIME_SEARCH_STEP):
+        for candidate in {behind + off, behind - off}:
+            t = await time_at(candidate)
+            if t not in (0, 0xFFFFFFFF):
+                return candidate, t
+    return None
+
+
+async def find_distance(time_at, when: float, capacity: int) -> int:
     """Binary search by distance behind the write head: stored times grow towards the head."""
-    lo, hi = 1, r["capacity"] - 200
+    lo, hi = 1, capacity - 200
     while hi - lo > 8:
-        mid = (lo + hi) // 2
-        if await time_of(s, *page_wrap(mid, r)) > when:
-            lo = mid
+        found = await valid_time(time_at, (lo + hi) // 2)
+        if found is None:
+            raise RuntimeError("no page with a stored time near the search point")
+        if found[1] > when:
+            lo = max(lo, found[0])
         else:
-            hi = mid
-    return page_wrap(hi, r)
+            hi = min(hi, found[0])
+    found = await valid_time(time_at, hi)
+    if found is None:
+        raise RuntimeError("no page with a stored time near the result")
+    return found[0]
+
+
+async def find_page(s: "Strap", when: float, r: dict) -> tuple[int, int]:
+    async def time_at(behind: int) -> int:
+        return await time_of(s, *page_wrap(behind, r))
+    return page_wrap(await find_distance(time_at, when, r["capacity"]), r)
 
 
 def span_progress(times: list[int], stop: float) -> tuple[bool, bool, int]:

@@ -58,7 +58,7 @@ formula takes about 45 (FINDINGS §18).
 1. Wear the strap. Let the WHOOP app sync.
 2. Before the month ends, and within 3 weeks of the oldest unread night, make a WHOOP export. It holds every score per cycle, so
    nobody notes them by hand.
-3. Pair the Mac and re-read those nights (`re/REREAD_HISTORY.md`). The ring holds about 22 days (131,072 pages at 245 per hour).
+3. Pair the Mac and re-read those nights (`re/REREAD_HISTORY.md`). The ring holds about 22 days at 245 pages per hour, and far less while raw capture is on.
    Always pass `--restore`.
 4. Run `re/pipeline.sh <data folder> <export.zip>` and `re/verify_findings.py`, then update FINDINGS and NOOP_HANDOFF.
 
