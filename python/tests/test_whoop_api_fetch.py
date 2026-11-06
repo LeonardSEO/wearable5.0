@@ -144,6 +144,22 @@ class VerifyFindings(unittest.TestCase):
         self.assertFalse(self.results(self.export_sleeps)["nap credit = the nap's asleep time"])
 
 
+class Round2(unittest.TestCase):
+    def test_only_sleeps_after_the_freeze_are_scored(self):
+        spec = importlib.util.spec_from_file_location("api_checks", os.path.join(os.path.dirname(__file__), "..", "..", "re", "api_checks.py"))
+        checks = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(checks)
+        old = ApiChecks.sleep(False, 60000 * 300, (60000 * 400, 0, 0, 0))
+        new = ApiChecks.sleep(False, 60000 * 300, (27834334, 3000000, 0, 0))  # second record: k = 0
+        for s, start in ((old, "2026-11-05T22:00:00Z"), (new, "2026-11-06T22:00:00Z")):
+            s.update({"start": start, "timezone_offset": "+01:00", "id": start})
+            s["score"].update({"sleep_performance_percentage": 80.0, "sleep_efficiency_percentage": 96.0, "sleep_consistency_percentage": 0})
+        rows = {r["model"]: r for r in checks.round2([old, new], [], None)}
+        self.assertTrue(rows["debt replace"]["ok"])
+        self.assertTrue(rows["BL-L baseline"]["ok"])
+        self.assertEqual({r["start"] for r in checks.round2([old, new], [], None)}, {"2026-11-06 23:00:00"})
+
+
 class FrozenOnApi(unittest.TestCase):
     def test_sp_m_drops_consistency_when_missing(self):
         spec = importlib.util.spec_from_file_location("api_checks", os.path.join(os.path.dirname(__file__), "..", "..", "re", "api_checks.py"))

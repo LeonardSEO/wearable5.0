@@ -9,6 +9,7 @@ from __future__ import annotations
 import csv
 import datetime as dt
 import json
+import math
 import os
 import sys
 
@@ -99,6 +100,50 @@ def local_start(s: dict) -> str:
     return (moment + sign * dt.timedelta(hours=int(hours), minutes=int(minutes))).strftime("%Y-%m-%d %H:%M:%S")
 
 
+ROUND2_FROM = "2026-11-06T00:00:00Z"  # sleeps starting after this did not shape the round-2 candidates
+B_START_BASELINE, BASELINE_STEP = 27834334, 284.5
+
+
+def round2(sleeps: list[dict], cycles: list[dict], stress_csv: str | None) -> list[dict]:
+    """Frozen round-2 candidates, evaluated on sleeps the candidates had not seen."""
+    readings = {}
+    if stress_csv:
+        with open(stress_csv, encoding="utf-8") as f:
+            readings = {r["sleep_cycle_start"]: r for r in csv.DictReader(f)}
+    ordered = sorted(sleeps, key=lambda s: s["start"])
+    out = []
+    for i, s in enumerate(ordered):
+        if s["start"] <= ROUND2_FROM or not s.get("score"):
+            continue
+        sc, needed = s["score"], s["score"]["sleep_needed"]
+        add = lambda model, predicted, actual, tolerance: out.append(
+            {"start": local_start(s), "model": model, "predicted": predicted, "actual": actual, "ok": abs(predicted - actual) <= tolerance})
+        main = next((p for p in reversed(ordered[:i]) if not p["nap"] and p.get("score")), None)
+        if main:
+            n, m, d = need_ms(main["score"]["sleep_needed"]), asleep_ms(main["score"]["stage_summary"]), main["score"]["sleep_needed"]["need_from_sleep_debt_milli"]
+            add("debt replace", max(0, (n - m) // 2), needed["need_from_sleep_debt_milli"], 0)
+            add("debt add", max(0, d + (n - m) // 2), needed["need_from_sleep_debt_milli"], 0)
+            add("debt d+(N-d-m)/2", max(0, d + (n - d - m) // 2), needed["need_from_sleep_debt_milli"], 0)
+        k = i - 1  # B is the second record
+        add("BL-L baseline", B_START_BASELINE - math.floor(BASELINE_STEP * k), needed["baseline_milli"], 0)
+        before = [c for c in cycles if c.get("end") == s["start"] and c.get("score")]
+        if before:
+            st = before[0]["score"]["strain"]
+            actual = needed["need_from_recent_strain_milli"]
+            add("SN-PE", 25995.162137 * st ** 0.728090984 * math.exp(0.167421361 * st), actual, 0.01 * actual)
+            add("SN-Q", 18968.446118 * st ** 2 - 179627.389611 * st + 606847.675475, actual, 0.01 * actual)
+        u = 100 * min(1, asleep_ms(sc["stage_summary"]) / need_ms(needed))
+        add("SP-L", 53.8 + 0.412 * u, sc["sleep_performance_percentage"], 0.5)
+        reading = readings.get(local_start(s))
+        if reading and sc["sleep_consistency_percentage"]:
+            low, medium, high = (float(reading[x]) for x in ("low_min", "medium_min", "high_min"))
+            q = (sc["sleep_efficiency_percentage"] + sc["sleep_consistency_percentage"] + 100 - 100 * medium / (low + medium + high)) / 3
+            add("SP-M2", min(100, max(0, q + 0.5 + 0.375 * (u - q))), sc["sleep_performance_percentage"], 0.5)
+        add("efficiency = asleep / in bed", 100 * asleep_ms(sc["stage_summary"]) / sc["stage_summary"]["total_in_bed_time_milli"],
+            sc["sleep_efficiency_percentage"], 0.001)
+    return out
+
+
 def frozen_on_api(sleeps: list[dict], recoveries: list[dict]) -> list[dict]:
     """Recheck the frozen candidates on the API's exact inputs. These are the same nights, so this is not a test on new data."""
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -132,6 +177,10 @@ def main() -> None:
         print("\nSP-M with app stress hours:")
         for r in stress_rows(sleeps, sys.argv[2]):
             print(f"  predicted {r['predicted']:.2f}  WHOOP {r['actual']:.0f}  {'in rounding' if abs(r['predicted'] - r['actual']) < 0.5 else 'MISS'}")
+    rows2 = round2(sleeps, load("cycles"), sys.argv[2] if len(sys.argv) > 2 else None)
+    print("\nround-2 candidates on sleeps they had not seen:" + ("" if rows2 else " none yet"))
+    for r in rows2:
+        print(f"  {r['start']}  {r['model']:30} predicted {r['predicted']:.4f}  WHOOP {r['actual']}  {'PASS' if r['ok'] else 'MISS'}")
     print("\nnext-debt prediction after the newest main sleep:")
     last = [s for s in sleeps if not s["nap"] and s.get("score")][-1]["score"]
     expect = debt_after(need_ms(last["sleep_needed"]), asleep_ms(last["stage_summary"]))

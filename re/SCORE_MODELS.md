@@ -107,6 +107,22 @@ stress hours again add up to time in bed within 1.05 minutes.
 
 Registered next: debt 5208063 ms; baseline about 284-285 ms lower.
 
+## Round 2, frozen 6 November (`round2` in `re/api_checks.py`)
+
+From an outside mathematical review of the API data; only sleeps after 6 November test them.
+
+- **Ruled out:** any sum of non-negatively weighted zone seconds, zone 0 included, followed by one rising curve for both day and workout strain. One
+  workout scores above another with less weighted load than a quiet day would need. This uses reconstructed day vectors next to WHOOP's workout vectors.
+- **Ruled out:** any concave function of asleep/need alone for sleep performance (three sleeps contradict it).
+- Debt variants, separable now that debt was positive: replace (5208063 ms), add (6823274 ms), d + floor((N - d - m)/2) (6015668 ms).
+- BL-L baseline: 27834334 - floor(284.5 k) from the second record: 27833196, 27832912, 27832627 next.
+- Strain-need SN-PE: 25995.162137 s^0.728090984 e^(0.167421361 s); SN-Q: 18968.446118 s^2 - 179627.389611 s + 606847.675475. Both interpolate 3 points
+  exactly, so undetermined. Pass = within 1 %.
+- Sleep performance SP-M2: q = (efficiency + consistency + 100 - medium %) / 3, P = q + 0.5 + 0.375 (u - q). Control SP-L: 53.8 + 0.412 u. Both fit 3 sleeps,
+  not the first two.
+- Efficiency null model: asleep / in bed. It misses 2 of 5 sleeps by 0.12 and 0.40; a shorter denominator would fit them but is chosen afterwards.
+- Recovery: no formula; a constant 50 is the reference only.
+
 ## Settled by the official API
 
 `re/api_checks.py`, in milliseconds. The rules below replace the candidates they settle: SN-C holds with a nap factor of exactly 1, and
