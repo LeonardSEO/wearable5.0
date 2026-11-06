@@ -89,6 +89,24 @@ about 4 bpm lower than the raw mean on both workouts.
 **Strain.** With these zones one curve a ln(1 + b load) across 2 workouts and 3 cycles misses by 0.48 on average at best, so load is
 still not identified.
 
+## First test on a night the models had not seen
+
+| Model | Prediction | WHOOP | Result |
+|---|---:|---:|---|
+| Sleep debt rule | 1615211 ms | 1615211 ms | **exact** |
+| SP-M (with app stress) | 79.80 | 81 | miss |
+| SP-E | 78.87 | 81 | miss |
+| SP-Q | 78.65 | 81 | miss |
+| R-SLEEP | 32.89 | 50 | miss |
+| R-HRV | 32.29 | 50 | miss |
+
+The debt rule passed its first prospective test. Every frozen sleep-performance and recovery candidate failed on the same night, so their coefficients are
+rejected. The first recovery that WHOOP no longer marks as calibrating jumped well above what the calibrating ones predicted, which fits recovery changing after
+calibration. Also on this night: the need baseline fell by another 284 ms (284, 285, 284 in a row), efficiency equals asleep / in bed on 3 of 5 sleeps, and the
+stress hours again add up to time in bed within 1.05 minutes.
+
+Registered next: debt 5208063 ms; baseline about 284-285 ms lower.
+
 ## Settled by the official API
 
 `re/api_checks.py`, in milliseconds. The rules below replace the candidates they settle: SN-C holds with a nap factor of exactly 1, and
@@ -96,8 +114,8 @@ SD-CAP's 53 and every other nap factor are unlikely, though the next debt is the
 
 | Rule | Cases |
 |---|---:|
-| need = baseline + debt + recent strain + nap credit | 4 of 4 |
-| debt = floor(0.5 x (need - asleep)) of the last main sleep; a nap holds it. This reproduces the transitions so far; how existing debt carries over is open | 3 of 3 |
+| need = baseline + debt + recent strain + nap credit | 5 of 5 |
+| debt = floor(0.5 x (need - asleep)) of the last main sleep; a nap holds it. This reproduces the transitions so far, including one prospective test; how existing debt carries over is open | 4 of 4 |
 | nap credit = -(the nap's asleep time) | 1 of 1 |
 | export minutes = floor of the milliseconds | all checked |
 

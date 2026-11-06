@@ -49,7 +49,7 @@ exist but the bar fixed in advance (`CRITERIA` in `re/validate_own_strap.py`, 5 
 | **Resting heart rate** | Failing | 3.75 bpm too low, bar is 3, §18 | own strap |
 | **WHOOP's heart-rate zones: 40/60/70/80/90 % of heart rate reserve** | Measured | exact on one workout, 98.69 % on another; rest and edges were chosen on these two, so new workouts have to confirm it, §18 | own strap + official API |
 | **Sleep need, sleep debt and nap credit rules** | Measured | exact to the millisecond on every case so far, §18 | official API |
-| WHOOP's recovery, strain and sleep performance formulas | Open | §18; recovery is still in WHOOP's calibration | own strap |
+| WHOOP's recovery, strain and sleep performance formulas | Open | §18; every frozen candidate missed the first unseen night | own strap |
 | Sleep stages | Open | not attempted; the export holds per-stage minutes | |
 | R21 gyro scale, R22 v9 channels, R26 sample units | Open | README D9, H5 | |
 
@@ -448,15 +448,16 @@ and fails if one stops holding (all claims on the first snapshot). WHOOP's serve
 
 - **Sleep need** is baseline + debt + recent strain + nap credit, on all 4 sleeps.
 - **Export minutes are cut off, not rounded,** for need, asleep and time in bed.
-- **Sleep debt:** half the shortfall of the last main sleep reproduces the transitions so far, to the millisecond: 3 of 3 cases, of which
-  one positive, one held across a nap and one zero. How existing debt carries over is open.
+- **Sleep debt:** half the shortfall of the last main sleep reproduces the transitions so far, to the millisecond: 4 of 4 cases, including
+  one prediction made before the night (1615211 ms predicted and reported). How existing debt carries over is open.
 - **Nap credit** is exactly the nap's asleep time, on the one nap.
 - **Efficiency** is asleep / in bed on 2 of 4 sleeps and 0.12 and 0.40 points higher on the other 2. Open.
 - **Sleep stress is in the app, not the API,** as hours of low, medium and high stress. They add up to about time in bed, within 1.32 minutes; the exact
   window is unchecked. A composite using medium stress fits the 2 separate main sleeps with their own reading (`SP-M` in `re/SCORE_MODELS.md`). Medium was chosen after seeing
   the numbers, so it is a lead. High stress is 0 on every night, so its weight is unknown.
 - **Recovery and Sleep performance are whole numbers in the API too,** so no decimals are hidden there. Strain has decimals.
-- **WHOOP flags all 3 recoveries as calibrating,** so a formula fitted on them may not hold after calibration.
+- **WHOOP flagged the first 3 recoveries as calibrating; the 4th is not.** It scored well above every frozen recovery candidate, so formulas
+  fitted on calibrating scores do not carry over. Every frozen sleep-performance candidate also missed that night.
 - **WHOOP's heart-rate zones fit heart rate reserve,** with edges at 40, 60, 70, 80 and 90 %, WHOOP's reported maximum HR and a resting HR
   of 58. From raw R18 heart rate, with no time shift, one workout matches in all 6 zones to the second (1379 of 1379 s). A second workout
   reaches 98.69 %, with 26 of 1978 s one zone off, all at the 60 % edge. Rest and edges were chosen on these two workouts, so the rule is

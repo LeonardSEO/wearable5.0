@@ -59,7 +59,7 @@ def verify(export_sleeps: list[dict], export_cycles: list[dict], sleeps: list[di
     by_onset = {r["Sleep onset"]: r for r in export_sleeps}
     pairs = [(s, by_onset[local_time(s["start"], s["timezone_offset"])]) for s in sleeps
              if local_time(s["start"], s["timezone_offset"]) in by_onset]
-    claim(results, "every API sleep matches an export sleep by onset", len(pairs), len(sleeps))
+    claim(results, "every export sleep matches an API sleep by onset", len(pairs), len(export_sleeps))  # the API also has later sleeps
     floor_min = lambda ms: ms // MS_PER_MIN
     claim(results, "export need = floor(sum of the four API components)",
           sum(float(r["Sleep need (min)"]) == floor_min(need_ms(s["score"]["sleep_needed"])) for s, r in pairs), len(pairs))
@@ -96,14 +96,15 @@ def verify(export_sleeps: list[dict], export_cycles: list[dict], sleeps: list[di
     finished = [c for c in cycles if c.get("end") and c.get("score")]
     by_start = {r["Cycle start time"]: r for r in export_cycles}
     matched = [(c, by_start[local_time(c["start"], c["timezone_offset"])]) for c in finished
-               if local_time(c["start"], c["timezone_offset"]) in by_start]
+               if local_time(c["start"], c["timezone_offset"]) in by_start
+               and by_start[local_time(c["start"], c["timezone_offset"])].get("Day Strain")]  # a cycle still running at export time has none
     claim(results, "export strain = API strain rounded to 0.1",
           sum(math.isclose(round(c["score"]["strain"], 1), float(r["Day Strain"])) for c, r in matched), len(matched))
     claim(results, "export calories = API kilojoules / 4.184, rounded",
           sum(round(c["score"]["kilojoule"] / KJ_PER_KCAL) == round(float(r["Energy burned (cal)"])) for c, r in matched), len(matched))
     resend = utc(resend_start)
-    earlier = [c for c in finished if utc(c["start"]) < resend]
-    claim(results, "cycles from before the re-send were not updated after it",
+    earlier = [c for c in finished if utc(c["end"]) < resend]  # a cycle still running at the re-send is updated anyway
+    claim(results, "cycles that ended before the re-send were not updated after it",
           sum(utc(c["updated_at"]) < resend for c in earlier), len(earlier))
     claim(results, "at least one cycle was first scored days after it began",
           sum((utc(c["created_at"]) - utc(c["start"])).total_seconds() > 3 * 86400 for c in cycles), len(cycles), need_all=False)

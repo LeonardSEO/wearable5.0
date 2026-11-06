@@ -123,7 +123,7 @@ def main() -> None:
     for line in check_sleep_chain(sleeps):
         print(line)
     rows = frozen_on_api(sleeps, load("recoveries"))
-    print("\nfrozen candidates on the API's exact inputs (same nights, not a new test):")
+    print("\nfrozen candidates on the API's exact inputs (nights before 6 Nov shaped them; later nights test them):")
     for model in sorted({r["model"] for r in rows}):
         mine = [r for r in rows if r["model"] == model]
         hits = sum(abs(r["predicted"] - r["actual"]) < 0.5 for r in mine)
