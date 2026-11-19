@@ -33,7 +33,7 @@
 ## At a glance
 
 <p align="center">
-  <img src="docs/headtohead.svg" width="760" alt="Mean distance from WHOOP's own scores. Recovery: NOOP 11.9 points, this repository 4.1. Sleep performance: 10.1 against 1.5. Sleep need: 17.0 against 6.9 minutes. Day strain: 2.46 against 0.73. Workout zones: 53.9 % against 2.5 % of workout time in another zone.">
+  <img src="docs/headtohead.svg" width="820" alt="How far each score lands from WHOOP, which is the zero line, as a percentage of each score's scale. Recovery: this repository 4.1 %, NOOP 11.9 %. Sleep performance: 1.5 % against 10.1 %. Day strain: 3.5 % against 11.7 %. Sleep need: 1.2 % against 2.9 %. Workout zones: 2.5 % against 53.9 %.">
 </p>
 
 Scope, stated plainly: one WHOOP 5.0 wearer; 12 to 16 nights, 11 cycles and 5 workouts with WHOOP's scores from the official
@@ -72,16 +72,17 @@ file: [NOOP_HANDOFF.md](NOOP_HANDOFF.md#score-changes-noop-can-make).
 
 ### Metrics checked against WHOOP
 
-Thresholds fixed before the data ([`CRITERIA`](re/validate_own_strap.py)); 5 paired nights.
+Thresholds fixed before the data ([`CRITERIA`](re/validate_own_strap.py)); 12 nights paired with WHOOP's values from its official API.
 
 | Metric | Mean off WHOOP | Verdict |
 |---|---|---|
-| HRV (RMSSD) | 2.53 ms, r = 0.77 | Proven |
-| Respiratory rate from R-R | 0.12 per min, r = 0.73 | Proven |
-| Skin temperature | 0.17 °C, r = 0.81 | Proven |
-| Sleep onset | 14.3 min median; a near-constant lag | Proven |
-| Resting HR | 3.89 bpm low, almost all of it a constant offset | Failed at 3 bpm; the offset is a lead |
-| Wake time | 49.5 min median | Failed |
+| SpO₂ (R18 byte 82) | 0.53 %, r = 0.80; byte 82 tracks WHOOP better than any other R18 byte | Proven |
+| HRV (RMSSD) | 1.60 ms, r = 0.89 | Proven |
+| Respiratory rate from R-R | 0.16 per min, r = 0.77 | Proven |
+| Skin temperature | 0.08 °C, r = 0.93 | Proven |
+| Sleep onset | 13.9 min median; a near-constant lag | Proven |
+| Wake time | 9.6 min median | Proven |
+| Resting HR | 4.6 bpm low, r = 0.76: almost all of it a constant offset | Failed at 3 bpm; the offset is a lead |
 
 ## How the score model fits together
 
@@ -125,7 +126,7 @@ one stops holding. Every analysis script is listed in [re/README.md](re/README.m
 |---|---|
 | **Canonical schema** | [`protocol/whoop5_protocol.json`](protocol/whoop5_protocol.json): GATT, envelope, 87 commands (82 from the current official app plus 5 firmware-only ones documented by NOOP), 58 events, 16 packet types, response bodies and record layouts. Every entry is tagged with where the fact comes from. |
 | **Byte-exact framing** | CRC16-Modbus header, CRC32 body, 4-byte padding, BLE fragment reassembly. Reproduces the strap's CLIENT_HELLO and history ACK byte for byte. |
-| **Metrics** (SpO₂, HRV, sleep, breathing, temperature, R26 HR) | `spo2_percent` from R18 byte 82 and `spo2_windows()` for one value per overnight measurement window; `rmssd_ms()` on R18 R-R; `sleep_periods()` (onset/offset, HR min/mean), `respiratory_rate()` from R-R (14.1 breaths/min on the captured night), `skin_temp_baseline()` (nightly mean/min/max, deviation), `hr_from_r26()` (1.48 bpm vs R18 on accepted bursts, asleep; §16). HRV, breathing, skin temperature and sleep onset meet the bar fixed in advance against WHOOP on 5 nights ([status](#status-settled-did-not-hold-still-open)). In Python (`whoop5.experimental`, stdlib only), Swift and Kotlin (`Whoop5Experimental`); the three agree on the captured night to the last bit except trigonometry rounding in the last digit; see [§15](FINDINGS.md#15-experimental-metrics-sleep-periods-breathing-skin-temperature-r26-heart-rate-corpus-new). |
+| **Metrics** (SpO₂, HRV, sleep, breathing, temperature, R26 HR) | `spo2_percent` from R18 byte 82 and `spo2_windows()` for one value per overnight measurement window; `rmssd_ms()` on R18 R-R; `sleep_periods()` (onset/offset, HR min/mean), `respiratory_rate()` from R-R (14.1 breaths/min on the captured night), `skin_temp_baseline()` (nightly mean/min/max, deviation), `hr_from_r26()` (1.48 bpm vs R18 on accepted bursts, asleep; §16). SpO₂, HRV, breathing, skin temperature, sleep onset and wake meet the bar fixed in advance against WHOOP on 12 nights ([status](#status-settled-did-not-hold-still-open)). In Python (`whoop5.experimental`, stdlib only), Swift and Kotlin (`Whoop5Experimental`); the three agree on the captured night to the last bit except trigonometry rounding in the last digit; see [§15](FINDINGS.md#15-experimental-metrics-sleep-periods-breathing-skin-temperature-r26-heart-rate-corpus-new). |
 | **Record decoders** | Live HR + R-R (packet 40), R18 biometric summary, R20 optical blocks, R21 six-axis IMU, R22 v9 channels, R26 compact optical, R16/R17 MG ECG, IMU streams 51/52, events with payloads, console log text, history metadata. Unknown layouts are preserved raw, never dropped. |
 | **Sync support** | Field-exact `GET_DATA_RANGE` (page backlog and newest-page clock) and the `HISTORICAL_DATA_RESULT` ACK built from the verbatim HISTORY_END token. |
 | **Safety list** | The commands that can brick, wipe or lock a strap are flagged `destructive` in the schema and exposed in both languages. |
@@ -236,12 +237,12 @@ otherwise; the last column names the scope still to cover. Item numbers stay sta
 | H4 | HISTORY_END token, second word | The firmware calls it the wrap count; pages above the write head are one lower (§17) | Other firmware |
 | H5 | R21 accelerometer scale, 4096 LSB/g | 1.003 g over 71,019 still seconds (§18) | Gyro scale (below) |
 | H9 | Re-reading trimmed history | Works on firmware 50.43.2 (§17) | Other firmware and straps |
-| D2 | R18 byte 82 is the strap's SpO₂ reading | 30 s windows every 20 min during sleep on 3 straps, and the firmware's console text (§13) | Accuracy did not hold (below) |
-| D3 | Sleep onset from R18 band state | 14.3 min median from WHOOP on 5 nights; a near-constant lag of 14.1 min (§15, §18) | Wake time did not hold (below) |
+| D2 | SpO₂ from R18 byte 82 | Byte 82 is the strap's reading: 30 s windows every 20 min during sleep on 3 straps, and the firmware's console text (§13). Against WHOOP on 12 nights: 0.53 %, r = 0.80, and no other R18 byte tracks WHOOP better (§18) | More wearers |
+| D3 | Sleep onset and wake from R18 band state | Onset 13.9 min and wake 9.6 min median from WHOOP on 12 nights; the onset lag is a near-constant 14.1 min (§15, §18) | Sleep stages (below) |
 | D4 | Heart rate from R26, asleep | 1.48 bpm from R18 on the 391 of 1,145 bursts `hr_from_r26` accepts, against 6.24 for a shuffled control (§16, §18) | Awake did not hold (below) |
-| D5 | Dense overnight HRV | R18 delivers 92 % of beats overnight with R-R in ms (§12); 2.53 ms from WHOOP, r = 0.77, on 5 nights (§18) | More wearers |
-| D6 | Respiratory rate from R-R sinus arrhythmia | 0.12 per min from WHOOP, r = 0.73, on 5 nights (§15, §18) | More wearers |
-| D7 | Skin temperature, R18 `u16@73 / 100 °C` | Agrees across three sources; 0.17 °C from WHOOP, r = 0.81, on 5 nights (§18) | Firmware other than 50.37–50.43 |
+| D5 | Dense overnight HRV | R18 delivers 92 % of beats overnight with R-R in ms (§12); 1.60 ms from WHOOP, r = 0.89, on 12 nights (§18) | More wearers |
+| D6 | Respiratory rate from R-R sinus arrhythmia | 0.16 per min from WHOOP, r = 0.77, on 12 nights (§15, §18) | More wearers |
+| D7 | Skin temperature, R18 `u16@73 / 100 °C` | Agrees across three sources; 0.08 °C from WHOOP, r = 0.93, on 11 nights (§18) | Firmware other than 50.37–50.43 |
 
 Settled earlier and listed under [Verification status](#verification-status): R-R in milliseconds (§8), the GET_DATA_RANGE
 newest-page clock (§3), and that WHOOP computes its scores on its servers (§3). The score model itself is Measured, out-of-sample
@@ -252,9 +253,7 @@ and closer to WHOOP than NOOP on every score ([above](#what-noop-does-today-and-
 
 | # | Item | Result | Bar fixed in advance |
 |---|---|---|---|
-| D3 | Wake time from band state | 49.5 min median from WHOOP on 5 nights. On the nights that miss most, the band state reads asleep through the whole stretch WHOOP scored awake (§18) | ≤ 15 min |
-| — | Resting HR (lowest 5-minute mean asleep) | 3.89 bpm below WHOOP on 5 nights. Nearly all of it is a constant offset: 1.2 bpm after a 4.6 bpm shift on 12 nights, a lead (§18) | ≤ 3 bpm |
-| D2 | SpO₂ accuracy against WHOOP | 0.53 % mean difference, but r = 0.49 on 5 nights; byte 42 follows WHOOP more closely (r = 0.84) (§18) | r ≥ 0.7 |
+| — | Resting HR (lowest 5-minute mean asleep) | 4.6 bpm below WHOOP on 12 nights, r = 0.76. Nearly all of it is a constant offset: 1.2 bpm after the shift, a lead (§18) | ≤ 3 bpm |
 | D4 | Heart rate from R26, awake and moving | Motion noise defeats it (§16) | — |
 | D4 | Heart rate from R20 outside one resting session | 12–28 bpm off on a second, awake session with a sparse reference (§14) | — |
 
@@ -276,8 +275,7 @@ and closer to WHOOP than NOOP on every score ([above](#what-noop-does-today-and-
 | # | Item | Current state | Data that settles it |
 |---|---|---|---|
 | D1 | R20 LED wavelengths (which source is green, red, infrared) | Source codes 1–4 seen; identity unknown | Captures across a toggle of the `ir_hw_switching` feature flag, or with a known light source |
-| D2 | What R18 byte 42 holds | Tracks WHOOP's SpO₂ more closely than byte 82 on 5 nights | More nights and straps |
-| D3 | Wake time and sleep stages | Wake failed (above); no stages | Wake detection that sees lying awake before rising; stages from the WHOOP export |
+| D3 | Sleep stages | None yet; the API gives WHOOP's stage totals per night | A stage model checked against those totals |
 | D4 | R20 heart rate with motion | Works on one resting session (r ≈ 0.8, ~2 bpm) | R20 with motion and a dense reference; more wearers |
 | D8 | R18 provisional fields | Status words 77/79 tied to the 20-minute measurement windows; bytes 106–113 characterised but unexplained (§12, §13) | Correlation against a WHOOP export over many nights |
 | D9 | R22 v9 channel meaning and R26 sample units | Structure only | Captures with the related feature flags toggled |
@@ -314,7 +312,7 @@ out what only an app has.
 | R21 IMU arrays, R26 delta reconstruction, R22 v9 | ✅ | summaries | ✅ |
 | HR from raw optical (R26, R20) | ✅ R26 asleep: 1.48 bpm with a shuffled control (§16); awake and R20 limited (§14) | — | ✅ PPG heart rate |
 | Official app's feature-flag values and sync cadence | ✅ | — | flag keys only |
-| SpO₂ (R18 byte 82) | ✅ identified, with per-window helper and measurement schedule; accuracy against WHOOP failed the trend bar (r 0.49) | — | 🟡 tri-mode candidate, not shown as a metric |
+| SpO₂ (R18 byte 82) | ✅ per-window helper and measurement schedule; 0.53 % from WHOOP, r = 0.80, on 12 nights | — | 🟡 tri-mode candidate, not shown as a metric |
 | Device-family table incl. battery-pack service | ✅ | partial | `1150…` listed as unsupported |
 | Machine-readable schema with evidence per fact | ✅ | — | ✅ (no per-fact source) |
 | Python + Swift + Kotlin with enforced parity | ✅ | Rust + Swift | Swift + Kotlin |
@@ -333,7 +331,7 @@ Python, derives HRV from R26).
 ## Using it from NOOP
 
 NOOP is what this project is for. [NOOP_HANDOFF.md](NOOP_HANDOFF.md) lists each change NOOP can take: the score formulas with their
-head-to-head against NOOP's own scorers, the protocol fixes, and the metrics on 5 paired nights. Each row says what to change, the
+head-to-head against NOOP's own scorers, the protocol fixes, and the metrics on 12 paired nights. Each row says what to change, the
 evidence, where it goes in NOOP, and the open PR if there is one.
 
 ## Contributing data

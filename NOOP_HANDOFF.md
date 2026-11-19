@@ -53,19 +53,20 @@ this wearer; NOOP fills those slots from its own per-user baselines. The structu
 | 3 | Name commands 146, 147 and 155–159; mark 10 and 11 deprecated; add events 109 and 123 | `re/compare_noop.py`, same in app 5.473.0 and 5.475.0 | `Resources/whoop_protocol.json` | 155–159 in [#2828](https://github.com/ryanbr/noop/pull/2828) |
 | 4 | Add R26 heart rate from autocorrelation, with the acceptance filter | 1.48 bpm on 391 of 1145 bursts, 6.24 for a shuffled control. Asleep only. FINDINGS §16, §18 | new; NOOP has no R26 heart rate | none |
 
-## Metrics on 5 paired nights
+## Metrics on 12 paired nights
 
-Our values from the strap against WHOOP's on the same nights, with the thresholds fixed in advance (`re/validate_own_strap.py`).
+Our values from the strap against WHOOP's on the same nights, with the thresholds fixed in advance (`re/validate_own_strap.py`,
+WHOOP's side from its official API).
 
 | Metric | Result | Verdict | Where in NOOP |
 |---|---|---|---|
-| HRV (RMSSD) | 2.53 ms mean off, r = 0.77 | Proven on 5 nights | `HRVAnalyzer` |
-| Respiratory rate from R-R | 0.12 per min mean off, r = 0.73 | Proven on 5 nights | `SleepStager.respRateFromRR` |
-| Skin temperature | 0.17 °C mean off, r = 0.81 | Proven on 5 nights | skin-temperature path in `AnalyticsEngine` |
-| Sleep onset from band state | 14.3 min median off; the lag is a near-constant 14.1 min (SD 1.5), so subtracting it is the next test | Proven on 5 nights | `SleepStager` |
-| Resting HR | 3.89 bpm low, nearly all of it a constant offset: 1.2 bpm after a 4.6 bpm shift on 12 nights | Failed at the 3 bpm bar; the offset is a lead | `PrimarySessionRestingHR` |
-| Wake time | 49.5 min median off | Failed | `SleepStager`, `WakeMotionRefinement` |
-| SpO₂ from R18 byte 82 | Byte 82 is the strap's SpO₂ reading (measurement windows on 3 straps, FINDINGS §13). Against WHOOP: 0.53 % mean off, but r = 0.49, under the 0.7 trend bar; byte 42 tracks WHOOP better (r = 0.84) | Accuracy failed on 5 nights | `Interpreter.swift`, `spo2_candidate_82`; PRs [#2825](https://github.com/ryanbr/noop/pull/2825), [#2826](https://github.com/ryanbr/noop/pull/2826) |
+| HRV (RMSSD) | 1.60 ms mean off, r = 0.89 | Proven on 12 nights | `HRVAnalyzer` |
+| Respiratory rate from R-R | 0.16 per min mean off, r = 0.77 | Proven on 12 nights | `SleepStager.respRateFromRR` |
+| Skin temperature | 0.08 °C mean off, r = 0.93 | Proven on 11 nights | skin-temperature path in `AnalyticsEngine` |
+| Sleep onset from band state | 13.9 min median off; the lag is a near-constant 14.1 min (SD 1.5), so subtracting it is the next test | Proven on 12 nights | `SleepStager` |
+| Resting HR | 4.6 bpm low, r = 0.76; nearly all of it a constant offset: 1.2 bpm after the shift | Failed at the 3 bpm bar; the offset is a lead | `PrimarySessionRestingHR` |
+| Wake time | 9.6 min median off, once sleep segments under 2 h apart count as one night | Proven on 12 nights | `SleepStager`, `WakeMotionRefinement` |
+| SpO₂ from R18 byte 82 | Byte 82 is the strap's SpO₂ reading (measurement windows on 3 straps, FINDINGS §13). Against WHOOP: 0.53 % mean off, r = 0.80; of all R18 bytes it tracks WHOOP best (r = 0.94) | Proven on 12 nights | `Interpreter.swift`, `spo2_candidate_82`; PRs [#2825](https://github.com/ryanbr/noop/pull/2825), [#2826](https://github.com/ryanbr/noop/pull/2826) |
 
 ## Candidates, not sent to a strap yet
 

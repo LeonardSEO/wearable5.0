@@ -179,24 +179,62 @@ def load_export(folder: str) -> list[dict]:
 
 # ---------------------------------------------------------------- per-night metrics
 
+MERGE_GAP_S = 7200  # sleep segments closer than 2 h are one night; metrics come from the segments only, not the gap
+
+
 def night_metrics(r18: list[dict]) -> list[dict]:
-    out = []
+    groups: list[list[dict]] = []
     for p in sleep_periods(r18):
-        inside = [r for r in r18 if p["onset_unix"] <= r["unix_s"] <= p["offset_unix"]]
+        if groups and p["onset_unix"] - groups[-1][-1]["offset_unix"] < MERGE_GAP_S:
+            groups[-1].append(p)
+        else:
+            groups.append([p])
+    out = []
+    for g in groups:
+        inside = [r for r in r18 if any(p["onset_unix"] <= r["unix_s"] <= p["offset_unix"] for p in g)]
+        onset = g[0]["onset_unix"]
         win = [w["spo2_percent"] for w in spo2_windows(inside) if w["spo2_percent"] is not None]
         rr = [x for r in inside for x in (r.get("rr_ms") or [])]
         rates = [w["breaths_per_min"] for w in respiratory_rate(rr) if w["breaths_per_min"] is not None]
         by5 = defaultdict(list)
         for r in inside:
-            by5[(r["unix_s"] - p["onset_unix"]) // 300].append(r)
+            by5[(r["unix_s"] - onset) // 300].append(r)
         hr5 = [sum(h) / len(h) for b in by5.values()
                if len(h := [r["heart_rate"] for r in b if 25 <= (r.get("heart_rate") or 0) <= 230]) >= 150]
         rm5 = [v for b in by5.values() if (v := rmssd_ms([x for r in b for x in (r.get("rr_ms") or [])])) is not None]
         temps = [r["skin_temp_c"] for r in inside if r.get("skin_temp_c")]
-        out.append({"onset": p["onset_unix"], "wake": p["offset_unix"], "hours": round(p["duration_s"] / 3600, 2),
+        out.append({"onset": onset, "wake": g[-1]["offset_unix"], "hours": round(sum(p["duration_s"] for p in g) / 3600, 2),
                     "spo2": sum(win) / len(win) if win else None, "spo2_windows": len(win),
                     "resp_rate": median(rates) if rates else None, "resting_hr": min(hr5) if hr5 else None,
                     "hrv": median(rm5) if rm5 else None, "skin_temp": sum(temps) / len(temps) if temps else None})
+    return out
+
+
+def load_api(snapshot: str) -> list[dict]:
+    """WHOOP nights from an official API snapshot (re/whoop_api_fetch.py): main sleeps only, naps left out."""
+    def load(name):
+        x = json.load(open(os.path.join(snapshot, f"{name}.json")))
+        return x.get("records", x) if isinstance(x, dict) and "records" in x else x
+    rec = {r["sleep_id"]: r["score"] for r in load("recoveries")}
+    unix_of = lambda t: int(dt.datetime.fromisoformat(t.replace("Z", "+00:00")).timestamp())
+    nights = []
+    for s in load("sleeps"):
+        if s["nap"] or not s.get("score"):
+            continue
+        r = rec.get(s["id"]) or {}
+        nights.append({"onset": unix_of(s["start"]), "wake": unix_of(s["end"]), "spo2": r.get("spo2_percentage"),
+                       "resp_rate": s["score"].get("respiratory_rate"), "resting_hr": r.get("resting_heart_rate"),
+                       "hrv": r.get("hrv_rmssd_milli"), "skin_temp": r.get("skin_temp_celsius")})
+    return sorted(nights, key=lambda n: n["onset"])
+
+
+def api_vs_export(api: list[dict], export: list[dict]) -> dict:
+    """Largest difference per field on nights both sources hold, so the API can stand in for the export."""
+    both = [(a, e) for e in export for a in api if abs(a["onset"] - e["onset"]) <= 600]
+    out = {"nights": len(both)}
+    for k in ("onset", "wake", "spo2", "resp_rate", "resting_hr", "hrv", "skin_temp"):
+        d = [abs(a[k] - e[k]) for a, e in both if a[k] is not None and e[k] is not None]
+        out[k] = max(d) if d else None
     return out
 
 
@@ -230,7 +268,10 @@ def verdict(name: str, value, enough: bool = True) -> str:
     return "PASS" if ok else "FAIL"
 
 
-def run(folder: str) -> dict:
+NEW_FROM_UNIX = 1793880000  # 2026-11-05 12:00 UTC: nights after the export ended, unseen when byte 42 was picked
+
+
+def run(folder: str, api: str | None = None) -> dict:
     d = load(folder)
     r18 = [d["r18"][t] for t in sorted(d["r18"])]
     res = {"frames": d["frames"], "kinds": dict(d["kinds"]), "checks": {}}
@@ -272,7 +313,10 @@ def run(folder: str) -> dict:
     v = median(g) if g else None
     c["r21_scale"] = {"still_seconds": len(g), "median_g": v, "verdict": verdict("r21_scale", v, len(g) >= 600)}
 
-    ours, whoop = night_metrics(r18), load_export(folder)
+    ours = night_metrics(r18)
+    whoop = load_api(api) if api else load_export(folder)
+    if api:
+        res["api_vs_export"] = api_vs_export(whoop, load_export(folder))
     pairs = pair(ours, whoop)
     res["nights"] = {"ours": len(ours), "whoop": len(whoop), "paired": len(pairs)}
     for key, which in (("sleep_onset", "onset"), ("sleep_wake", "wake")):
@@ -295,6 +339,11 @@ def run(folder: str) -> dict:
         c[key] = out
 
     c["spo2_byte_82"] = byte_scan(d["r18_raw"], d["r18"], pairs)
+    new = [(o, w) for o, w in pairs if w["onset"] >= NEW_FROM_UNIX]
+    scan = byte_scan(d["r18_raw"], d["r18"], new)
+    top = scan.get("top") or []
+    c["spo2_byte_42_new_nights"] = {**scan, "verdict": "WAITING" if not top else
+                                    ("PASS" if top[0]["offset"] == 42 and top[0]["r"] >= 0.7 else "FAIL")}
     res["inventory"] = {"events": {str(k): n for k, n in d["events"].most_common()},
                         "r22_records": d["kinds"].get("R22", 0)}
     res["per_night"] = [{"ours": o, "whoop": w} for o, w in pairs]
@@ -338,13 +387,17 @@ def report(res: dict) -> str:
              f"{res['frames']} unique frames; nights: {res['nights']['ours']} ours, {res['nights']['whoop']} WHOOP, "
              f"{res['nights']['paired']} paired (bar: {MIN_NIGHTS}).", "",
              "| check | verdict | values | criterion |", "|---|---|---|---|"]
+    if "api_vs_export" in res:
+        lines[3:3] = ["WHOOP side from the official API. Largest difference from the export on the nights both hold: "
+                      + ", ".join(f"{k} {fmt(v)}" for k, v in res["api_vs_export"].items()), ""]
     for name, c in res["checks"].items():
         vals = ", ".join(f"{k}={fmt(v)}" for k, v in c.items() if k not in ("verdict", "top"))
         if "top" in c:
             vals += ", best=" + ", ".join(f"@{t['offset']} r={t['r']:.2f}" for t in c["top"][:3])
         crit = CRITERIA.get(name)
         crit_s = f"{crit[0]} {crit[1]} {crit[2]}" if crit else {"decoder": "0 undecodable, 0 odd lengths",
-                                                                "spo2_byte_82": "byte 82 ranks first"}[name]
+                                                                "spo2_byte_82": "byte 82 ranks first",
+                                                                "spo2_byte_42_new_nights": "on nights after 5 Nov, byte 42 ranks first and r >= 0.7 (registered in advance)"}[name]
         lines.append(f"| {name} | **{c['verdict']}** | {vals} | {crit_s} |")
     lines += ["", "## Frame kinds", "", ", ".join(f"{k}: {n}" for k, n in sorted(res["kinds"].items())),
               "", "## Events", "", ", ".join(f"{k}: {n}" for k, n in res["inventory"]["events"].items()) or "–",
@@ -359,8 +412,10 @@ def report(res: dict) -> str:
 
 
 def main() -> None:
-    folder = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, "..", "..", "whoop5-data", "own_strap")
-    res = run(folder)
+    args = [a for a in sys.argv[1:] if not a.startswith("--api=")]
+    api = next((a.split("=", 1)[1] for a in sys.argv[1:] if a.startswith("--api=")), None)
+    folder = args[0] if args else os.path.join(HERE, "..", "..", "whoop5-data", "own_strap")
+    res = run(folder, api)
     text = report(res)
     open(os.path.join(folder, "REPORT.md"), "w").write(text)
     with open(os.path.join(folder, "report.json"), "w") as fh:

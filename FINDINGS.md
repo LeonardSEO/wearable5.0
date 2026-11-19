@@ -1,6 +1,6 @@
 # WHOOP 5.0 / MG BLE protocol — findings
 
-_Last updated 2026-11-19._ Independent interoperability research; not affiliated with WHOOP, Inc.
+_Last updated 2026-11-20._ Independent interoperability research; not affiliated with WHOOP, Inc.
 Every claim carries an evidence tier (defined in `protocol/whoop5_protocol.json`):
 **own strap** (one owner's strap against that owner's WHOOP export), **corpus** (real 5/MG frames other
 owners published), **apk** (static analysis of the official Android app 5.473.0 and 5.475.0, facts only),
@@ -36,17 +36,17 @@ exist but the bar fixed in advance (`CRITERIA` in `re/validate_own_strap.py`, 5 
 | R20 channels that carry the pulse | Proven | shuffled-record control fails, §4 | corpus |
 | R16/R17 MG ECG record structure | Proven | 81 real records, §9 | corpus + noop |
 | Event header, BATTERY_LEVEL payload, console text | Proven | §9 | corpus |
-| **R18 byte 82 is the strap's own SpO₂ reading** | Proven | fixed 30 s / 1,200 s windows on 3 straps, firmware console text, §13. On 5 nights byte 42 follows WHOOP's value more closely, §18 | corpus + own strap + noop |
-| SpO₂ accuracy against WHOOP | Failed | 0.53 % mean difference, but r = 0.49 on 5 nights, under the 0.7 trend bar, §18 | own strap |
-| Respiratory rate from R-R | Proven | 0.12 per min, r = 0.73, 5 nights, §18 | own strap |
-| HRV (RMSSD) | Proven | 2.53 ms, r = 0.77, 5 nights, §18 | own strap |
-| Skin temperature | Proven | 0.17 °C, r = 0.81, 5 nights, §18 | own strap |
-| Sleep onset | Proven | 14.3 min median, 5 nights; the lag is a near-constant 14.1 min (SD 1.5), §18 | own strap |
+| **R18 byte 82 is the strap's own SpO₂ reading** | Proven | fixed 30 s / 1,200 s windows on 3 straps, firmware console text, §13; of all R18 bytes it tracks WHOOP's value best on 12 nights, §18 | corpus + own strap + noop |
+| SpO₂ accuracy against WHOOP | Proven | 0.53 %, r = 0.80 on 12 nights; byte 82 tracks WHOOP better than any other R18 byte, §18 | own strap + official API |
+| Respiratory rate from R-R | Proven | 0.16 per min, r = 0.77, 12 nights, §18 | own strap |
+| HRV (RMSSD) | Proven | 1.60 ms, r = 0.89, 12 nights, §18 | own strap |
+| Skin temperature | Proven | 0.08 °C, r = 0.93, 11 nights, §18 | own strap |
+| Sleep onset | Proven | 13.9 min median, 12 nights; the lag is a near-constant 14.1 min (SD 1.5), §18 | own strap |
 | R26 heart rate, on accepted bursts | Proven asleep | 1.48 bpm on 391 of 1,145 bursts, 6.24 for a shuffled control, §16, §18 | own strap |
 | R26 heart rate awake and moving | Failed | motion noise, §16 | own strap |
 | R20 heart rate outside one resting session | Failed | 12–28 bpm off, §14 | corpus |
-| **Wake time** | Failed | 49.5 min median, 5 nights, bar is 15, §18 | own strap |
-| **Resting heart rate** | Failed | 3.89 bpm too low, 5 nights, bar is 3. A constant 4.6 bpm offset leaves 1.2 bpm on 12 nights (lead), §18 | own strap |
+| **Wake time** | Proven | 9.6 min median, 12 nights, bar is 15. The two large misses (50 and 57 min) are on the older firmware, §18 | own strap |
+| **Resting heart rate** | Failed | 4.6 bpm too low, r = 0.76, 12 nights, bar is 3. Nearly all of it is a constant offset: 1.2 bpm after the shift (lead), §18 | own strap |
 | **WHOOP's heart-rate zones: 40/60/70/80/90 % of heart rate reserve** | Measured | 99.2 % of seconds on the 2 workouts the rule was chosen on; 96.2–99.3 % on 3 later workouts, so the frozen 99 % bar holds on 1 of 3. NOOP's zones misplace 54 % of the same time, §18 | own strap + official API |
 | **Sleep need, sleep debt and nap credit rules** | Measured | shortfall, cap and nap credit exact on 16 of 16 nights; debt is 1/2 or 9/14 of the shortfall and which one applies is open, §18 | official API |
 | **WHOOP's recovery, strain and sleep performance formulas** | Measured | out-of-sample: recovery 4.1 and sleep performance 1.5 points from WHOOP, day strain 0.73, on 11–16 nights; NOOP 11.9, 10.1 and 2.46 on the same nights, §18 | own strap + official API |
@@ -489,6 +489,31 @@ TRIMP. The formulas that replaced them follow below.
 The onset lag and the resting-HR gap are nearly constant on 12 nights against the official API: onset 14.1 min late (SD 1.5), resting HR
 4.6 bpm low (SD 1.5, 1.2 bpm error after the shift). Both corrections are leads until later nights confirm them. Wake time is not a
 constant: on the nights that miss most, the band state reads asleep through the whole stretch WHOOP scored awake.
+
+### Twelve paired nights
+
+The official API holds WHOOP's per-night values for every night, so the WHOOP side no longer stops where the export does. On the 5
+nights both hold, the API equals the export to rounding (SpO₂ 0.003 %, respiration 0.05, HRV 0.76 ms, skin 0.005 °C, onset and wake
+exact). Two rules were fixed before the run: our sleep segments less than 2 h apart are one night, with metrics from the segments only;
+WHOOP's naps are left out. `python re/validate_own_strap.py <strap data> --api=<API snapshot>`, thresholds unchanged.
+
+| Metric | Mean difference from WHOOP | r | Against the fixed criterion |
+|---|---:|---:|---|
+| SpO₂ (byte 82 window medians) | 0.53 % (bias −0.31) | 0.80 | meets, trend check included (WHOOP's spread 4.0 %) |
+| Byte scan: which R18 byte tracks WHOOP's SpO₂ | byte 82 first, r = 0.94 | | meets |
+| Respiratory rate from R-R | 0.16 per min | 0.77 | meets |
+| HRV (median 5-minute RMSSD) | 1.60 ms | 0.89 | meets |
+| Skin temperature (11 nights) | 0.08 °C | 0.93 | meets |
+| Sleep onset | median 13.9 min | | meets |
+| Wake time | median 9.6 min | | meets |
+| Resting heart rate | 4.58 bpm too low | 0.76 | **misses** ≤ 3 bpm |
+
+- **The 5-night failures were small samples.** On 5 nights WHOOP's SpO₂ hardly varied (spread 1.35 %), so the trend check could not
+  pass; byte 42 ranked first there by chance. A test registered before this run required byte 42 to rank first on the 9 nights after
+  the export: byte 82 ranked first, so byte 42 is ruled out.
+- **Wake time** passes because split nights now count as one. The two misses of 50 and 57 min both fall on the 3 nights before
+  firmware 50.43.2; on the 9 nights after it the median is 7.8 min and the largest 20 min.
+- **Resting HR** fails on the bar but is a steady offset: on firmware 50.43.2 it reads 4.9 bpm low with an SD of 1.2.
 
 ### Score formulas and NOOP on the same nights
 

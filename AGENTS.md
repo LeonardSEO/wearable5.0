@@ -37,20 +37,20 @@ by the owner. Never use other endpoints.
 | `protocol/whoop5_protocol.json` | The schema. Edit only this, then run `scripts/sync-schema.sh` |
 | `../whoop5-data/own_strap/` | The owner's raw data and `REPORT.md`. Never commit it |
 
-## State on 2026-11-19
+## State on 2026-11-20
 
 **Done.** Framing, history sync, record structure, command and event tables, R-R unit, byte 82 as SpO₂, re-reading history,
 and proof that the scores are server-side.
 
-**Proven on 5 paired nights.** HRV, respiratory rate, skin temperature and sleep onset.
+**Proven on 12 paired nights** (WHOOP's side from the official API). SpO₂ from byte 82, HRV, respiratory rate, skin temperature,
+sleep onset and wake time.
 
-**Failed on 5 paired nights.** Wake time (49.5 min, bar 15), resting heart rate (3.89 bpm, bar 3; a constant 4.6 bpm offset is a lead),
-SpO₂ trend (r 0.49, bar 0.7).
+**Failed on 12 paired nights.** Resting heart rate (4.6 bpm low, bar 3; nearly all a constant offset, a lead).
 
 **Measured, out-of-sample.** Sleep need parts, sleep performance, recovery, day strain and workout zones, all closer to WHOOP than NOOP's
 own scorers on the same nights (`re/noop_compare.py`, `re/SCORE_MODELS.md`). Short of the 27-night bar for a score model.
 
-**Open.** Which debt factor (1/2 or 9/14) applies, wake detection, stress from heart rate, sleep stages, gyro scale.
+**Open.** Which debt factor (1/2 or 9/14) applies, stress from heart rate, sleep stages, gyro scale.
 
 ## The data routine
 

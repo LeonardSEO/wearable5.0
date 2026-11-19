@@ -161,6 +161,7 @@ def main() -> None:
     cons = [s["score"]["sleep_consistency_percentage"] for s in mains]
     scored = range(WARMUP, len(mains))
     res = {"noop_commit": commit, "nights": len(mains)}
+    res["need_whoop_mean_min"] = float(st.mean(whoop_need[i] / 60000 for i in scored))  # scale for the chart
     print(f"NOOP {commit}; {len(mains)} main sleeps, {len(cyc_rows)} cycles and {len(wk_rows)} workouts with strap HR\n")
 
     print("Sleep need (minutes):")

@@ -1,35 +1,58 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="760" height="444" viewBox="0 0 760 444" role="img" aria-label="Mean distance from WHOOP's own scores, NOOP against this repository">
-<rect width="760" height="444" rx="10" fill="#ffffff"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="820" height="472" viewBox="0 0 820 472" role="img" aria-label="Distance from WHOOP, which is the zero line, as a percentage of each score's scale. Recovery: this repository 4.1 %, NOOP 11.9 %; Sleep performance: this repository 1.5 %, NOOP 10.1 %; Day strain: this repository 3.5 %, NOOP 11.7 %; Sleep need: this repository 1.2 %, NOOP 2.9 %; Workout zones: this repository 2.5 %, NOOP 53.9 %">
+<rect width="820" height="472" rx="10" fill="#ffffff"/>
 <style>text{font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif}</style>
-<text x="24" y="34" font-size="19" font-weight="600" fill="#1f2328">Mean distance from WHOOP's own scores — shorter is better</text>
-<text x="24" y="56" font-size="13" fill="#59636e">Same nights, cycles and workouts. NOOP main 2a1de760; ours out-of-sample. Each row scaled to NOOP's error.</text>
-<text x="24" y="103" font-size="14" font-weight="600" fill="#1f2328">Recovery</text>
-<rect x="170" y="82" width="470" height="20" rx="4" fill="#c4c9d0"/>
-<text x="650" y="97" font-size="13" fill="#59636e">NOOP 11.9 pts</text>
-<rect x="170" y="106" width="164.3" height="20" rx="4" fill="#1a7f37"/>
-<text x="344.3" y="121" font-size="13" font-weight="600" fill="#1a7f37">this repo 4.1 pts (35 % of NOOP's)</text>
-<text x="24" y="167" font-size="14" font-weight="600" fill="#1f2328">Sleep performance</text>
-<rect x="170" y="146" width="470" height="20" rx="4" fill="#c4c9d0"/>
-<text x="650" y="161" font-size="13" fill="#59636e">NOOP 10.1 pts</text>
-<rect x="170" y="170" width="69.3" height="20" rx="4" fill="#1a7f37"/>
-<text x="249.3" y="185" font-size="13" font-weight="600" fill="#1a7f37">this repo 1.5 pts (15 % of NOOP's)</text>
-<text x="24" y="231" font-size="14" font-weight="600" fill="#1f2328">Sleep need</text>
-<rect x="170" y="210" width="470" height="20" rx="4" fill="#c4c9d0"/>
-<text x="650" y="225" font-size="13" fill="#59636e">NOOP 17.0 min</text>
-<rect x="170" y="234" width="191.7" height="20" rx="4" fill="#1a7f37"/>
-<text x="371.7" y="249" font-size="13" font-weight="600" fill="#1a7f37">this repo 6.9 min (41 % of NOOP's)</text>
-<text x="24" y="295" font-size="14" font-weight="600" fill="#1f2328">Day strain</text>
-<rect x="170" y="274" width="470" height="20" rx="4" fill="#c4c9d0"/>
-<text x="650" y="289" font-size="13" fill="#59636e">NOOP 2.46</text>
-<rect x="170" y="298" width="138.5" height="20" rx="4" fill="#1a7f37"/>
-<text x="318.5" y="313" font-size="13" font-weight="600" fill="#1a7f37">this repo 0.73 (29 % of NOOP's)</text>
-<text x="24" y="359" font-size="14" font-weight="600" fill="#1f2328">Workout zones</text>
-<rect x="170" y="338" width="470" height="20" rx="4" fill="#c4c9d0"/>
-<text x="650" y="353" font-size="13" fill="#59636e">NOOP 53.9 %</text>
-<rect x="170" y="362" width="22.1" height="20" rx="4" fill="#1a7f37"/>
-<text x="202.1" y="377" font-size="13" font-weight="600" fill="#1a7f37">this repo 2.5 % (5 % of NOOP's)</text>
-<rect x="24" y="409" width="14" height="12" rx="2" fill="#c4c9d0"/>
-<text x="44" y="420" font-size="12" fill="#59636e">NOOP's own scorers</text>
-<rect x="190" y="409" width="14" height="12" rx="2" fill="#1a7f37"/>
-<text x="210" y="420" font-size="12" fill="#59636e">this repository (re/score_formulas.py), reproduced by re/noop_compare.py</text>
+<text x="24" y="36" font-size="20" font-weight="600" fill="#1f2328">How far each score lands from WHOOP</text>
+<text x="24" y="59" font-size="13" fill="#59636e">WHOOP is the zero line. Mean distance on the same nights, as % of each score's scale. NOOP main 2a1de760; ours out-of-sample.</text>
+<line x1="230.0" y1="90" x2="230.0" y2="388" stroke="#e6e8eb" stroke-width="1"/>
+<text x="230.0" y="406" font-size="12" fill="#59636e" text-anchor="middle">0 %</text>
+<line x1="406.7" y1="90" x2="406.7" y2="388" stroke="#e6e8eb" stroke-width="1"/>
+<text x="406.7" y="406" font-size="12" fill="#59636e" text-anchor="middle">5 %</text>
+<line x1="583.3" y1="90" x2="583.3" y2="388" stroke="#e6e8eb" stroke-width="1"/>
+<text x="583.3" y="406" font-size="12" fill="#59636e" text-anchor="middle">10 %</text>
+<line x1="760.0" y1="90" x2="760.0" y2="388" stroke="#e6e8eb" stroke-width="1"/>
+<text x="760.0" y="406" font-size="12" fill="#59636e" text-anchor="middle">15 %</text>
+<line x1="230.0" y1="84" x2="230.0" y2="388" stroke="#1f2328" stroke-width="3"/>
+<text x="230.0" y="78" font-size="12" font-weight="600" fill="#1f2328" text-anchor="middle">WHOOP</text>
+<text x="24" y="120" font-size="14" font-weight="600" fill="#1f2328">Recovery</text>
+<text x="24" y="137" font-size="11.5" fill="#59636e">points of 100</text>
+<line x1="230.0" y1="122" x2="649.5" y2="122" stroke="#cf222e" stroke-width="2" stroke-opacity="0.35"/>
+<circle cx="649.5" cy="122" r="7" fill="#cf222e"/>
+<circle cx="376.6" cy="122" r="7" fill="#1a7f37"/>
+<text x="649.5" y="110" font-size="12.5" font-weight="600" fill="#cf222e" text-anchor="middle">NOOP 11.9 %</text>
+<text x="376.6" y="146" font-size="12.5" font-weight="600" fill="#1a7f37" text-anchor="middle">4.1 %</text>
+<text x="24" y="178" font-size="14" font-weight="600" fill="#1f2328">Sleep performance</text>
+<text x="24" y="195" font-size="11.5" fill="#59636e">points of 100</text>
+<line x1="230.0" y1="180" x2="586.4" y2="180" stroke="#cf222e" stroke-width="2" stroke-opacity="0.35"/>
+<circle cx="586.4" cy="180" r="7" fill="#cf222e"/>
+<circle cx="282.6" cy="180" r="7" fill="#1a7f37"/>
+<text x="586.4" y="168" font-size="12.5" font-weight="600" fill="#cf222e" text-anchor="middle">NOOP 10.1 %</text>
+<text x="282.6" y="204" font-size="12.5" font-weight="600" fill="#1a7f37" text-anchor="middle">1.5 %</text>
+<text x="24" y="236" font-size="14" font-weight="600" fill="#1f2328">Day strain</text>
+<text x="24" y="253" font-size="11.5" fill="#59636e">of the 0–21 scale</text>
+<line x1="230.0" y1="238" x2="644.4" y2="238" stroke="#cf222e" stroke-width="2" stroke-opacity="0.35"/>
+<circle cx="644.4" cy="238" r="7" fill="#cf222e"/>
+<circle cx="352.1" cy="238" r="7" fill="#1a7f37"/>
+<text x="644.4" y="226" font-size="12.5" font-weight="600" fill="#cf222e" text-anchor="middle">NOOP 11.7 % (2.46)</text>
+<text x="352.1" y="262" font-size="12.5" font-weight="600" fill="#1a7f37" text-anchor="middle">3.5 % (0.73)</text>
+<text x="24" y="294" font-size="14" font-weight="600" fill="#1f2328">Sleep need</text>
+<text x="24" y="311" font-size="11.5" fill="#59636e">of WHOOP's mean need (9.8 h)</text>
+<line x1="230.0" y1="296" x2="332.2" y2="296" stroke="#cf222e" stroke-width="2" stroke-opacity="0.35"/>
+<circle cx="332.2" cy="296" r="7" fill="#cf222e"/>
+<circle cx="271.7" cy="296" r="7" fill="#1a7f37"/>
+<text x="332.2" y="284" font-size="12.5" font-weight="600" fill="#cf222e" text-anchor="middle">NOOP 2.9 % (17.0 min)</text>
+<text x="236.0" y="320" font-size="12.5" font-weight="600" fill="#1a7f37" text-anchor="start">1.2 % (6.9 min)</text>
+<text x="24" y="352" font-size="14" font-weight="600" fill="#1f2328">Workout zones</text>
+<text x="24" y="369" font-size="11.5" fill="#59636e">of workout time in another zone</text>
+<line x1="230.0" y1="354" x2="760.0" y2="354" stroke="#cf222e" stroke-width="2" stroke-opacity="0.35"/>
+<circle cx="760.0" cy="354" r="7" fill="#cf222e"/>
+<circle cx="319.5" cy="354" r="7" fill="#1a7f37"/>
+<path d="M769.0,348 l9,6 l-9,6 z" fill="#cf222e"/>
+<text x="750.0" y="342" font-size="12.5" font-weight="600" fill="#cf222e" text-anchor="end">NOOP 53.9 %</text>
+<text x="319.5" y="378" font-size="12.5" font-weight="600" fill="#1a7f37" text-anchor="middle">2.5 %</text>
+<circle cx="31" cy="448" r="6" fill="#1a7f37"/>
+<text x="44" y="452" font-size="12.5" fill="#1f2328">this repository (score_formulas.py)</text>
+<circle cx="331" cy="448" r="6" fill="#cf222e"/>
+<text x="344" y="452" font-size="12.5" fill="#1f2328">NOOP's own scorers</text>
+<line x1="520" y1="442" x2="520" y2="454" stroke="#1f2328" stroke-width="3"/>
+<text x="530" y="452" font-size="12.5" fill="#1f2328">WHOOP, the reference</text>
 </svg>
