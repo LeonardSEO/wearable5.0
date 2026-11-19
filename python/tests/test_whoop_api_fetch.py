@@ -107,13 +107,18 @@ class ApiChecks(unittest.TestCase):
     def test_debt_is_half_the_shortfall_held_across_a_nap_with_nap_credit(self):
         chain = [self.sleep(False, 300, (1001, 0, 0, 0)), self.sleep(True, 200, (900, 350, 5, 0)), self.sleep(False, 400, (900, 350, 5, -200))]
         lines = self.checks().check_sleep_chain(chain)
-        self.assertIn("debt = half the shortfall of the last main sleep: 2 of 2 exact", lines)
+        self.assertIn("debt = half the shortfall of the last main sleep, capped: 2 of 2 exact", lines)
         self.assertIn("nap credit = the nap's asleep time: 1 of 1 exact", lines)
+
+    def test_debt_stops_at_the_cap(self):
+        checks = self.checks()
+        self.assertEqual(checks.debt_after(20_000_000, 2_000_000), checks.DEBT_CAP_MS)
+        self.assertEqual(checks.debt_after(10_000_000, 2_000_000), 4_000_000)
 
     def test_reports_a_debt_that_breaks_the_rule(self):
         chain = [self.sleep(False, 300, (1000, 0, 0, 0)), self.sleep(False, 400, (900, 351, 0, 0))]
         lines = self.checks().check_sleep_chain(chain)
-        self.assertIn("debt = half the shortfall of the last main sleep: 0 of 1 exact", lines)
+        self.assertIn("debt = half the shortfall of the last main sleep, capped: 0 of 1 exact", lines)
         self.assertTrue(any("expected 350 got 351" in line for line in lines))
 
 

@@ -1,24 +1,71 @@
 # What NOOP can take from this repository
 
-Checked against [ryanbr/noop](https://github.com/ryanbr/noop) `main` at `2a1de760` (2026-10-26). Each item says what to change,
+Checked against [ryanbr/noop](https://github.com/ryanbr/noop) `main` at `2a1de760` (2026-10-25). Each item says what to change,
 the evidence, and where it goes. NOOP's rules apply to all of it: facts only, no WHOOP code, and scoring claims follow
-`docs/VALIDATION_PROTOCOL.md`. Thresholds here were fixed before the data (`CRITERIA` in `re/validate_own_strap.py`).
+`docs/VALIDATION_PROTOCOL.md`. Metric thresholds were fixed before the data (`CRITERIA` in `re/validate_own_strap.py`).
 
-## Ready now
+## Scores: closer to WHOOP on the same nights
+
+NOOP's own scorers and this repository's formulas, run on the same nights, cycles and workouts of one WHOOP 5.0 and scored against
+WHOOP's values for them. NOOP's code is called unchanged through `re/noop_scores`. Every number of ours is out-of-sample: leave-one-out
+with the constants refitted per fold, or a rule frozen before the data. The exception is sleep need: its baseline and recent-strain constants were fitted on these nights, but they account for at most seconds of its error (baseline within 5 ms, strain need within 16 s); its minutes come from the debt chain.
+
+| Score | NOOP, mean off WHOOP | This repository, mean off WHOOP | Same |
+|---|---|---|---|
+| Recovery | Charge: **11.9** points (3 of 12 within 3) | **4.1** (8 of 12 within 3); 5.8 with every constant refitted per fold | 12 nights |
+| Sleep performance | Rest: **10.1** points (1 of 13 within 2) | **1.5** (9 of 13 within 2) | 13 nights |
+| Sleep need | **17.0** min (7 of 13 within 15 min) | **6.9** min (10 of 13 within 15 min) | 13 nights |
+| Day strain | Effort: **2.46** (0 of 11 within 0.3) | **0.73**; **0.13** on the 9 cycles without skiing or weightlifting (8 within 0.3) | 11 cycles |
+| Workout zones | **54 %** of workout time in a different zone than WHOOP | **2.5 %** | 3 workouts |
+
+How it was run, so it can be checked:
+
+- `python re/noop_compare.py <API snapshot> <strap data>` reproduces the whole table. It needs `re/noop_scores` built against an
+  upstream NOOP checkout (instructions in the script).
+- NOOP gets what its app uses: HRV, resting HR, respiration and skin temperature per night, sleep totals for Rest, and per-second
+  strap heart rate. Where it gets WHOOP's own value instead (sleep consistency, maximum HR), that favours NOOP. With WHOOP's sleep
+  performance in place of Rest, Charge is 14.4 off.
+- Each side uses its own sleep-need model. Both start from zero debt, skip days without a sleep record, get the same naps, and leave
+  out the first 3 nights.
+- Effort is on NOOP's 0–100 scale and is multiplied by 21/100 here.
+- The WHOOP side comes from the owner's own data through WHOOP's official developer API, read-only. Scope: one wearer, 12 to 16
+  nights, 11 cycles, 5 workouts.
+
+## Score changes NOOP can make
+
+Formulas and constants are in `re/score_formulas.py` and [re/SCORE_MODELS.md](re/SCORE_MODELS.md). Constants marked personal belong to
+this wearer; NOOP fills those slots from its own per-user baselines. The structure and the other constants carry over.
+
+| # | Change in NOOP | Evidence | Where in NOOP |
+|---|---|---|---|
+| S1 | Zones on heart-rate reserve: 40/60/70/80/90 % of (max HR − resting HR) above resting HR, with time below 40 % as zone 0 | 2.5 % of workout time misplaced against NOOP's 54 % on 3 workouts the rule had not seen; 96.2–99.3 % of seconds in WHOOP's zone per workout | `HRZones.swift` (`zoneEdges` are % of max HR from 50 %) |
+| S2 | Sleep need = baseline + debt + recent-strain need − nap asleep. Debt = min(7668000 ms, f × (need − asleep)) of the last scored main sleep, f = 1/2 or 9/14; a nap or a day without a sleep record leaves it unchanged. Recent-strain need = 25995.16 s^0.72809 e^(0.16742 s) ms for day strain s. Baseline is personal | 6.9 min off WHOOP's total against 17.0. Shortfall, cap and nap credit exact on every night (`re/verify_findings.py`); which factor applies is open | `SleepDebt.swift` (fixed 8 h, 55 % carry), `Rest.personalizedNeedHours` |
+| S3 | Sleep performance = 94.82 − 4.679 x^−2.884 + 0.2359 (consistency − 80), x = asleep / need | 1.5 points off against Rest's 10.1; leave-one-out on WHOOP's own need 15 of 16 nights within 2 | `AnalyticsEngine.Rest.composite` |
+| S4 | Recovery = 100 (HRV / B)^1.066 × exp(0.0774 (SP − mean SP)/10 − 0.0516 (RHR − RHR ref)), B a shrunken running mean of ln HRV. The HRV prior and the RHR reference are personal | 4.1 points off against Charge's 11.9; 5.8 even with all constants refitted per fold | `RecoveryScorer.recovery` |
+| S5 | Day strain = 0.781 L^0.4086, L = Σ over minutes with mean HR ≥ 94 of e^(0.065 (HR − 100)) | 0.73 off against Effort's 2.46; 0.13 against 2.30 on cardio days. Skiing and weightlifting days read 1.3–1.8 low | `StrainScorer.strain` |
+
+## Protocol: ready now
 
 | # | Change in NOOP | Evidence | Where in NOOP | PR |
 |---|---|---|---|---|
 | 1 | Pass `feedsSync: true` for 5/MG, reading the newest-page clock at body offset 57 | 589 replies from 21 sessions, FINDINGS §3 | `Strand/BLE/BLEManager.swift`, `handleDataRangeResponse` | [#2824](https://github.com/ryanbr/noop/pull/2824) |
 | 2 | Stop the history auto-continue at 0 pages behind | backlog = write − trim, FINDINGS §3 | `Strand/BLE/BLEManager.swift` | [#2823](https://github.com/ryanbr/noop/pull/2823) |
 | 3 | Name commands 146, 147 and 155–159; mark 10 and 11 deprecated; add events 109 and 123 | `re/compare_noop.py`, same in app 5.473.0 and 5.475.0 | `Resources/whoop_protocol.json` | 155–159 in [#2828](https://github.com/ryanbr/noop/pull/2828) |
-| 4 | Add R26 heart rate from autocorrelation, with the acceptance filter | 1.46 bpm on 184 of 529 bursts, 5.78 for a shuffled control, 0.92 on 82 bursts the filter had not seen. Asleep only. FINDINGS §16, §18 | new; NOOP's packages and docs have no R26 heart rate | none |
+| 4 | Add R26 heart rate from autocorrelation, with the acceptance filter | 1.48 bpm on 391 of 1145 bursts, 6.24 for a shuffled control. Asleep only. FINDINGS §16, §18 | new; NOOP has no R26 heart rate | none |
 
-## Ready at 5 paired nights
+## Metrics on 5 paired nights
 
-| # | Change in NOOP | Evidence so far | Where in NOOP | PR |
-|---|---|---|---|---|
-| 5 | Show byte 82 as SpO₂, one value per window | Windows on 3 straps. 0.34 % from WHOOP on 3 nights, FINDINGS §13, §18. NOOP's two contrary #103 nights are unexplained | `Interpreter.swift`, `spo2_candidate_82` | [#2825](https://github.com/ryanbr/noop/pull/2825), [#2826](https://github.com/ryanbr/noop/pull/2826) |
-| 6 | Compare respiratory rate, HRV and skin temperature with these results | 0.13 per min, 1.48 ms, 0.12 °C on 3 nights, FINDINGS §18 | `StrandAnalytics` | none |
+Our values from the strap against WHOOP's on the same nights, with the thresholds fixed in advance (`re/validate_own_strap.py`).
+
+| Metric | Result | Verdict | Where in NOOP |
+|---|---|---|---|
+| HRV (RMSSD) | 2.53 ms mean off, r = 0.77 | Proven on 5 nights | `HRVAnalyzer` |
+| Respiratory rate from R-R | 0.12 per min mean off, r = 0.73 | Proven on 5 nights | `SleepStager.respRateFromRR` |
+| Skin temperature | 0.17 °C mean off, r = 0.81 | Proven on 5 nights | skin-temperature path in `AnalyticsEngine` |
+| Sleep onset from band state | 14.3 min median off; the lag is a near-constant 14.1 min (SD 1.5), so subtracting it is the next test | Proven on 5 nights | `SleepStager` |
+| Resting HR | 3.89 bpm low, nearly all of it a constant offset: 1.2 bpm after a 4.6 bpm shift on 12 nights | Failed at the 3 bpm bar; the offset is a lead | `PrimarySessionRestingHR` |
+| Wake time | 49.5 min median off | Failed | `SleepStager`, `WakeMotionRefinement` |
+| SpO₂ from R18 byte 82 | Byte 82 is the strap's SpO₂ reading (measurement windows on 3 straps, FINDINGS §13). Against WHOOP: 0.53 % mean off, but r = 0.49, under the 0.7 trend bar; byte 42 tracks WHOOP better (r = 0.84) | Accuracy failed on 5 nights | `Interpreter.swift`, `spo2_candidate_82`; PRs [#2825](https://github.com/ryanbr/noop/pull/2825), [#2826](https://github.com/ryanbr/noop/pull/2826) |
 
 ## Candidates, not sent to a strap yet
 
@@ -26,23 +73,8 @@ the evidence, and where it goes. NOOP's rules apply to all of it: facts only, no
 |---|---|---|---|
 | 7 | Request bodies for alarms, haptics, wrist and optical commands | read from the app, FINDINGS §19 | `docs/PROTOCOL_ALARMS.md`, `docs/PROTOCOL_COMMANDS.md` |
 
-## Coming: WHOOP's score mapping
-
-The WHOOP export pairs raw inputs with Recovery, Day Strain and Sleep performance for each cycle. `re/score_search.py` searches
-for the mapping, and `re/noop_compare.py` runs NOOP's real scorers on the same cycles. State: 3 cycles; the search needs at
-least 27 for a model that uses personal baselines. NOOP's offline rule is unaffected: this uses one owner's own export.
-
-| | NOOP now (`main` at `2a1de760`) | What the search tests |
-|---|---|---|
-| Recovery | Logistic over weighted z-scores: HRV 0.55, resting HR 0.20, sleep 0.15, respiration 0.05, skin temperature 0.05; baselines with a 14-night half-life | This same shape with free weights and half-lives of 7, 14 and 30, plus every other input |
-| Strain | Edwards TRIMP on %HRR zones, then 100 x ln(TRIMP + 1) / ln(7201) | Log and logit shapes on TRIMP, per-zone minutes and heart-rate summaries |
-| Heart-rate zones | `HRZones.swift` | **Measured on one account:** WHOOP's zones fit 40/60/70/80/90 % of heart rate reserve; NOOP's zones start at 50 %, on %HRmax for display and %HRR for strain. Exact on one workout, 98.69 % on another; new workouts still have to confirm it (FINDINGS §18) |
-| Sleep performance | Rest composite | Sleep durations, need, debt, efficiency and consistency |
-| Sleep need and debt | see `SleepDebt.swift` | **Measured from WHOOP's official API:** need = baseline + debt + recent strain - nap asleep; half the last main sleep's shortfall reproduces debt so far, and a nap holds it; carry-over of existing debt is open (FINDINGS §18) |
-
-First numbers: Effort reads 2.4 and 3.1 below WHOOP's Day Strain on 2 cycles (FINDINGS §18).
-
 ## Not here
 
 - Firmware images and the flashing commands. The update flow is documented only, in `re/RE_OPPORTUNITIES.md` §1.
 - Anything already settled in NOOP, such as R-R in milliseconds and the 84, 98, 151, 121 and 128 probes.
+- Stress and sleep stages: NOOP has `StressIndex` and `SleepStager`; this repository has nothing better to offer yet.

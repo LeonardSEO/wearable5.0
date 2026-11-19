@@ -26,9 +26,12 @@ def need_ms(needed: dict) -> int:
             + needed["need_from_recent_nap_milli"])
 
 
+DEBT_CAP_MS = 7668000  # constant: hit on two different baselines
+
+
 def debt_after(need: int, asleep: int) -> int:
-    """Half the shortfall of a main sleep, in whole milliseconds. Carried debt is only tested once it stays above zero."""
-    return max(0, need - asleep) // 2
+    """Half the shortfall of the last main sleep in whole milliseconds, up to the cap; it replaces earlier debt."""
+    return min(DEBT_CAP_MS, max(0, need - asleep) // 2)
 
 
 def check_sleep_chain(sleeps: list[dict]) -> list[str]:
@@ -56,7 +59,7 @@ def check_sleep_chain(sleeps: list[dict]) -> list[str]:
             prev_nap = s
         else:
             prev_main, prev_nap = s, None
-    lines.append(f"debt = half the shortfall of the last main sleep: {debt_hits} of {debt_cases} exact")
+    lines.append(f"debt = half the shortfall of the last main sleep, capped: {debt_hits} of {debt_cases} exact")
     lines.append(f"nap credit = the nap's asleep time: {nap_hits} of {nap_cases} exact")
     lines.extend(misses)
     return lines
@@ -102,6 +105,9 @@ def local_start(s: dict) -> str:
 
 ROUND2_FROM = "2026-11-06T00:00:00Z"  # sleeps starting after this did not shape the round-2 candidates
 B_START_BASELINE, BASELINE_STEP = 27834334, 284.5
+ROUND3_FROM = "2026-11-07T06:00:00Z"  # round-3 candidates were fitted on sleeps up to 7 Nov
+ROUND4_FROM = "2026-11-09T07:00:00Z"  # SP-U came from the round-4 search over sleeps up to 9 Nov
+ROUND5_FROM = "2026-11-11T15:00:00Z"  # BL-UTC2 refit after BL-UTC was 1 ms off on 11 Nov
 
 
 def round2(sleeps: list[dict], cycles: list[dict], stress_csv: str | None) -> list[dict]:
@@ -126,6 +132,12 @@ def round2(sleeps: list[dict], cycles: list[dict], stress_csv: str | None) -> li
             add("debt d+(N-d-m)/2", max(0, d + (n - d - m) // 2), needed["need_from_sleep_debt_milli"], 0)
         k = i - 1  # B is the second record
         add("BL-L baseline", B_START_BASELINE - math.floor(BASELINE_STEP * k), needed["baseline_milli"], 0)
+        if s["start"] > ROUND3_FROM:
+            # BL-UTC: same slope, counted in UTC days of the sleep start since 2 Nov (exact on all five sleeps it was found on)
+            days = (dt.date.fromisoformat(s["start"][:10]) - dt.date(2026, 11, 2)).days
+            add("BL-UTC baseline", B_START_BASELINE - math.floor(BASELINE_STEP * days), needed["baseline_milli"], 1)
+            if s["start"] > ROUND5_FROM:  # middle of the slope interval 284.41668-284.43748 that rounds all 8 baselines exactly
+                add("BL-UTC2 baseline", round(B_START_BASELINE - 284.42708 * days), needed["baseline_milli"], 0)
         before = [c for c in cycles if c.get("end") == s["start"] and c.get("score")]
         if before:
             st = before[0]["score"]["strain"]
@@ -134,11 +146,22 @@ def round2(sleeps: list[dict], cycles: list[dict], stress_csv: str | None) -> li
             add("SN-Q", 18968.446118 * st ** 2 - 179627.389611 * st + 606847.675475, actual, 0.01 * actual)
         u = 100 * min(1, asleep_ms(sc["stage_summary"]) / need_ms(needed))
         add("SP-L", 53.8 + 0.412 * u, sc["sleep_performance_percentage"], 0.5)
+        if s["start"] > ROUND4_FROM:  # SP-U uses the uncapped ratio, unlike u above
+            ratio = asleep_ms(sc["stage_summary"]) / need_ms(needed)
+            add("SP-U", 96.502423 - 5.465709 * ratio ** -2.791345, sc["sleep_performance_percentage"], 0.5)
+        if s["start"] > "2026-11-14T12:00:00Z":
+            ratio = asleep_ms(sc["stage_summary"]) / need_ms(needed)
+            c = sc["sleep_consistency_percentage"] or 80
+            add("SP-C2 (marge 2)", 94.81929 - 4.67893 * ratio ** -2.88390 + 0.23588 * (c - 80), sc["sleep_performance_percentage"], 2)
         reading = readings.get(local_start(s))
         if reading and sc["sleep_consistency_percentage"]:
             low, medium, high = (float(reading[x]) for x in ("low_min", "medium_min", "high_min"))
             q = (sc["sleep_efficiency_percentage"] + sc["sleep_consistency_percentage"] + 100 - 100 * medium / (low + medium + high)) / 3
             add("SP-M2", min(100, max(0, q + 0.5 + 0.375 * (u - q))), sc["sleep_performance_percentage"], 0.5)
+            if s["start"] > ROUND3_FROM:
+                h = 100 * medium / (low + medium + high)
+                add("SP-C", -45.758877 + 0.415875 * u + 1.155941 * sc["sleep_consistency_percentage"], sc["sleep_performance_percentage"], 0.5)
+                add("SP-MS", 64.583259 + 0.468086 * u - 1.481097 * h, sc["sleep_performance_percentage"], 0.5)
         add("efficiency = asleep / in bed", 100 * asleep_ms(sc["stage_summary"]) / sc["stage_summary"]["total_in_bed_time_milli"],
             sc["sleep_efficiency_percentage"], 0.001)
     return out

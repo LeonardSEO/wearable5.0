@@ -1,6 +1,6 @@
 # WHOOP 5.0 / MG BLE protocol — findings
 
-_Last updated 2026-11-05._ Independent interoperability research; not affiliated with WHOOP, Inc.
+_Last updated 2026-11-19._ Independent interoperability research; not affiliated with WHOOP, Inc.
 Every claim carries an evidence tier (defined in `protocol/whoop5_protocol.json`):
 **own strap** (one owner's strap against that owner's WHOOP export), **corpus** (real 5/MG frames other
 owners published), **apk** (static analysis of the official Android app 5.473.0 and 5.475.0, facts only),
@@ -36,20 +36,20 @@ exist but the bar fixed in advance (`CRITERIA` in `re/validate_own_strap.py`, 5 
 | R20 channels that carry the pulse | Proven | shuffled-record control fails, §4 | corpus |
 | R16/R17 MG ECG record structure | Proven | 81 real records, §9 | corpus + noop |
 | Event header, BATTERY_LEVEL payload, console text | Proven | §9 | corpus |
-| **R18 byte 82 is the strap's own SpO₂ reading** | Proven | fixed 30 s / 1,200 s windows on 3 straps, firmware console text, tracks the WHOOP value, §13 | corpus + own strap + noop |
-| SpO₂ accuracy against WHOOP | Measured | 0.34 % mean difference, 3 of 5 nights, §18 | own strap |
-| Respiratory rate from R-R | Measured | 0.13 per min, 3 of 5 nights, §18 | own strap |
-| HRV (RMSSD) | Measured | 1.48 ms, r = 0.92, 3 of 5 nights, §18 | own strap |
-| Skin temperature | Measured | 0.12 °C, r = 1.00, 3 of 5 nights, §18 | own strap |
-| Sleep onset | Measured | 13.8 min, 3 of 5 nights, §18 | own strap |
-| R26 heart rate, on accepted bursts | Proven asleep | 1.46 bpm on 184 of 529 bursts, §16, §18 | own strap |
+| **R18 byte 82 is the strap's own SpO₂ reading** | Proven | fixed 30 s / 1,200 s windows on 3 straps, firmware console text, §13. On 5 nights byte 42 follows WHOOP's value more closely, §18 | corpus + own strap + noop |
+| SpO₂ accuracy against WHOOP | Failed | 0.53 % mean difference, but r = 0.49 on 5 nights, under the 0.7 trend bar, §18 | own strap |
+| Respiratory rate from R-R | Proven | 0.12 per min, r = 0.73, 5 nights, §18 | own strap |
+| HRV (RMSSD) | Proven | 2.53 ms, r = 0.77, 5 nights, §18 | own strap |
+| Skin temperature | Proven | 0.17 °C, r = 0.81, 5 nights, §18 | own strap |
+| Sleep onset | Proven | 14.3 min median, 5 nights; the lag is a near-constant 14.1 min (SD 1.5), §18 | own strap |
+| R26 heart rate, on accepted bursts | Proven asleep | 1.48 bpm on 391 of 1,145 bursts, 6.24 for a shuffled control, §16, §18 | own strap |
 | R26 heart rate awake and moving | Failed | motion noise, §16 | own strap |
 | R20 heart rate outside one resting session | Failed | 12–28 bpm off, §14 | corpus |
-| **Wake time** | Failing | 33.6 min off, bar is 15, §18 | own strap |
-| **Resting heart rate** | Failing | 3.75 bpm too low, bar is 3, §18 | own strap |
-| **WHOOP's heart-rate zones: 40/60/70/80/90 % of heart rate reserve** | Measured | exact on one workout, 98.69 % on another; rest and edges were chosen on these two, so new workouts have to confirm it, §18 | own strap + official API |
-| **Sleep need, sleep debt and nap credit rules** | Measured | exact to the millisecond on every case so far, §18 | official API |
-| WHOOP's recovery, strain and sleep performance formulas | Open | §18; every frozen candidate missed the first unseen night | own strap |
+| **Wake time** | Failed | 49.5 min median, 5 nights, bar is 15, §18 | own strap |
+| **Resting heart rate** | Failed | 3.89 bpm too low, 5 nights, bar is 3. A constant 4.6 bpm offset leaves 1.2 bpm on 12 nights (lead), §18 | own strap |
+| **WHOOP's heart-rate zones: 40/60/70/80/90 % of heart rate reserve** | Measured | 99.2 % of seconds on the 2 workouts the rule was chosen on; 96.2–99.3 % on 3 later workouts, so the frozen 99 % bar holds on 1 of 3. NOOP's zones misplace 54 % of the same time, §18 | own strap + official API |
+| **Sleep need, sleep debt and nap credit rules** | Measured | shortfall, cap and nap credit exact on 16 of 16 nights; debt is 1/2 or 9/14 of the shortfall and which one applies is open, §18 | official API |
+| **WHOOP's recovery, strain and sleep performance formulas** | Measured | out-of-sample: recovery 4.1 and sleep performance 1.5 points from WHOOP, day strain 0.73, on 11–16 nights; NOOP 11.9, 10.1 and 2.46 on the same nights, §18 | own strap + official API |
 | Sleep stages | Open | not attempted; the export holds per-stage minutes | |
 | R21 gyro scale, R22 v9 channels, R26 sample units | Open | README D9, H5 | |
 
@@ -439,7 +439,7 @@ time in heart-rate zones, which the per-second heart rate adds (`--frames`).
 
 `re/noop_compare.py` runs NOOP's real code, `main` at `2a1de760`.
 
-Effort reads 2.4 and 3.1 below WHOOP on 2 cycles. Charge does not score yet: it needs 4 nights of baseline.
+First run: Effort read 2.4 and 3.1 below WHOOP on 2 cycles. The full comparison on every night is at the end of this section.
 
 ### What the official API settled
 
@@ -448,8 +448,9 @@ and fails if one stops holding (all claims on the first snapshot). WHOOP's serve
 
 - **Sleep need** is baseline + debt + recent strain + nap credit, on all 4 sleeps.
 - **Export minutes are cut off, not rounded,** for need, asleep and time in bed.
-- **Sleep debt:** half the shortfall of the last main sleep reproduces the transitions so far, to the millisecond: 4 of 4 cases, including
-  one prediction made before the night (1615211 ms predicted and reported). How existing debt carries over is open.
+- **Sleep debt** is a share of the shortfall of the last scored main sleep, capped at 7668000 ms; it replaces earlier debt. The first 4
+  cases took 1/2; later nights took 1/2 or 9/14 (16 of 16 hold with one of the two). Which factor applies is open: REM, stage shares,
+  strain and the earlier debt do not separate them. A day without a sleep record adds nothing.
 - **Nap credit** is exactly the nap's asleep time, on the one nap.
 - **Efficiency** is asleep / in bed on 2 of 4 sleeps and 0.12 and 0.40 points higher on the other 2. Open.
 - **Sleep stress is in the app, not the API,** as hours of low, medium and high stress. They add up to about time in bed, within 1.32 minutes; the exact
@@ -467,9 +468,54 @@ and fails if one stops holding (all claims on the first snapshot). WHOOP's serve
 
 ### Candidate formulas
 
-[re/SCORE_MODELS.md](re/SCORE_MODELS.md) freezes the first candidates and what is ruled out; `re/score_predictions.py` tests them on later
-cycles only. None is proven. The strongest results so far are the exclusions: sleep performance is not plain asleep/need, and strain is
-not one function of Edwards TRIMP.
+[re/SCORE_MODELS.md](re/SCORE_MODELS.md) freezes the candidates and what is ruled out; `re/score_predictions.py` tests them on later
+cycles only. The early exclusions still stand: sleep performance is not plain asleep/need, and strain is not one function of Edwards
+TRIMP. The formulas that replaced them follow below.
+
+### Five paired nights
+
+`re/validate_own_strap.py` (through `re/pipeline.sh`) on 5 nights paired with the WHOOP export, thresholds as fixed before the data.
+
+| Metric | Mean difference from WHOOP | r | Against the fixed criterion |
+|---|---:|---:|---|
+| SpO₂ (byte 82 window medians) | 0.53 % (bias −0.25) | 0.49 | meets ≤ 1.0 %, **misses** the r ≥ 0.7 trend check; byte 42 (r 0.84) and 41 (0.78) rank above 82 (0.69) |
+| Respiratory rate from R-R | 0.12 per min | 0.73 | meets |
+| HRV (median 5-minute RMSSD) | 2.53 ms | 0.77 | meets |
+| Skin temperature | 0.17 °C | 0.81 | meets |
+| Sleep onset | median 14.3 min | | meets |
+| Wake time | median 49.5 min | | **misses** ≤ 15 min |
+| Resting heart rate | 3.89 bpm too low | 0.37 | **misses** ≤ 3 bpm |
+
+The onset lag and the resting-HR gap are nearly constant on 12 nights against the official API: onset 14.1 min late (SD 1.5), resting HR
+4.6 bpm low (SD 1.5, 1.2 bpm error after the shift). Both corrections are leads until later nights confirm them. Wake time is not a
+constant: on the nights that miss most, the band state reads asleep through the whole stretch WHOOP scored awake.
+
+### Score formulas and NOOP on the same nights
+
+The rules and constants are in [re/SCORE_MODELS.md](re/SCORE_MODELS.md) ("Formulas in use") and `re/score_formulas.py`. Every count here is
+out-of-sample: leave-one-out with the constants refitted per fold, or a rule frozen before the data. The exception is sleep need: its baseline and recent-strain constants were fitted on these nights, but they account for at most seconds of its error (baseline within 5 ms, strain need within 16 s); its minutes come from the debt chain. One wearer, 12 to 16 nights, so these
+are Measured, short of the 27-night bar for a score model.
+
+- **Sleep performance** (SP-C2, a power of asleep/need plus consistency): leave-one-out 15 of 16 nights within 2 points, mean 1.25.
+  The miss is the one night with long high stress. 4 of 4 nights registered in advance landed within 2.
+- **Recovery** (REC-RHR: HRV against a shrunken own baseline, sleep against its own mean, resting HR): 8 of 12 nights within 3, mean
+  4.1, without any stress input. With all six constants refitted per fold, mean 5.8. An earlier form without resting HR came out 16 to
+  21 too high on four registered nights in a row.
+- **Day strain** (DS-E, a power of exponentially weighted minutes above 94 bpm): nested leave-one-out 8 of 9 cycles without skiing or
+  weightlifting within 0.3, mean 0.13; on all 11 cycles mean 0.73. Muscular days read low.
+- **Sleep need**, chained from its own previous value: 6.9 min mean from WHOOP's total on 13 nights.
+
+`re/noop_compare.py` runs NOOP's own scorers (`main` at `2a1de760`) on the same nights. NOOP gets what its app uses, plus WHOOP's
+consistency and maximum HR where it needs them. Each side uses its own sleep-need model.
+
+| Score | NOOP, mean from WHOOP | This repository |
+|---|---:|---:|
+| Recovery, 12 nights | 11.9 (Charge with its own Rest); 14.4 with WHOOP's sleep performance | 4.1 |
+| Sleep performance, 13 nights | 10.1 (Rest) | 1.5 |
+| Sleep need, 13 nights | 17.0 min | 6.9 min |
+| Day strain, 11 cycles | 2.46 (Effort × 21/100) | 0.73 |
+| Day strain, 9 cycles without skiing or weightlifting | 2.30 | 0.13 |
+| Workout zones, 3 workouts after the rule was frozen | 54 % of the time in another zone | 2.5 % |
 
 ## 19. Command request bodies from the official app (APK, new)
 

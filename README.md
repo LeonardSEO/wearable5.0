@@ -1,8 +1,8 @@
 <h1 align="center">wearable5.0</h1>
 
 <p align="center">
-  <b>An open, tested protocol library for the WHOOP&nbsp;5.0&nbsp;/&nbsp;MG band.</b><br>
-  Read your own biometrics from your own strap over Bluetooth LE: no account, no cloud.
+  <b>A reverse-engineered scoring model and an open, tested protocol library for the WHOOP&nbsp;5.0&nbsp;/&nbsp;MG band.</b><br>
+  Recovery, sleep and strain closer to WHOOP than NOOP today, from your own strap over Bluetooth LE.
 </p>
 
 <p align="center">
@@ -15,28 +15,109 @@
 
 ---
 
-`wearable5.0` is the WHOOP 5.0 / MG counterpart of
-[johnmiddleton12/wearable](https://github.com/johnmiddleton12/wearable) (WHOOP 4.0). It gives client
-apps such as [NOOP](https://github.com/ryanbr/noop) one canonical, versioned description of the 5/MG
-wire protocol, plus matching decoders in Python and Swift that are tested against each other and
-against frames captured from real straps.
+`wearable5.0` does two things for the WHOOP 5.0 / MG band, and both exist to make
+[NOOP](https://github.com/ryanbr/noop) better:
+
+1. **A reverse-engineered scoring model.** WHOOP computes Recovery, Sleep performance, sleep need and Day Strain on its servers,
+   so there is no formula in the app to read. This repository rebuilt them from WHOOP's own input/output pairs. On the same nights,
+   cycles and workouts, it lands closer to WHOOP than NOOP's own scorers on every score. One command reproduces the comparison.
+2. **An open, tested protocol library.** One canonical, versioned description of the 5/MG wire protocol, with matching decoders in
+   Python, Swift and Kotlin that are tested against each other and against frames from real straps. It is the 5/MG counterpart of
+   [johnmiddleton12/wearable](https://github.com/johnmiddleton12/wearable) (WHOOP 4.0).
 
 > [!IMPORTANT]
 > Independent interoperability research. **Not affiliated with WHOOP, Inc.** Not a medical device.
 > This library parses and builds bytes; it never connects to a device by itself. See
 > [DISCLAIMER.md](DISCLAIMER.md).
 
-## Contents
+## At a glance
 
-- [Features](#features)
-- [Repository layout](#repository-layout)
-- [Getting started](#getting-started)
-- [Verification status](#verification-status)
-- [Open items: what still needs a WHOOP 5.0](#open-items-what-still-needs-a-whoop-50)
-- [How it compares](#how-it-compares)
-- [Using it from NOOP](#using-it-from-noop)
-- [Contributing data](#contributing-data)
-- [Credits](#credits)
+<p align="center">
+  <img src="docs/headtohead.svg" width="760" alt="Mean distance from WHOOP's own scores. Recovery: NOOP 11.9 points, this repository 4.1. Sleep performance: 10.1 against 1.5. Sleep need: 17.0 against 6.9 minutes. Day strain: 2.46 against 0.73. Workout zones: 53.9 % against 2.5 % of workout time in another zone.">
+</p>
+
+Scope, stated plainly: one WHOOP 5.0 wearer; 12 to 16 nights, 11 cycles and 5 workouts with WHOOP's scores from the official
+developer API; NOOP `main` at `2a1de760`. NOOP's code runs unchanged. Every number of ours is out-of-sample: leave-one-out with
+the constants refitted per fold, or a rule frozen before the data. The one exception is sleep need, whose baseline and
+recent-strain constants were fitted on these nights; they account for seconds of its error at most. Full method and every
+caveat: [NOOP_HANDOFF.md](NOOP_HANDOFF.md).
+
+## What NOOP does today, and what this repository adds
+
+NOOP descriptions are read from its source at `2a1de760`. Each row links to the code that computes our side.
+
+### Scores
+
+| | NOOP today | This repository | Mean off WHOOP, NOOP → ours |
+|---|---|---|---|
+| **Recovery** | Charge: logistic (k = 1.6) over weighted z-scores: HRV 0.55, resting HR 0.20, sleep 0.15, respiration 0.05, skin temperature 0.05 | HRV against a shrunken own baseline, sleep against its own mean, and resting HR ([`recovery_lead`](re/score_formulas.py)) | 11.9 → **4.1** points |
+| **Sleep performance** | Rest: 0.50 duration against need + 0.20 efficiency + 0.20 deep and REM share + 0.10 consistency | A power of asleep/need plus consistency ([`sleep_performance`](re/score_formulas.py)) | 10.1 → **1.5** points |
+| **Sleep need** | 8 h (raised for long sleepers) plus 55 % of unmet need carried forward | Baseline + debt + recent-strain need − nap; debt is 1/2 or 9/14 of the last scored shortfall, capped at 7,668,000 ms ([`debt_ms`, `strain_need_ms`](re/score_formulas.py)) | 17.0 → **6.9** min |
+| **Day strain** | Edwards TRIMP on 50–90 % HRR zones, then 100 · ln(TRIMP + 1) / ln 7201 | A power of exponentially weighted minutes above 94 bpm ([`day_strain`](re/score_formulas.py)) | 2.46 → **0.73**; 2.30 → **0.13** without skiing or weightlifting |
+| **Workout zones** | 50/60/70/80/90 % of maximum HR | 40/60/70/80/90 % of heart-rate reserve, frozen before the workouts it was tested on ([ZR-1, `re/hrr_zones.py`](re/hrr_zones.py)) | 54 % → **2.5 %** of workout time in another zone |
+
+Rules and constants, with what was tried and ruled out: [re/SCORE_MODELS.md](re/SCORE_MODELS.md). Evidence:
+[FINDINGS §18](FINDINGS.md#18-first-comparison-with-the-whoop-app-on-the-same-nights-own-strap-new). What NOOP would change, file by
+file: [NOOP_HANDOFF.md](NOOP_HANDOFF.md#score-changes-noop-can-make).
+
+### Sync and protocol
+
+| | NOOP today | This repository | Evidence |
+|---|---|---|---|
+| **Newest-page clock** in GET_DATA_RANGE | timestamp scan, not fed to 5/MG sync | read field-exact at body offset 57 | 589 replies, 21 sessions ([§3](FINDINGS.md#3-what-the-official-app-does-on-the-phone-apk)); [PR #2824](https://github.com/ryanbr/noop/pull/2824) |
+| **History auto-continue** | keeps going at 0 pages behind | stops, because backlog = write − trim | [§3](FINDINGS.md#3-what-the-official-app-does-on-the-phone-apk); [PR #2823](https://github.com/ryanbr/noop/pull/2823) |
+| **Command table** | 80 commands | 87, including the new clock pair 146/147 and 155–159 (certificate transfer, `LOCK_DEVICE`), plus events 109 and 123 | the official app 5.473.0 and 5.475.0; [PR #2828](https://github.com/ryanbr/noop/pull/2828) |
+| **R26 heart rate** | none | autocorrelation with an acceptance filter: 1.48 bpm on 391 of 1,145 bursts asleep, against 6.24 for a shuffled control | [§16](FINDINGS.md#16-r26-heart-rate-fails-awake-cause-and-quality-filter-own-strap-new) |
+| **Where the scores come from** | — | proven computed on WHOOP's servers: no formula in the app | [§3](FINDINGS.md#3-what-the-official-app-does-on-the-phone-apk) |
+
+### Metrics checked against WHOOP
+
+Thresholds fixed before the data ([`CRITERIA`](re/validate_own_strap.py)); 5 paired nights.
+
+| Metric | Mean off WHOOP | Verdict |
+|---|---|---|
+| HRV (RMSSD) | 2.53 ms, r = 0.77 | Proven |
+| Respiratory rate from R-R | 0.12 per min, r = 0.73 | Proven |
+| Skin temperature | 0.17 °C, r = 0.81 | Proven |
+| Sleep onset | 14.3 min median; a near-constant lag | Proven |
+| Resting HR | 3.89 bpm low, almost all of it a constant offset | Failed at 3 bpm; the offset is a lead |
+| Wake time | 49.5 min median | Failed |
+
+## How the score model fits together
+
+```mermaid
+flowchart LR
+  HR["Strap heart rate<br/>(R18, per second)"] --> RR["R-R intervals"]
+  RR --> HRV["HRV (RMSSD)"]
+  HR --> RHR["Resting HR"]
+  HR --> SLEEP["Sleep period<br/>(band state)"]
+  HR --> STRAIN["Day strain<br/>(DS-E)"]
+  HR --> ZONES["Workout zones<br/>(% of HR reserve)"]
+  STRAIN --> NEED["Sleep need<br/>baseline + debt + strain − nap"]
+  SLEEP --> NEED
+  SLEEP --> SP["Sleep performance<br/>(SP-C2)"]
+  NEED --> SP
+  HRV --> REC["Recovery<br/>(REC-RHR)"]
+  RHR --> REC
+  SP --> REC
+```
+
+All of it is in [`re/score_formulas.py`](re/score_formulas.py), standard library only.
+
+## Reproduce it
+
+```bash
+# NOOP's own scorers, from upstream main (a fork or feature branch would score a modified NOOP)
+git clone https://github.com/ryanbr/noop ../noop-upstream
+(cd re/noop_scores && swift build -c release)
+
+# your own data: an API snapshot (re/whoop_api_fetch.py) and a folder of your strap's frames
+python3 re/noop_compare.py <API snapshot> <strap data>   # the full head-to-head, aggregates only
+python3 re/plot_headtohead.py <its --json output> docs/headtohead.svg
+```
+
+Every claim from the WHOOP export and API is rechecked by [`re/verify_findings.py`](re/verify_findings.py), which fails loudly when
+one stops holding. Every analysis script is listed in [re/README.md](re/README.md).
 
 ## Features
 
@@ -62,6 +143,7 @@ Packages/Whoop5Protocol/  Swift package + whoop5-decode CLI
 kotlin/                   Kotlin/JVM library (no Android dependency), for Android apps such as NOOP's
 fixtures/golden.json      cross-language parity vectors (generated)
 re/                       reverse-engineering analyses and their results
+docs/                     the head-to-head chart (generated by re/plot_headtohead.py)
 scripts/sync-schema.sh    copies the schema to every consumer and regenerates vectors
 FINDINGS.md               the protocol write-up and evidence
 ```
@@ -151,9 +233,9 @@ owners. None of them blocks using the library; they limit how far a client shoul
 
 | # | Item | Current state | How to verify |
 |---|---|---|---|
-| H1 | Full connect → bond → hello → sync session on iOS, macOS and Android | **macOS done** on one strap with `re/probe_read_pointer.py` on this library's framing; iOS and Android not run | Same session through a client on those platforms |
+| H1 | Full connect → bond → hello → sync session on iOS, macOS and Android | **macOS done** on one strap on this library's framing; iOS and Android not run | Same session through a client on those platforms |
 | H2 | Bonding refusals on some Android phones | Strap refuses SMP pairing in an HCI capture (NOOP #1635); cause open | Controlled pairing attempts with HCI logging |
-| H9 | Re-reading trimmed history | **Works on one strap** (fw 50.43.2): an older `HISTORICAL_DATA_RESULT` during a burst moves trim back, about 120x realtime; the official app syncs on from a moved trim; [guide](re/REREAD_HISTORY.md), §17 | Other firmware and straps |
+| H9 | Re-reading trimmed history | **Works on one strap** (fw 50.43.2), §17 | Other firmware and straps |
 | H4 | HISTORY_END token second word (write-wrap state) | **Closed on one strap**: the firmware calls it the wrap count, and pages above the write head are one lower (§17) | Other firmware |
 | H5 | R21 IMU scale (4096 LSB/g, ±2000 °/s) and 100 Hz rate | **Accel closed on one strap**: 1.003 g over 71,019 still seconds (§18). Gyro samples are present, gyro scale open | One timed 360° rotation |
 | H6 | Dedicated IMU stream packets 51/52 | Layout documented, never observed | Enable IMU streaming and capture |
@@ -165,20 +247,21 @@ owners. None of them blocks using the library; they limit how far a client shoul
 | # | Item | Current state | Data that settles it |
 |---|---|---|---|
 | D1 | R20 LED wavelengths (which source is green, red, infrared) | Source codes 1–4 seen; identity unknown | Captures across a toggle of the `ir_hw_switching` feature flag, or with a known light source |
-| D2 | SpO₂ | **Proven that R18 byte 82 is the strap's SpO₂ reading**: 30 s windows every 20 min during sleep on 3 straps. 0.34 % from the WHOOP app over 3 nights (§13, §18) | 2 more nights for the fixed bar; the 2 contrary nights on NOOP's #103 strap |
-| D3 | Sleep detection and stages | 🧪 Sleep periods from R18 band state (`sleep_periods`, experimental): onset within 14 min of WHOOP, wake 34 min off, over 3 nights (§15, §18). No stages | Better wake detection; stages from the WHOOP export |
+| D2 | SpO₂ | **Proven that R18 byte 82 is the strap's SpO₂ reading**: 30 s windows every 20 min during sleep on 3 straps (§13). Against the WHOOP app on 5 nights: 0.53 % mean off, but r = 0.49, and byte 42 follows WHOOP more closely (§18) | What byte 42 holds; more nights and straps for the trend |
+| D3 | Sleep detection and stages | Sleep periods from R18 band state (`sleep_periods`): onset 14.3 min median off on 5 nights, a near-constant lag; wake 49.5 min off (§15, §18). No stages | Wake detection that sees lying awake before rising; stages from the WHOOP export |
 | D4 | HR from optical | R26: 1.7 bpm on the 98 of 286 bursts `hr_from_r26` accepts, 0.92 bpm on 82 new ones, nearly all asleep; no usable reading awake and moving (§16, §18). R20: r ≈ 0.8, ~2 bpm on one resting session; **fails** on a second, awake session with a sparse reference (§14) | R20 with motion and a dense reference; more wearers |
-| D5 | Dense overnight HRV | **Mostly closed**: R18 delivers 92 % of beats overnight with R-R in ms; RMSSD 47–102 ms per 5 min (§12); 1.48 ms from the WHOOP export over 3 nights (§18) | 5 or more nights; more wearers |
-| D6 | Respiratory rate | 🧪 No field on the wire; derived from R-R sinus arrhythmia (`respiratory_rate`, experimental): 0.13 per min from the WHOOP export over 3 nights (§15, §18) | 5 or more nights; more wearers |
-| D7 | Skin temperature (R18 `u16@73 / 100 °C`) across firmware | Plausible overnight curve 31.4–35.0 °C; agrees across three sources; 0.12 °C from the WHOOP export over 3 nights (§18); firmware 50.37–50.43 seen | R18 from other firmware with the WHOOP export |
+| D5 | Dense overnight HRV | **Closed on one strap**: R18 delivers 92 % of beats overnight with R-R in ms (§12); 2.53 ms from WHOOP, r = 0.77, on 5 nights (§18) | More wearers |
+| D6 | Respiratory rate | No field on the wire; derived from R-R sinus arrhythmia (`respiratory_rate`): 0.12 per min from WHOOP, r = 0.73, on 5 nights (§15, §18) | More wearers |
+| D7 | Skin temperature (R18 `u16@73 / 100 °C`) across firmware | Agrees across three sources; 0.17 °C from WHOOP, r = 0.81, on 5 nights (§18); firmware 50.37–50.43 seen | R18 from other firmware with the WHOOP export |
 | D8 | R18 provisional fields | Byte 82 and status words 77/79 tied to the 20-minute measurement windows; bytes 106–113 characterised but unexplained (§12, §13) | Correlation against a WHOOP export over many nights |
 | D9 | R22 v9 channel meaning and R26 sample units | Structure only | Captures with the related feature flags toggled |
 | D10 | Event payloads | Header, payload length and BATTERY_LEVEL payload decoded; 8 unnamed event numbers seen; other payloads opaque (§9) | More captures of each event |
 
 ## How it compares
 
-Checked on 2026-10-19 against the source of each project. Goose and NOOP are full apps; this
-repository is a protocol library, so the comparison covers the protocol layer only.
+Protocol rows checked on 2026-10-19 against the source of each project; score rows on 2026-11-19 against NOOP `main` at
+`2a1de760`. Goose and NOOP are full apps; this repository is a protocol library with score formulas, so the comparison leaves
+out what only an app has.
 
 | | wearable5.0 | [goose](https://github.com/b-nnett/goose) (archived) | [NOOP](https://github.com/ryanbr/noop) 5/MG path |
 |---|---|---|---|
@@ -201,7 +284,9 @@ repository is a protocol library, so the comparison covers the protocol layer on
 | Device-family table incl. battery-pack service | ✅ | partial | `1150…` listed as unsupported |
 | Machine-readable schema with evidence per fact | ✅ | — | ✅ (no per-fact source) |
 | Python + Swift + Kotlin with enforced parity | ✅ | Rust + Swift | Swift + Kotlin |
-| BLE client, storage, scoring algorithms, UI | — (out of scope) | ✅ | ✅ |
+| Score formulas checked against WHOOP's own values | ✅ out-of-sample, closer than NOOP on every score ([above](#what-noop-does-today-and-what-this-repository-adds)) | — | own scorers (Charge, Effort, Rest) |
+| WHOOP's workout zones (% of heart-rate reserve from 40 %) | ✅ | — | % of max HR from 50 % |
+| BLE client, storage, UI | — (out of scope) | ✅ | ✅ |
 
 Most protocol offsets here were first documented by NOOP and goose; this repository consolidates
 them, adds the current app's tables, and contributes findings from real captures: the GET_DATA_RANGE
@@ -213,7 +298,8 @@ Python, derives HRV from R26).
 
 ## Using it from NOOP
 
-NOOP is what this project is for. [NOOP_HANDOFF.md](NOOP_HANDOFF.md) lists each change NOOP can take: what to change, the
+NOOP is what this project is for. [NOOP_HANDOFF.md](NOOP_HANDOFF.md) lists each change NOOP can take: the score formulas with their
+head-to-head against NOOP's own scorers, the protocol fixes, and the metrics on 5 paired nights. Each row says what to change, the
 evidence, where it goes in NOOP, and the open PR if there is one.
 
 ## Contributing data

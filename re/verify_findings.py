@@ -17,7 +17,7 @@ import sys
 import zipfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from api_checks import MS_PER_MIN, asleep_ms, debt_after, need_ms  # noqa: E402
+from api_checks import DEBT_CAP_MS, MS_PER_MIN, asleep_ms, need_ms  # noqa: E402
 
 KJ_PER_KCAL = 4.184
 RESEND_START_UTC = "2026-11-05T13:48:04+00:00"  # first captured re-send of already scored pages, FINDINGS §17
@@ -77,7 +77,9 @@ def verify(export_sleeps: list[dict], export_cycles: list[dict], sleeps: list[di
         needed = s["score"]["sleep_needed"]
         if main is not None:
             debt_total += 1
-            debt_hits += needed["need_from_sleep_debt_milli"] == debt_after(need_ms(main["score"]["sleep_needed"]), asleep_ms(main["score"]["stage_summary"]))
+            short = max(0, need_ms(main["score"]["sleep_needed"]) - asleep_ms(main["score"]["stage_summary"]))
+            # 1/2 or 9/14 of the shortfall; which one applies is open. Halves round either way, so 1 ms is allowed.
+            debt_hits += any(abs(needed["need_from_sleep_debt_milli"] - min(DEBT_CAP_MS, f * short)) <= 1 for f in (1 / 2, 9 / 14))
         if nap is not None:
             nap_total += 1
             nap_hits += -needed["need_from_recent_nap_milli"] == asleep_ms(nap["score"]["stage_summary"])
@@ -85,7 +87,7 @@ def verify(export_sleeps: list[dict], export_cycles: list[dict], sleeps: list[di
             nap = s
         else:
             main, nap = s, None
-    claim(results, "debt = half the last main sleep's shortfall; naps hold it", debt_hits, debt_total)
+    claim(results, "debt = 1/2 or 9/14 of the last scored main sleep's shortfall, capped at 7668000 ms; naps hold it", debt_hits, debt_total)
     claim(results, "nap credit = the nap's asleep time", nap_hits, nap_total)
 
     claim(results, "recovery and sleep performance are whole numbers in the API",

@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="444" viewBox="0 0 760 444" role="img" aria-label="Mean distance from WHOOP's own scores, NOOP against this repository">
+<rect width="760" height="444" rx="10" fill="#ffffff"/>
+<style>text{font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif}</style>
+<text x="24" y="34" font-size="19" font-weight="600" fill="#1f2328">Mean distance from WHOOP's own scores — shorter is better</text>
+<text x="24" y="56" font-size="13" fill="#59636e">Same nights, cycles and workouts. NOOP main 2a1de760; ours out-of-sample. Each row scaled to NOOP's error.</text>
+<text x="24" y="103" font-size="14" font-weight="600" fill="#1f2328">Recovery</text>
+<rect x="170" y="82" width="470" height="20" rx="4" fill="#c4c9d0"/>
+<text x="650" y="97" font-size="13" fill="#59636e">NOOP 11.9 pts</text>
+<rect x="170" y="106" width="164.3" height="20" rx="4" fill="#1a7f37"/>
+<text x="344.3" y="121" font-size="13" font-weight="600" fill="#1a7f37">this repo 4.1 pts (35 % of NOOP's)</text>
+<text x="24" y="167" font-size="14" font-weight="600" fill="#1f2328">Sleep performance</text>
+<rect x="170" y="146" width="470" height="20" rx="4" fill="#c4c9d0"/>
+<text x="650" y="161" font-size="13" fill="#59636e">NOOP 10.1 pts</text>
+<rect x="170" y="170" width="69.3" height="20" rx="4" fill="#1a7f37"/>
+<text x="249.3" y="185" font-size="13" font-weight="600" fill="#1a7f37">this repo 1.5 pts (15 % of NOOP's)</text>
+<text x="24" y="231" font-size="14" font-weight="600" fill="#1f2328">Sleep need</text>
+<rect x="170" y="210" width="470" height="20" rx="4" fill="#c4c9d0"/>
+<text x="650" y="225" font-size="13" fill="#59636e">NOOP 17.0 min</text>
+<rect x="170" y="234" width="191.7" height="20" rx="4" fill="#1a7f37"/>
+<text x="371.7" y="249" font-size="13" font-weight="600" fill="#1a7f37">this repo 6.9 min (41 % of NOOP's)</text>
+<text x="24" y="295" font-size="14" font-weight="600" fill="#1f2328">Day strain</text>
+<rect x="170" y="274" width="470" height="20" rx="4" fill="#c4c9d0"/>
+<text x="650" y="289" font-size="13" fill="#59636e">NOOP 2.46</text>
+<rect x="170" y="298" width="138.5" height="20" rx="4" fill="#1a7f37"/>
+<text x="318.5" y="313" font-size="13" font-weight="600" fill="#1a7f37">this repo 0.73 (29 % of NOOP's)</text>
+<text x="24" y="359" font-size="14" font-weight="600" fill="#1f2328">Workout zones</text>
+<rect x="170" y="338" width="470" height="20" rx="4" fill="#c4c9d0"/>
+<text x="650" y="353" font-size="13" fill="#59636e">NOOP 53.9 %</text>
+<rect x="170" y="362" width="22.1" height="20" rx="4" fill="#1a7f37"/>
+<text x="202.1" y="377" font-size="13" font-weight="600" fill="#1a7f37">this repo 2.5 % (5 % of NOOP's)</text>
+<rect x="24" y="409" width="14" height="12" rx="2" fill="#c4c9d0"/>
+<text x="44" y="420" font-size="12" fill="#59636e">NOOP's own scorers</text>
+<rect x="190" y="409" width="14" height="12" rx="2" fill="#1a7f37"/>
+<text x="210" y="420" font-size="12" fill="#59636e">this repository (re/score_formulas.py), reproduced by re/noop_compare.py</text>
+</svg>

@@ -2,8 +2,9 @@
 import PackageDescription
 import Foundation
 
-// Links NOOP's own scoring code from a local checkout, so nothing of NOOP is copied here.
-let noop = ProcessInfo.processInfo.environment["NOOP_DIR"] ?? "../../../noop"
+// Links NOOP's own scoring code from a local checkout, so nothing of NOOP is copied here. The default is a detached worktree of
+// upstream ryanbr/noop main next to this repository; a fork or feature branch would score a modified NOOP.
+let noop = ProcessInfo.processInfo.environment["NOOP_DIR"] ?? "../../../noop-upstream"
 
 let package = Package(
     name: "noop-scores",

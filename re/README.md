@@ -12,12 +12,14 @@ demand into `re/corpus/` (gitignored); only scripts and results are committed.
 | `strain_model.py` | Build WHOOP day strain from per-second HR (zones -> TRIMP -> log fit); needs each strain cycle's whole span re-read | fit stats on stdout |
 | `compare_noop.py` | Which commands, events and packet types differ between this schema and NOOP's | difference list on stdout |
 | `score_search.py` | Search all transforms and combinations of the export's inputs for WHOOP's scores, judged on a holdout and against shuffled scores | verdict per score, `results/score_search_strain_public.txt` |
-| `noop_compare.py` | NOOP's real Charge and Effort next to WHOOP's Recovery and Day Strain (builds on `noop_scores/`, which links a NOOP checkout) | table on stdout |
+| `noop_compare.py` | Head-to-head on the same nights: NOOP's own Charge, Rest, sleep need, Effort and zones (through `noop_scores/`, which links an upstream NOOP checkout) and this repository's formulas, each against WHOOP; ours out-of-sample | aggregates on stdout, summarised in NOOP_HANDOFF and FINDINGS §18 |
+| `plot_headtohead.py` | Draw the README chart from `noop_compare.py --json` (aggregates only) | `docs/headtohead.svg` |
+| `score_formulas.py` | The score formulas in use: sleep need parts, sleep performance, recovery, day strain, zones; self-test on local data | importable; see [SCORE_MODELS.md](SCORE_MODELS.md) |
 | `export_diff.py` | What changed between two WHOOP exports: cycles added, removed or rescored | table on stdout |
 | `score_predictions.py` | Test the frozen candidate formulas in [SCORE_MODELS.md](SCORE_MODELS.md) on later cycles only | table on stdout |
 | `hrr_zones.py` | WHOOP's zones as heart rate reserve from raw HR, and which load fits strain | zone seconds and fits on stdout |
 | `whoop_api_fetch.py` | Save your own data from WHOOP's official developer API, read-only, untouched | JSON per run, outside git |
-| `api_checks.py` | Check the sleep need, debt and nap rules against an API snapshot | rule hits on stdout |
+| `api_checks.py` | Score every frozen candidate and rule against an API snapshot, and print the next night's debt | hits per rule on stdout |
 | `verify_findings.py` | Recompute every claim from the export and API, and fail if one no longer holds | pass or fail per claim, counts only |
 | `pipeline.sh` | One command: validate + score + strain over your data folder and WHOOP export (SpO2 standing on top) | combined report |
 | `score_model.py` | Reverse-engineer WHOOP's recovery/strain/sleep scores empirically from your own export (input/output pairs) | fit stats on stdout |
