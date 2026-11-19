@@ -68,25 +68,6 @@ class BackfillRefusal(unittest.TestCase):
         self.assertIn("future", self.probe.backfill_refusal(6000, 6000, 500, 100, 5000))
 
 
-class RegisteredModels(unittest.TestCase):
-    SLEEPS = [
-        {"onset": "2026-11-01 23:59:40", "asleep": 345.0, "need": 500.0, "debt": 0.0, "perf": 81.0, "nap": False},
-        {"onset": "2026-11-03 00:46:11", "asleep": 336.0, "need": 545.0, "debt": 77.0, "perf": 75.0, "nap": True},
-        {"onset": "2026-11-03 23:53:57", "asleep": 405.0, "need": 224.0, "debt": 77.0, "perf": 95.0, "nap": False},
-        {"onset": "2026-11-05 00:07:47", "asleep": 413.0, "need": 466.0, "debt": 0.0, "perf": 90.0, "nap": False},
-        {"onset": "2026-11-06 00:00:00", "asleep": 400.0, "need": 480.0, "debt": 26.0, "perf": 50.0, "nap": False},
-    ]
-
-    def test_only_later_cycles_count_and_frozen_models_keep_their_fit(self):
-        sp = _load("score_predictions")
-        rows = sp.predictions(self.SLEEPS, [], {})
-        self.assertTrue(all(sp.in_rounding(r) for r in rows if not r["new"] and r["model"] in ("SP-Q", "SP-E", "SD-R", "SD-A", "SD-CAP")))
-        new = {r["model"]: r for r in rows if r["new"]}
-        self.assertFalse(sp.in_rounding(new["SP-Q"]))
-        self.assertTrue(sp.in_rounding(new["SD-R"]))
-        self.assertFalse(sp.in_rounding(new["SD-CAP"]))
-
-
 class HrrZones(unittest.TestCase):
     def test_counts_seconds_in_each_zone_from_heart_rate_reserve(self):
         try:

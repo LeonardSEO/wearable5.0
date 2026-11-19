@@ -123,7 +123,9 @@ Backlog = `write − trim`, wrapping through capacity (the app's own formula). C
 `0xFFFFFFFF` mean "no usable time". The 5/MG reply has a real newest-page clock at a fixed offset,
 so no byte-scan for timestamps is needed.
 
-## 4. R20 optical: the pulse channels (corpus, new)
+<a id="4-r20-optical-the-pulse-channels-corpus-new"></a>
+
+## 4. R20 optical: the pulse channels (corpus)
 
 Corpus: 1,034 unique consecutive seconds of R20 from one 5/MG (firmware 50.39.1.0), with the strap's
 own 1 Hz HR as reference. The reference moves between 51 and 86 bpm. Script:
@@ -175,13 +177,10 @@ still stand.
 
 ## 6. What still needs a strap or more data
 
-| Item | State | What closes it |
-|---|---|---|
-| Sleep stages | Sleep periods work (§15, §18); stages not attempted | Fit on the per-stage minutes in the WHOOP export, with R21 |
-| SpO₂, HRV, respiration, skin temperature, sleep onset | Meet the bar on 3 nights (§18) | 2 more paired nights, then more wearers |
-| Wake time, resting heart rate | Miss the bar (§18) | Match WHOOP's definitions |
-| Scores | Inputs and scores are paired per cycle in the export (§18) | 20 cycles for recovery and sleep, 5 full-coverage cycles for strain |
-| Bonding refusals on some Android phones | Strap refuses SMP pairing (NOOP #1635) | Hardware investigation |
+The full status, with what settles each item, is in the README under
+[Status: settled, did not hold, still open](README.md#status-settled-did-not-hold-still-open). Open here: sleep stages, which debt factor
+applies (§18), the R21 gyro scale, which R20 LED source is which wavelength, IMU packets 51/52, the format-2 envelope, and bonding
+refusals on some Android phones (NOOP #1635).
 
 ## 8. R-R intervals are in milliseconds (corpus)
 
@@ -218,7 +217,9 @@ now return the raw value as ms.
   type's fixed header, and two Python reads into CRC bytes. Swift and Python now agree on 30,559 real
   frames (190,883 field checks).
 
-## 10. What the official app sends (corpus, new)
+<a id="10-what-the-official-app-sends-corpus-new"></a>
+
+## 10. What the official app sends (corpus)
 
 From the iOS capture of the official app (5 h overnight; `re/analyze_official_sync.py`):
 
@@ -231,7 +232,9 @@ From the iOS capture of the official app (5 h overnight; `re/analyze_official_sy
   `whoop_live_2_hrm_devices`, `enable_raw_data_w_ecg`.
 - The app also sent DISABLE_ALARM, GET_HELLO, GET_ADVERTISING_NAME and one REBOOT_STRAP.
 
-## 11. R26 compact optical (corpus, new)
+<a id="11-r26-compact-optical-corpus-new"></a>
+
+## 11. R26 compact optical (corpus)
 
 `re/analyze_r26.py`, `re/results/r26_analysis.txt`. During the captured night the strap records a
 40-second R26 burst roughly every 19 minutes (17 bursts). Within bursts, records are contiguous at
@@ -240,7 +243,9 @@ R26 waveform against R18 heart rate: **r = 0.95, MAE 1.4 bpm** per burst over 17
 46–66 bpm (window level r = 0.82, MAE 2.7); a shuffled-record control fails (MAE 27.7). One night, one
 wearer.
 
-## 12. One full night of R18 (corpus, new)
+<a id="12-one-full-night-of-r18-corpus-new"></a>
+
+## 12. One full night of R18 (corpus)
 
 `re/analyze_overnight_r18.py`, `re/results/overnight_r18.txt`: 18,602 consecutive records,
 22:57–04:07 UTC, no gaps. Band state is SLEEP for 99.5 % of records and turns UP at the end with a
@@ -249,7 +254,9 @@ motion spike. Heart rate falls from ~62 to ~47 bpm and rises again on waking; 5-
 Skin temperature rises from 31.9 to 34.9 °C over the night and the two auxiliary channels track it.
 This describes the signals; it is not a sleep-stage or recovery validation.
 
-## 13. SpO₂ in R18 byte 82 (corpus, new — experimental)
+<a id="13-spo-in-r18-byte-82-corpus-new--experimental"></a>
+
+## 13. SpO₂ in R18 byte 82 (corpus)
 
 `re/analyze_r18_b82_windows.py`, `re/results/r18_b82_windows.txt`, `re/results/spo2_windows_ios_night.txt`.
 
@@ -287,7 +294,9 @@ R20 heart rate therefore stays validated on one resting session only. Block conf
 between the sessions (block 2 drive 3400 vs 4250), and the two-channel burst does not occur in the
 second one (`re/results/r20_config_bursts.txt`).
 
-## 15. Experimental metrics: sleep periods, breathing, skin temperature, R26 heart rate (corpus, new)
+<a id="15-experimental-metrics-sleep-periods-breathing-skin-temperature-r26-heart-rate-corpus-new"></a>
+
+## 15. Metrics: sleep periods, breathing, skin temperature, R26 heart rate (corpus)
 
 `re/analyze_experimental_metrics.py`, `re/results/experimental_metrics.txt`. Four helpers in
 `whoop5.experimental` / `Whoop5Experimental` (stdlib only, same inputs and outputs in both languages),
@@ -307,7 +316,9 @@ run on the captured night and cross-checked against numpy/scipy:
 
 All four are experimental: one night, one wearer, no sleep-stage, breathing or thermometer reference.
 
-## 16. R26 heart rate fails awake: cause and quality filter (own strap, new)
+<a id="16-r26-heart-rate-fails-awake-cause-and-quality-filter-own-strap-new"></a>
+
+## 16. R26 heart rate fails awake: cause and quality filter (own strap)
 
 Five days of one owner's strap (one wearer, 286 R26 bursts with an R18 reference; `re/analyze_r26_failure.py`,
 `re/results/r26_failure.txt`). The earlier r = 0.95 came from one sleeping night and did not generalise.
@@ -349,7 +360,9 @@ No frame between those points holds a boot, over 84 % of the time. The update is
 one firmware, and which one is not known. **The first night recorded after 5 November 11:03 is the first certain night on
 50.43.2.0**, and it settles byte 82 on that firmware.
 
-## 17. Re-reading trimmed history: an older acknowledgement during a burst moves trim back (own strap, new)
+<a id="17-re-reading-trimmed-history-an-older-acknowledgement-during-a-burst-moves-trim-back-own-strap-new"></a>
+
+## 17. Re-reading trimmed history: an older acknowledgement during a burst moves trim back (own strap)
 
 Firmware 50.43.2.0, one strap, `re/probe_read_pointer.py`; the official app never sends this command in our captures.
 
@@ -387,108 +400,47 @@ re-sent day: the official API shows its strain unchanged and its last update hou
 for the first time were scored even when days old, which is the case for the first sync. Whether older pages sent after that get
 scored is not tested.
 
-## 18. First comparison with the WHOOP app on the same nights (own strap, new)
+<a id="18-first-comparison-with-the-whoop-app-on-the-same-nights-own-strap-new"></a>
 
-Three nights synced by the official app, then re-read raw with §17: `re/validate_own_strap.py` against the WHOOP export of
-the same nights (2, 4 and 5 November). One wearer, one firmware (§16). The bar is 5 nights, so the script reports these
-checks as waiting until 2 more nights are paired.
+## 18. Our values and WHOOP's scores on the same nights (own strap + official API)
 
-| Metric | Mean difference from WHOOP | r | Against the fixed criterion |
-|---|---:|---:|---|
-| SpO₂ (mean of R18 byte 82 window medians) | **0.34 %** (bias +0.12) | 0.85 | meets ≤ 1.0 % |
-| Respiratory rate from R-R | 0.13 per min | 0.87 | meets ≤ 1.0 |
-| HRV (median 5-minute RMSSD) | 1.48 ms | 0.92 | meets r ≥ 0.7 |
-| Skin temperature | 0.12 °C | 1.00 | meets r ≥ 0.7 |
-| Sleep onset | median 13.8 min, later than WHOOP on all 3 nights | | meets ≤ 15 min |
-| Wake time | median 33.6 min, later than WHOOP on all 3 nights (57, 34, 10) | | **misses** ≤ 15 min |
-| Resting heart rate (lowest 5-minute mean) | 3.75 bpm too low, on all 3 nights | 0.39 | **misses** ≤ 3 bpm |
+Our values from the strap against WHOOP's own for the same nights, and WHOOP's score rules from its official API. One wearer. The
+nights came to the official app first and were read raw afterwards (§17).
 
-- **Byte scan.** Byte 82 ranked fifth at r = 0.95 and byte 71 first at r = 0.999. With about 100 bytes and three points a
-  high r is expected by chance. The script's check that byte 82 ranks first runs at 5 nights.
-- **The R26 filter of §16 held on data it had not seen:** on bursts after 1 November it accepted 82 of 98, MAE 0.92 bpm,
-  93 % within 3 bpm, reference 52-75 bpm. Over all bursts now: 184 of 529 accepted, MAE 1.46 bpm, against 5.78 for a
-  shuffled control and 19.1 unfiltered. These nights are mostly asleep, so this says nothing new about awake use.
-- The R-R unit (0.996 over 166,882 records) and the R21 scale (1.003 g over 71,019 still seconds) pass on this
-  strap, and all 1,066,054 frames decode.
+### Data sources
 
-### The export pairs inputs with scores
-
-WHOOP's `physiological_cycles.csv` holds, per cycle: Recovery score, Day Strain, Sleep performance, resting HR, HRV, skin
-temperature, SpO₂, respiratory rate, sleep need and debt, and minutes per sleep stage. So every score is available
-for a whole history in one export. Nobody has to note them per day.
-
-Two cycles now have a Day Strain and at least 80 % heart-rate coverage: TRIMP 998 for strain 12.2 and TRIMP 379 for 4.8
-(`re/strain_model.py`). The strain fit needs 5, the recovery and sleep fits 20.
-
-### Searching for the score formulas
-
-`re/score_search.py` works from the export and raw frames only; WHOOP's servers are never contacted. Its verdicts were fixed
-before any data was seen.
-
-| Data | Result |
-|---|---|
-| Planted formula without noise, 8 runs each | 27-30 cycles: MODEL, about 3 points off. 45 cycles: FORMULA in 7 of 8, 0.3 off |
-| Scores unrelated to the inputs | NONE, as it should be |
-| Real Day Strain, one account, 336 days from a NOOP issue attachment | **MODEL**: 1.51 off on the newest 98 days, against 3.75 for guessing the mean and 3.49 for the best shuffled run. Only 2 % exact |
-| The owner's export | 3 cycles: does not run |
-
-The strain result uses daily max, mean and resting heart rate only. That 98 % of days stay inexact fits strain depending on
-time in heart-rate zones, which the per-second heart rate adds (`--frames`).
-
-### NOOP against WHOOP on the same cycles
-
-`re/noop_compare.py` runs NOOP's real code, `main` at `2a1de760`.
-
-First run: Effort read 2.4 and 3.1 below WHOOP on 2 cycles. The full comparison on every night is at the end of this section.
+- **The WHOOP export** (`physiological_cycles.csv`) pairs each cycle's inputs with its scores: Recovery, Day Strain, Sleep performance,
+  resting HR, HRV, skin temperature, SpO₂, respiratory rate, sleep need and debt, and minutes per sleep stage.
+- **WHOOP's official developer API** gives the same per night, in milliseconds and with strain decimals, for every night up to now.
+  `re/whoop_api_fetch.py` saves the owner's own data, read-only and signed in by the owner; no other WHOOP endpoint is used.
+  `re/verify_findings.py` recomputes every claim below on each new snapshot and fails if one stops holding.
 
 ### What the official API settled
 
-`re/whoop_api_fetch.py` saves the owner's data from WHOOP's official developer API, and `re/verify_findings.py` recomputes each claim
-and fails if one stops holding (all claims on the first snapshot). WHOOP's servers are used only through that official, signed-in, read-only API.
-
-- **Sleep need** is baseline + debt + recent strain + nap credit, on all 4 sleeps.
+- **Sleep need** is baseline + debt + recent-strain need + nap credit.
 - **Export minutes are cut off, not rounded,** for need, asleep and time in bed.
-- **Sleep debt** is a share of the shortfall of the last scored main sleep, capped at 7668000 ms; it replaces earlier debt. The first 4
-  cases took 1/2; later nights took 1/2 or 9/14 (16 of 16 hold with one of the two). Which factor applies is open: REM, stage shares,
-  strain and the earlier debt do not separate them. A day without a sleep record adds nothing.
-- **Nap credit** is exactly the nap's asleep time, on the one nap.
-- **Efficiency** is asleep / in bed on 2 of 4 sleeps and 0.12 and 0.40 points higher on the other 2. Open.
-- **Sleep stress is in the app, not the API,** as hours of low, medium and high stress. They add up to about time in bed, within 1.32 minutes; the exact
-  window is unchecked. A composite using medium stress fits the 2 separate main sleeps with their own reading (`SP-M` in `re/SCORE_MODELS.md`). Medium was chosen after seeing
-  the numbers, so it is a lead. High stress is 0 on every night, so its weight is unknown.
-- **Recovery and Sleep performance are whole numbers in the API too,** so no decimals are hidden there. Strain has decimals.
-- **WHOOP flagged the first 3 recoveries as calibrating; the 4th is not.** It scored well above every frozen recovery candidate, so formulas
-  fitted on calibrating scores do not carry over. Every frozen sleep-performance candidate also missed that night.
-- **WHOOP's heart-rate zones fit heart rate reserve,** with edges at 40, 60, 70, 80 and 90 %, WHOOP's reported maximum HR and a resting HR
-  of 58. From raw R18 heart rate, with no time shift, one workout matches in all 6 zones to the second (1379 of 1379 s). A second workout
-  reaches 98.69 %, with 26 of 1978 s one zone off, all at the 60 % edge. Rest and edges were chosen on these two workouts, so the rule is
-  frozen and new workouts have to confirm it. This also shows R18 heart rate and its clock line up with what WHOOP scored. An
-  earlier fit with a maximum of 214 and an 11-minute shift was wrong. `re/hrr_zones.py`.
-- **Recent-strain need** grows about with strain squared on 2 cycles (power 2.05). Two points, so a lead.
+- **Sleep debt** is a share of the shortfall of the last scored main sleep, capped at 7668000 ms; it replaces earlier debt. The share is
+  1/2 or 9/14 (16 of 16 nights hold with one of the two). Which one applies is open: REM, stage shares, awake time, efficiency,
+  consistency, strain and the earlier debt do not separate them. A day without a sleep record adds nothing.
+- **Nap credit** is exactly the nap's asleep time.
+- **Recovery and Sleep performance are whole numbers in the API too;** strain has decimals.
+- **WHOOP marks the first 3 recoveries as calibrating.** Scores fitted on them do not carry over to later nights.
+- **WHOOP's workout zones are heart-rate reserve,** with edges at 40, 60, 70, 80 and 90 %, WHOOP's reported maximum HR and a resting HR of 58.
+  From raw R18 heart rate, with no time shift, the rule reproduces one workout in all 6 zones to the second; frozen there, it puts 96.2 to
+  99.3 % of seconds in WHOOP's zone on 3 later workouts. This also shows R18 heart rate and its clock line up with what WHOOP scored
+  (`re/hrr_zones.py`).
+- **Sleep stress is in the app only,** as hours of low, medium and high stress that add up to about time in bed. No formula here uses it.
 
-### Candidate formulas
+### Other results on the same data
 
-[re/SCORE_MODELS.md](re/SCORE_MODELS.md) freezes the candidates and what is ruled out; `re/score_predictions.py` tests them on later
-cycles only. The early exclusions still stand: sleep performance is not plain asleep/need, and strain is not one function of Edwards
-TRIMP. The formulas that replaced them follow below.
-
-### Five paired nights
-
-`re/validate_own_strap.py` (through `re/pipeline.sh`) on 5 nights paired with the WHOOP export, thresholds as fixed before the data.
-
-| Metric | Mean difference from WHOOP | r | Against the fixed criterion |
-|---|---:|---:|---|
-| SpO₂ (byte 82 window medians) | 0.53 % (bias −0.25) | 0.49 | meets ≤ 1.0 %, **misses** the r ≥ 0.7 trend check; byte 42 (r 0.84) and 41 (0.78) rank above 82 (0.69) |
-| Respiratory rate from R-R | 0.12 per min | 0.73 | meets |
-| HRV (median 5-minute RMSSD) | 2.53 ms | 0.77 | meets |
-| Skin temperature | 0.17 °C | 0.81 | meets |
-| Sleep onset | median 14.3 min | | meets |
-| Wake time | median 49.5 min | | **misses** ≤ 15 min |
-| Resting heart rate | 3.89 bpm too low | 0.37 | **misses** ≤ 3 bpm |
-
-The onset lag and the resting-HR gap are nearly constant on 12 nights against the official API: onset 14.1 min late (SD 1.5), resting HR
-4.6 bpm low (SD 1.5, 1.2 bpm error after the shift). Both corrections are leads until later nights confirm them. Wake time is not a
-constant: on the nights that miss most, the band state reads asleep through the whole stretch WHOOP scored awake.
+- **The R26 filter of §16 held on data it had not seen:** on bursts after 1 November it accepted 82 of 98, MAE 0.92 bpm. Over all
+  bursts: 391 of 1,145 accepted, 1.48 bpm, against 6.24 for a shuffled control. These nights are mostly asleep.
+- **The R-R unit** (0.996 over 348,874 records) and **the R21 scale** (1.003 g over 71,019 still seconds) pass, and all 1,967,128 frames decode.
+- **A formula search** (`re/score_search.py`, verdicts fixed before any data) on a public 336-day Day Strain history from a NOOP issue
+  attachment found a MODEL: 1.51 off on the newest 98 days, against 3.75 for guessing the mean and 3.49 for the best shuffled run. It uses
+  daily heart-rate summaries only; the per-second zone model below does better.
+- **Two leads on our own side,** to confirm on nights after these: the band-state onset lags WHOOP's by a near-constant 14.1 min (SD 1.5),
+  and our resting HR reads 4.6 bpm below WHOOP's (SD 1.5; 1.2 bpm error after the shift).
 
 ### Twelve paired nights
 
@@ -542,7 +494,9 @@ consistency and maximum HR where it needs them. Each side uses its own sleep-nee
 | Day strain, 9 cycles without skiing or weightlifting | 2.30 | 0.13 |
 | Workout zones, 3 workouts after the rule was frozen | 54 % of the time in another zone | 2.5 % |
 
-## 19. Command request bodies from the official app (APK, new)
+<a id="19-command-request-bodies-from-the-official-app-apk-new"></a>
+
+## 19. Command request bodies from the official app (APK)
 
 Each command this project had only named is built by its own class in the app (a subclass of the `xj0.b` packet base,
 like `FORCE_TRIM` in §17). Reading those builders gives the exact request body, little-endian, for the command's inner

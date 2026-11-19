@@ -72,17 +72,10 @@ documented only.
   fields and every score path is a fetch or a leaderboard read (`community-service/.../recovery/score`, etc.). So a
   client **cannot** extract WHOOP's scoring model from the app — it would have to reproduce it from the raw inputs
   itself, which is exactly what this project's experimental metrics do. The useful half is the input list below.
-  **Empirical route (`re/score_model.py`):** the export pairs each cycle's inputs with the score WHOOP gave it, so nobody
-  has to note scores per day (FINDINGS §18). The script fits a model per score. Limits: recovery and strain are
-  baseline-relative, so a fit reproduces this account's mapping, and other accounts test whether it generalises. It needs
-  20 cycles; there are 3. On those 3, sleep performance is not the plain asleep/need ratio (33 % off) and looks capped
-  near 95 %, and recovery did not track absolute HRV or resting HR.
-  **Formula search (`re/score_search.py`):** tries every transform and combination of the inputs, including deviations from a
-  personal baseline, and judges them on the newest 30 % of cycles and against shuffled scores. Measured on a planted
-  formula with no noise: 27-30 cycles give a usable model about 3 points off, 45 give the exact formula. WHOOP's real
-  formula can only be harder, so one free month gives a model, and exactness needs about 45 nights or more accounts.
-  **Official API:** sleep need, debt and nap credit are settled (FINDINGS §18). Open: recovery, strain, sleep performance, the sleep
-  baseline and efficiency.
+  **Reproduced from input/output pairs instead:** the official API pairs every night's inputs with WHOOP's scores, and
+  `re/score_formulas.py` now holds formulas for sleep need, sleep performance, recovery, day strain and zones that land closer to
+  WHOOP than NOOP's scorers on the same nights, out-of-sample ([SCORE_MODELS.md](SCORE_MODELS.md), FINDINGS §18). Open: which debt
+  factor applies, and the 27-night bar for a score model.
 - **What the strap uploads (the raw inputs to the server model).** The app ships, over `api.prod.whoop.com`:
   raw frames (`research-metrics-service/v1/{raw,imu,optical}/upload`, `com.whoop.dataSyncService.rawdata`
   `RawDataUploadWorker`), sensor metrics (`metrics-service/v1/metrics/sensor`), strap and firmware events
@@ -96,17 +89,14 @@ documented only.
 
 ## 4. Gaps worth closing (what is missing or weak today)
 
-- **Strain — first pairs exist, fit needs 5 (`re/strain_model.py`).** Two cycles have a Day Strain and full heart rate:
-  TRIMP 998 gives 12.2, TRIMP 379 gives 4.8. Zones use % of max HR seen; WHOOP's zone-defining max may differ.
-- **On-demand SpO₂ / optical measurement.** Today SpO₂ (byte 82) only appears in the strap's own ~20-minute sleep
-  windows. The strap has optical-enable commands (107/108/81), so a *candidate* is to drive an optical capture
-  awake and derive SpO₂ or HR on demand. **Unverified**: the app strings for "on_demand" / "manual measurement"
-  relate to Health-Connect manual entry, not an on-strap trigger, so whether these commands yield a valid SpO₂
-  awake is an open experiment — and §16 already shows optical HR fails with motion.
-- **Resting HR and wake time** miss the fixed bar (FINDINGS §18). Ours is too low on all 3 nights and wakes later on all
-  3 nights, so these are different definitions. Fix them against the WHOOP export.
-- **SpO₂ on 50.43.2.0.** The first certain night on that firmware is any night after 5 November 11:03 (FINDINGS §16).
-  The sign-off is 5 paired nights; byte 82 has to rank first in the byte scan there.
+- **Sleep stages.** Not attempted; the API gives WHOOP's stage totals per night, which a stage model can be checked against.
+- **Which debt factor applies, 1/2 or 9/14.** No single input separates them over 16 nights (FINDINGS §18).
+- **Stress from heart rate.** WHOOP's sleep stress is in the app only; owner-logged stress minutes are the labels.
+- **On-demand SpO₂ / optical measurement.** Today SpO₂ (byte 82) only appears in the strap's own ~20-minute sleep windows, and
+  it tracks WHOOP on 12 nights (FINDINGS §18). The strap has optical-enable commands (107/108/81), so a *candidate* is to drive an
+  optical capture awake. **Unverified:** the app strings for "on_demand" / "manual measurement" relate to Health-Connect manual entry,
+  not an on-strap trigger, and §16 already shows optical HR fails with motion.
+- **Resting HR** misses the fixed bar by a steady offset (FINDINGS §18); a definition match would close it.
 - **Gyro scale** (R21) is still open; accel is confirmed (§18). One timed rotation with gyro on would settle it.
 - **R22 v9 channels and R26 sample units** (README D9) remain structure-only.
 

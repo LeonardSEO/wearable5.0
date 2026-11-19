@@ -15,7 +15,7 @@
 
 ---
 
-`wearable5.0` does two things for the WHOOP 5.0 / MG band, and both exist to make
+`wearable5.0` does three things for the WHOOP 5.0 / MG band, and all of them exist to make
 [NOOP](https://github.com/ryanbr/noop) better:
 
 1. **A reverse-engineered scoring model.** WHOOP computes Recovery, Sleep performance, sleep need and Day Strain on its servers,
@@ -24,6 +24,9 @@
 2. **An open, tested protocol library.** One canonical, versioned description of the 5/MG wire protocol, with matching decoders in
    Python, Swift and Kotlin that are tested against each other and against frames from real straps. It is the 5/MG counterpart of
    [johnmiddleton12/wearable](https://github.com/johnmiddleton12/wearable) (WHOOP 4.0).
+3. **The WHOOP app and the raw data from the same night.** A strap hands each night to whichever client takes it first, so until
+   now a wearer had to choose. This repository found how to make the strap serve a night again after WHOOP's app has synced it,
+   at about 120× realtime ([below](#the-whoop-app-and-the-raw-data-from-the-same-night)). Every comparison with WHOOP here rests on it.
 
 > [!IMPORTANT]
 > Independent interoperability research. **Not affiliated with WHOOP, Inc.** Not a medical device.
@@ -57,7 +60,7 @@ NOOP descriptions are read from its source at `2a1de760`. Each row links to the 
 | **Workout zones** | 50/60/70/80/90 % of maximum HR | 40/60/70/80/90 % of heart-rate reserve, frozen before the workouts it was tested on ([ZR-1, `re/hrr_zones.py`](re/hrr_zones.py)) | 54 % → **2.5 %** of workout time in another zone |
 
 Rules and constants, with what was tried and ruled out: [re/SCORE_MODELS.md](re/SCORE_MODELS.md). Evidence:
-[FINDINGS §18](FINDINGS.md#18-first-comparison-with-the-whoop-app-on-the-same-nights-own-strap-new). What NOOP would change, file by
+[FINDINGS §18](FINDINGS.md#18-our-values-and-whoops-scores-on-the-same-nights-own-strap--official-api). What NOOP would change, file by
 file: [NOOP_HANDOFF.md](NOOP_HANDOFF.md#score-changes-noop-can-make).
 
 ### Sync and protocol
@@ -67,8 +70,30 @@ file: [NOOP_HANDOFF.md](NOOP_HANDOFF.md#score-changes-noop-can-make).
 | **Newest-page clock** in GET_DATA_RANGE | timestamp scan, not fed to 5/MG sync | read field-exact at body offset 57 | 589 replies, 21 sessions ([§3](FINDINGS.md#3-what-the-official-app-does-on-the-phone-apk)); [PR #2824](https://github.com/ryanbr/noop/pull/2824) |
 | **History auto-continue** | keeps going at 0 pages behind | stops, because backlog = write − trim | [§3](FINDINGS.md#3-what-the-official-app-does-on-the-phone-apk); [PR #2823](https://github.com/ryanbr/noop/pull/2823) |
 | **Command table** | 80 commands | 87, including the new clock pair 146/147 and 155–159 (certificate transfer, `LOCK_DEVICE`), plus events 109 and 123 | the official app 5.473.0 and 5.475.0; [PR #2828](https://github.com/ryanbr/noop/pull/2828) |
-| **R26 heart rate** | none | autocorrelation with an acceptance filter: 1.48 bpm on 391 of 1,145 bursts asleep, against 6.24 for a shuffled control | [§16](FINDINGS.md#16-r26-heart-rate-fails-awake-cause-and-quality-filter-own-strap-new) |
+| **Re-reading a night after WHOOP's app synced it** | not possible: a trimmed night is gone for every client | an older acknowledgement during a transfer moves trim back; 4 spans re-read completely at about 120× realtime, trim restored | [§17](FINDINGS.md#17-re-reading-trimmed-history-an-older-acknowledgement-during-a-burst-moves-trim-back-own-strap); [guide](re/REREAD_HISTORY.md) |
+| **R26 heart rate** | none | autocorrelation with an acceptance filter: 1.48 bpm on 391 of 1,145 bursts asleep, against 6.24 for a shuffled control | [§16](FINDINGS.md#16-r26-heart-rate-fails-awake-cause-and-quality-filter-own-strap) |
 | **Where the scores come from** | — | proven computed on WHOOP's servers: no formula in the app | [§3](FINDINGS.md#3-what-the-official-app-does-on-the-phone-apk) |
+
+### The WHOOP app and the raw data from the same night
+
+A strap gives each record to the first client that acknowledges it, then trims it. Once WHOOP's app has synced a night, no other
+client can read that night, so a wearer had to choose between WHOOP's scores and the raw frames. The strap keeps trimmed pages
+on flash until the ring overwrites them, and it can be made to serve them again
+([§17](FINDINGS.md#17-re-reading-trimmed-history-an-older-acknowledgement-during-a-burst-moves-trim-back-own-strap)):
+
+- **The trigger.** During a history transfer, after the first HISTORY_END, a `HISTORICAL_DATA_RESULT` (23) that acknowledges an
+  **older** page sets trim back to that page, and the strap serves from there. Outside a transfer the same frame does nothing. The
+  firmware's own log confirms the position format, page u32 plus wrap count u32.
+- **What it gives.** Four separate spans of 6 to 8 hours across the ring re-read completely, at about 120× realtime: a night takes
+  3 to 4 minutes. The ring holds about 3 weeks at the normal rate of 245 pages an hour, so a wearer can sleep, let WHOOP's app sync,
+  and fetch the raw nights later in one batch.
+- **It leaves the app alone.** A final acknowledgement puts trim back where it was, and the app syncs on from there. After one run
+  that left trim moved, the strap re-sent those pages to the app; WHOOP's API shows the day was not rescored.
+- **Scope.** One strap, firmware 50.43.2.0. `FORCE_TRIM` (25) is not needed and was never sent. Whether WHOOP scores older pages it
+  has never seen, when they are sent later, is not tested.
+
+Client: [`re/probe_read_pointer.py`](re/probe_read_pointer.py) (`fetch --span … --restore PAGE:WRAP`). Step-by-step guide and costs:
+[re/REREAD_HISTORY.md](re/REREAD_HISTORY.md).
 
 ### Metrics checked against WHOOP
 
@@ -126,13 +151,13 @@ one stops holding. Every analysis script is listed in [re/README.md](re/README.m
 |---|---|
 | **Canonical schema** | [`protocol/whoop5_protocol.json`](protocol/whoop5_protocol.json): GATT, envelope, 87 commands (82 from the current official app plus 5 firmware-only ones documented by NOOP), 58 events, 16 packet types, response bodies and record layouts. Every entry is tagged with where the fact comes from. |
 | **Byte-exact framing** | CRC16-Modbus header, CRC32 body, 4-byte padding, BLE fragment reassembly. Reproduces the strap's CLIENT_HELLO and history ACK byte for byte. |
-| **Metrics** (SpO₂, HRV, sleep, breathing, temperature, R26 HR) | `spo2_percent` from R18 byte 82 and `spo2_windows()` for one value per overnight measurement window; `rmssd_ms()` on R18 R-R; `sleep_periods()` (onset/offset, HR min/mean), `respiratory_rate()` from R-R (14.1 breaths/min on the captured night), `skin_temp_baseline()` (nightly mean/min/max, deviation), `hr_from_r26()` (1.48 bpm vs R18 on accepted bursts, asleep; §16). SpO₂, HRV, breathing, skin temperature, sleep onset and wake meet the bar fixed in advance against WHOOP on 12 nights ([status](#status-settled-did-not-hold-still-open)). In Python (`whoop5.experimental`, stdlib only), Swift and Kotlin (`Whoop5Experimental`); the three agree on the captured night to the last bit except trigonometry rounding in the last digit; see [§15](FINDINGS.md#15-experimental-metrics-sleep-periods-breathing-skin-temperature-r26-heart-rate-corpus-new). |
+| **Metrics** (SpO₂, HRV, sleep, breathing, temperature, R26 HR) | `spo2_percent` from R18 byte 82 and `spo2_windows()` for one value per overnight measurement window; `rmssd_ms()` on R18 R-R; `sleep_periods()` (onset/offset, HR min/mean), `respiratory_rate()` from R-R (14.1 breaths/min on the captured night), `skin_temp_baseline()` (nightly mean/min/max, deviation), `hr_from_r26()` (1.48 bpm vs R18 on accepted bursts, asleep; §16). SpO₂, HRV, breathing, skin temperature, sleep onset and wake meet the bar fixed in advance against WHOOP on 12 nights ([status](#status-settled-did-not-hold-still-open)). In Python (`whoop5.experimental`, stdlib only), Swift and Kotlin (`Whoop5Experimental`); the three agree on the captured night to the last bit except trigonometry rounding in the last digit; see [§15](FINDINGS.md#15-metrics-sleep-periods-breathing-skin-temperature-r26-heart-rate-corpus). |
 | **Record decoders** | Live HR + R-R (packet 40), R18 biometric summary, R20 optical blocks, R21 six-axis IMU, R22 v9 channels, R26 compact optical, R16/R17 MG ECG, IMU streams 51/52, events with payloads, console log text, history metadata. Unknown layouts are preserved raw, never dropped. |
 | **Sync support** | Field-exact `GET_DATA_RANGE` (page backlog and newest-page clock) and the `HISTORICAL_DATA_RESULT` ACK built from the verbatim HISTORY_END token. |
 | **Safety list** | The commands that can brick, wipe or lock a strap are flagged `destructive` in the schema and exposed in both languages. |
-| **Two languages, one truth** | Python (stdlib only) and a Swift package. Parity is enforced by golden vectors in CI, and both agree on 30,559 real 5/MG frames (190,883 field checks). |
+| **Three languages, one truth** | Python (stdlib only), a Swift package and a Kotlin/JVM library. Parity is enforced by golden vectors in CI for all three; Python and Swift also agree on 30,559 real 5/MG frames (190,883 field checks). |
 | **Tested on real data** | An opt-in regression runs every decoder over a 31,489-frame 5/MG corpus rebuilt from public sources (`re/`). |
-| **New research** | R-R is in **milliseconds**, not 1/1024 s ([§8](FINDINGS.md#8-r-r-intervals-are-in-milliseconds-corpus)); heart rate from raw R26 and R20 optical data ([§11](FINDINGS.md#11-r26-compact-optical-corpus-new), [§4](FINDINGS.md#4-r20-optical-the-pulse-channels-corpus-new)); the official app's sync cadence and feature-flag values ([§10](FINDINGS.md#10-what-the-official-app-sends-corpus-new)); overnight **SpO₂** decoded from R18 byte 82 ([§13](FINDINGS.md#13-spo-in-r18-byte-82-corpus-new--experimental)). |
+| **New research** | R-R is in **milliseconds**, not 1/1024 s ([§8](FINDINGS.md#8-r-r-intervals-are-in-milliseconds-corpus)); heart rate from raw R26 and R20 optical data ([§11](FINDINGS.md#11-r26-compact-optical-corpus), [§4](FINDINGS.md#4-r20-optical-the-pulse-channels-corpus)); the official app's sync cadence and feature-flag values ([§10](FINDINGS.md#10-what-the-official-app-sends-corpus)); overnight **SpO₂** decoded from R18 byte 82 ([§13](FINDINGS.md#13-spo-in-r18-byte-82-corpus)). |
 
 ## Repository layout
 
@@ -198,31 +223,6 @@ swift run whoop5-decode aa0108000001e67123019101363e5c8d
 **Changing the protocol:** edit `protocol/whoop5_protocol.json`, run `scripts/sync-schema.sh`,
 then run both test suites. CI fails if the copies drift.
 
-## Verification status
-
-Every fact carries one of these evidence levels (defined in the schema):
-
-| Level | Meaning |
-|---|---|
-| **corpus** | Verified in this repository on frames captured from real 5/MG straps. |
-| **apk** | Read from static analysis of the official Android app (5.473.0), facts only. |
-| **community** | Documented by NOOP, goose, OpenStrap or Johga; partly hardware-confirmed by them. |
-| **constructed** | An arithmetic or structural rule with no physical validation. |
-
-| Area | Level |
-|---|---|
-| Envelope, CRCs, padding, reassembly | corpus |
-| CLIENT_HELLO, HISTORY_END token, history ACK | corpus |
-| Command / event / packet-type numbers, destructive set, device families | apk |
-| GET_DATA_RANGE cursor fields and newest-page clock | corpus (589 replies, 21 sessions) + apk |
-| R18 heart rate, R-R (ms), steps, skin temperature, band state | corpus (20,274 records, one full night) + community |
-| R-R unit (R18, 0x2A37; packet 40 moderate) | corpus (beat-for-beat match + phone clock) |
-| R20 block layout and which channels carry the pulse | corpus |
-| R26 contiguity and heart rate | corpus (17 overnight bursts) |
-| R16/R17 MG ECG structure, event payloads, console text | corpus + community |
-| Feature-flag keys and the official app's values | corpus |
-| R21, R22, packets 51/52 | community |
-
 ## Status: settled, did not hold, still open
 
 The library is complete for framing, history sync and record structure. Beyond that, each item below is in one of three states.
@@ -236,7 +236,7 @@ otherwise; the last column names the scope still to cover. Item numbers stay sta
 | H1 | Full connect → bond → hello → sync session | Done on macOS with this library's framing | iOS and Android (below) |
 | H4 | HISTORY_END token, second word | The firmware calls it the wrap count; pages above the write head are one lower (§17) | Other firmware |
 | H5 | R21 accelerometer scale, 4096 LSB/g | 1.003 g over 71,019 still seconds (§18) | Gyro scale (below) |
-| H9 | Re-reading trimmed history | Works on firmware 50.43.2 (§17) | Other firmware and straps |
+| H9 | Re-reading trimmed history | An older `HISTORICAL_DATA_RESULT` during a transfer moves trim back; 4 spans re-read completely at about 120× realtime, trim restored, the official app syncs on ([§17](FINDINGS.md#17-re-reading-trimmed-history-an-older-acknowledgement-during-a-burst-moves-trim-back-own-strap), [guide](re/REREAD_HISTORY.md)) | Other firmware and straps |
 | D2 | SpO₂ from R18 byte 82 | Byte 82 is the strap's reading: 30 s windows every 20 min during sleep on 3 straps, and the firmware's console text (§13). Against WHOOP on 12 nights: 0.53 %, r = 0.80, and no other R18 byte tracks WHOOP better (§18) | More wearers |
 | D3 | Sleep onset and wake from R18 band state | Onset 13.9 min and wake 9.6 min median from WHOOP on 12 nights; the onset lag is a near-constant 14.1 min (§15, §18) | Sleep stages (below) |
 | D4 | Heart rate from R26, asleep | 1.48 bpm from R18 on the 391 of 1,145 bursts `hr_from_r26` accepts, against 6.24 for a shuffled control (§16, §18) | Awake did not hold (below) |
@@ -244,7 +244,7 @@ otherwise; the last column names the scope still to cover. Item numbers stay sta
 | D6 | Respiratory rate from R-R sinus arrhythmia | 0.16 per min from WHOOP, r = 0.77, on 12 nights (§15, §18) | More wearers |
 | D7 | Skin temperature, R18 `u16@73 / 100 °C` | Agrees across three sources; 0.08 °C from WHOOP, r = 0.93, on 11 nights (§18) | Firmware other than 50.37–50.43 |
 
-Settled earlier and listed under [Verification status](#verification-status): R-R in milliseconds (§8), the GET_DATA_RANGE
+Settled earlier and listed under [Evidence levels for the protocol](#evidence-levels-for-the-protocol): R-R in milliseconds (§8), the GET_DATA_RANGE
 newest-page clock (§3), and that WHOOP computes its scores on its servers (§3). The score model itself is Measured, out-of-sample
 and closer to WHOOP than NOOP on every score ([above](#what-noop-does-today-and-what-this-repository-adds)); it is short of the
 27-night bar for a score model.
@@ -288,6 +288,33 @@ and closer to WHOOP than NOOP on every score ([above](#what-noop-does-today-and-
 | Which debt factor applies, 1/2 or 9/14 | Shortfall and cap exact on every night; REM, stage shares, strain and earlier debt do not separate the two | More nights where the factor changes |
 | Stress from heart rate | Not attempted standalone; WHOOP's sleep stress is in the app only | Owner-logged stress minutes as labels |
 | The 27-night bar for a score model | 12–16 nights now, all out-of-sample | More nights |
+
+### Evidence levels for the protocol
+
+Every fact in the schema carries one of these levels:
+
+| Level | Meaning |
+|---|---|
+| **corpus** | Verified in this repository on frames captured from real 5/MG straps. |
+| **own strap** | Measured on the owner's strap against that owner's WHOOP values for the same nights. |
+| **apk** | Read from static analysis of the official Android app (5.473.0 and 5.475.0), facts only. |
+| **community** | Documented by NOOP, goose, OpenStrap or Johga; partly hardware-confirmed by them. |
+| **constructed** | An arithmetic or structural rule with no physical validation. |
+
+| Area | Level |
+|---|---|
+| Envelope, CRCs, padding, reassembly | corpus |
+| CLIENT_HELLO, HISTORY_END token, history ACK | corpus + own strap |
+| Command / event / packet-type numbers, destructive set, device families | apk |
+| GET_DATA_RANGE cursor fields and newest-page clock | corpus (589 replies, 21 sessions) + apk |
+| R18 heart rate, R-R (ms), steps, skin temperature, band state | corpus + own strap (0 undecodable in 1,967,128 frames) |
+| R-R unit (R18, 0x2A37; packet 40 moderate) | corpus (beat-for-beat match + phone clock) + own strap |
+| R20 block layout and which channels carry the pulse | corpus |
+| R26 contiguity and heart rate | corpus + own strap (391 of 1,145 bursts) |
+| R16/R17 MG ECG structure, event payloads, console text | corpus + community |
+| Feature-flag keys and the official app's values | corpus |
+| R21 accelerometer scale | own strap |
+| R21 gyro, R22, packets 51/52 | community |
 
 ## How it compares
 

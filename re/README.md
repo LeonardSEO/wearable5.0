@@ -16,13 +16,11 @@ demand into `re/corpus/` (gitignored); only scripts and results are committed.
 | `plot_headtohead.py` | Draw the README chart from `noop_compare.py --json` (aggregates only) | `docs/headtohead.svg` |
 | `score_formulas.py` | The score formulas in use: sleep need parts, sleep performance, recovery, day strain, zones; self-test on local data | importable; see [SCORE_MODELS.md](SCORE_MODELS.md) |
 | `export_diff.py` | What changed between two WHOOP exports: cycles added, removed or rescored | table on stdout |
-| `score_predictions.py` | Test the frozen candidate formulas in [SCORE_MODELS.md](SCORE_MODELS.md) on later cycles only | table on stdout |
 | `hrr_zones.py` | WHOOP's zones as heart rate reserve from raw HR, and which load fits strain | zone seconds and fits on stdout |
 | `whoop_api_fetch.py` | Save your own data from WHOOP's official developer API, read-only, untouched | JSON per run, outside git |
-| `api_checks.py` | Score every frozen candidate and rule against an API snapshot, and print the next night's debt | hits per rule on stdout |
+| `api_checks.py` | Check the sleep-need rules and the formulas in use against an API snapshot, and print the next night's debt | hits per rule on stdout |
 | `verify_findings.py` | Recompute every claim from the export and API, and fail if one no longer holds | pass or fail per claim, counts only |
-| `pipeline.sh` | One command: validate + score + strain over your data folder and WHOOP export (SpO2 standing on top) | combined report |
-| `score_model.py` | Reverse-engineer WHOOP's recovery/strain/sleep scores empirically from your own export (input/output pairs) | fit stats on stdout |
+| `pipeline.sh` | One command: every metric check against WHOOP's API values, the sleep-need rules, the claim recheck and the head-to-head with NOOP | combined report |
 | `validate_own_strap.py` | Every open claim checked on one owner's strap against the WHOOP export, or with `--api=<snapshot>` against WHOOP's official API for every night, with thresholds fixed in advance | `REPORT.md`, `report.json` in the data folder |
 | `pklg_extract.py` | Extract 5/MG frames from an iOS PacketLogger (.pklg) or Android btsnoop capture | frames JSONL with direction and ATT handle |
 | `analyze_rr_unit.py` | Is R-R in ms or 1/1024 s? (0x2A37 vs R18, phone clock) | `results/rr_unit.txt` — milliseconds |
@@ -74,7 +72,7 @@ SpO2 is the flagship claim and needs 5 paired nights (ours + WHOOP's own). Each 
 
 1. Wear the strap overnight; let the official WHOOP app sync, and export your data from the app.
 2. Re-read the same night(s) raw from the strap: `re/refetch.sh <WhoopProbe.app> <venv-site-packages> <out> "<start>" "<stop>" 2654:7` (see REREAD_HISTORY.md). The strap keeps ~3 weeks, so a batch of nights re-reads in one pass.
-3. Drop the export .zip in the data folder and run `re/pipeline.sh <data-folder> <export.zip>`.
+3. Save an API snapshot with `re/whoop_api_fetch.py` and run `re/pipeline.sh <data-folder> <api-snapshot> [export.zip]`.
 
 `validate_own_strap.py` flips SpO2 from WAITING to PASS/FAIL once 5 nights are paired; the same nights also accrue toward the ~20-cycle score fits.
 

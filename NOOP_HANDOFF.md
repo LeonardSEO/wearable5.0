@@ -53,6 +53,18 @@ this wearer; NOOP fills those slots from its own per-user baselines. The structu
 | 3 | Name commands 146, 147 and 155–159; mark 10 and 11 deprecated; add events 109 and 123 | `re/compare_noop.py`, same in app 5.473.0 and 5.475.0 | `Resources/whoop_protocol.json` | 155–159 in [#2828](https://github.com/ryanbr/noop/pull/2828) |
 | 4 | Add R26 heart rate from autocorrelation, with the acceptance filter | 1.48 bpm on 391 of 1145 bursts, 6.24 for a shuffled control. Asleep only. FINDINGS §16, §18 | new; NOOP has no R26 heart rate | none |
 
+## The WHOOP app and the raw data from the same night
+
+A strap gives each record to the first client that acknowledges it, then trims it, so a night WHOOP's app has synced is lost to every
+other client. The strap keeps trimmed pages on flash until the ring overwrites them, about 3 weeks at the normal rate.
+
+| # | Change in NOOP | Evidence | Where in NOOP |
+|---|---|---|---|
+| 8 | An opt-in "fetch nights the WHOOP app already took": start `SEND_HISTORICAL_DATA` (22), and after the first HISTORY_END send `HISTORICAL_DATA_RESULT` (23) with `01 + page u32 + wrap u32` of the older start page. Trim moves there and the strap serves from it. Acknowledge chunks as usual, then send 23 once more with the original trim and `ABORT_HISTORICAL_TRANSMITS` (20) | One strap, firmware 50.43.2.0: four spans of 6 to 8 hours re-read completely at about 120× realtime (a night in 3 to 4 minutes), trim restored each time, and WHOOP's app synced on normally. The firmware log confirms the page-plus-wrap format. `FORCE_TRIM` (25) is not needed. Find the start page with `SET_READ_POINTER` (33), which exposes each page's stored time ([§17](FINDINGS.md#17-re-reading-trimmed-history-an-older-acknowledgement-during-a-burst-moves-trim-back-own-strap), [guide](re/REREAD_HISTORY.md)) | the 5/MG history sync in `Strand/BLE/BLEManager.swift` |
+
+Costs seen: pairing another device takes the strap's bond from the phone; a run that does not restore trim makes the strap re-send
+those pages to WHOOP's app (WHOOP did not rescore the re-sent day). Whether WHOOP scores older pages it has never seen is untested.
+
 ## Metrics on 12 paired nights
 
 Our values from the strap against WHOOP's on the same nights, with the thresholds fixed in advance (`re/validate_own_strap.py`,

@@ -1,45 +1,44 @@
 #!/bin/sh
-# One command for the own-strap study: validate every claim, then fit the scores, over your data + WHOOP export.
+# One command for the own-strap study: every metric check, every rule and the head-to-head with NOOP, over your data.
 #
-# It does NOT touch the strap. Acquire data first (both are quick):
-#   1. Wear the strap for the night(s); let the official WHOOP app sync, and export your data from the app.
-#   2. Re-read the same night(s) raw from the strap with re/refetch.sh (re/REREAD_HISTORY.md), into the data folder.
-# Then drop the export .zip in the data folder and run this.
+# It does NOT touch the strap. Acquire data first:
+#   1. Wear the strap; let the official WHOOP app sync.
+#   2. Save WHOOP's values with re/whoop_api_fetch.py (an API snapshot folder).
+#   3. Re-read the same nights raw from the strap with re/refetch.sh (re/REREAD_HISTORY.md), into the data folder.
 #
-# Usage: re/pipeline.sh <data-folder> <whoop-export.zip>
-#   e.g. re/pipeline.sh whoop5-data/own_strap my_whoop_data_2026_11_05.zip
+# Usage: re/pipeline.sh <data-folder> <api-snapshot-folder> [whoop-export.zip]
+#   e.g. re/pipeline.sh whoop5-data/own_strap whoop5-data/own_strap/api/20261119-170740 my_whoop_data.zip
 set -eu
 DATA=$1
-EXPORT=$2
+API=$2
+EXPORT=${3:-}
 HERE=$(cd "$(dirname "$0")" && pwd)
 PY=${PY:-"$HERE/../../.venv/bin/python"}
 
 echo "============================================================"
-echo " 1. Claim board (decoder, R-R, R21, R26, and the night checks)"
+echo " 1. Claim board: decoder, R-R, R21, R26 and every night against WHOOP's API values"
 echo "============================================================"
-"$PY" -I "$HERE/validate_own_strap.py" "$DATA" | sed -n '1,/## Frame kinds/p' | sed '$d'
-echo
-echo "   SpO2 is the flagship: it needs 5 paired nights (ours + WHOOP). The row above shows how many are paired;"
-echo "   REPORT.md in the data folder has the per-night SpO2 table."
+"$PY" -I "$HERE/validate_own_strap.py" "$DATA" --api="$API" | sed -n '1,/## Frame kinds/p' | sed '$d'
 echo
 echo "============================================================"
-echo " 2. Recovery / sleep score fit (needs ~20 cycles of WHOOP history)"
+echo " 2. Sleep-need rules and the formulas in use (re/score_formulas.py)"
 echo "============================================================"
-"$PY" -I "$HERE/score_model.py" "$EXPORT"
+"$PY" -I "$HERE/api_checks.py" "$API"
+if [ -n "$EXPORT" ]; then
+  echo
+  echo "============================================================"
+  echo " 3. Every claim from the export and API, rechecked"
+  echo "============================================================"
+  "$PY" -I "$HERE/verify_findings.py" "$EXPORT" "$API" "$DATA"
+fi
 echo
 echo "============================================================"
-echo " 3. Day strain (HR zones -> TRIMP -> log fit, per WHOOP cycle)"
+echo " 4. Head-to-head with NOOP's own scorers (needs re/noop_scores built)"
 echo "============================================================"
-"$PY" -I "$HERE/strain_model.py" "$DATA" "$EXPORT" | sed -n '/cycle start/,$p'
+if [ -x "$HERE/noop_scores/.build/release/noop-scores" ]; then
+  "$PY" -I "$HERE/noop_compare.py" "$API" "$DATA"
+else
+  echo "   skipped: build re/noop_scores first (see re/noop_compare.py)"
+fi
 echo
-echo "============================================================"
-echo " 4. Formula search over every input combination, with holdout and shuffle checks"
-echo "============================================================"
-"$PY" -I "$HERE/score_search.py" "$EXPORT" --frames "$DATA"
-echo
-echo "============================================================"
-echo " 5. Frozen candidate formulas on later cycles (re/SCORE_MODELS.md)"
-echo "============================================================"
-"$PY" -I "$HERE/score_predictions.py" "$EXPORT" --frames "$DATA"
-echo
-echo "Done. Full SpO2 and metric detail: $DATA/REPORT.md and $DATA/report.json."
+echo "Done. Per-night detail (local only): $DATA/REPORT.md and $DATA/report.json."

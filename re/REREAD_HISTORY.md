@@ -56,7 +56,7 @@ Run through `open`, because the app is what macOS gives Bluetooth permission to:
 ```bash
 open -W --stdout run.log --stderr run.log --env PYTHONPATH="$PWD/.venv/lib/python3.14/site-packages" \
   ~/whoop-tools/WhoopProbe.app --args "$PWD/re/probe_read_pointer.py" fetch \
-  --span "2026-11-03 23:20" "2026-11-04 07:20" --restore 2654:7 --out my-data
+  --span "2026-01-10 23:00" "2026-01-11 07:00" --restore 2654:7 --out my-data
 ```
 
 `--restore PAGE:WRAP` belongs on the last span only. Take trim and wrap from the `range:` line of your first run
@@ -74,7 +74,7 @@ owner's real account, so go one night at a time. Save the current state first, w
 
 ```bash
 open -W --stdout run.log --stderr run.log --env PYTHONPATH="$PWD/.venv/lib/python3.14/site-packages" \
-  ~/whoop-tools/WhoopProbe.app --args "$PWD/re/probe_read_pointer.py" backfill --start "2026-10-31 22:00" --out my-data
+  ~/whoop-tools/WhoopProbe.app --args "$PWD/re/probe_read_pointer.py" backfill --start "2026-01-09 22:00" --out my-data
 ```
 
 That only reports the page. Add `--apply` to move trim, and `--undo PAGE:WRAP` to put it back before the app syncs.

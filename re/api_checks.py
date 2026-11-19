@@ -1,20 +1,20 @@
-"""Check the rules behind WHOOP's sleep need, sleep debt and exports against an API snapshot from re/whoop_api_fetch.py.
+"""Check WHOOP's sleep-need rules and the formulas in use against an API snapshot from re/whoop_api_fetch.py.
 
-  python re/api_checks.py <snapshot folder> [app stress csv]
+  python re/api_checks.py <snapshot folder>
 
-Times in the API are in milliseconds, so a rule that fits here has little room to be chance.
+Times in the API are in milliseconds, so a rule that fits here has little room to be chance. The formulas come from
+re/score_formulas.py; re/SCORE_MODELS.md records how they were found and what was ruled out.
 """
 from __future__ import annotations
 
-import csv
 import datetime as dt
 import json
-import math
 import os
 import sys
 
 MS_PER_MIN = 60000
-KJ_PER_KCAL = 4.184
+DEBT_CAP_MS = 7668000  # constant: hit on two different baselines
+DEBT_FACTORS = (1 / 2, 9 / 14)  # which one applies is open (re/SCORE_MODELS.md)
 
 
 def asleep_ms(stage: dict) -> int:
@@ -26,12 +26,9 @@ def need_ms(needed: dict) -> int:
             + needed["need_from_recent_nap_milli"])
 
 
-DEBT_CAP_MS = 7668000  # constant: hit on two different baselines
-
-
-def debt_after(need: int, asleep: int) -> int:
-    """Half the shortfall of the last main sleep in whole milliseconds, up to the cap; it replaces earlier debt."""
-    return min(DEBT_CAP_MS, max(0, need - asleep) // 2)
+def debt_after(need: int, asleep: int, factor: float = 1 / 2) -> int:
+    """A share of the last scored main sleep's shortfall, in whole milliseconds, up to the cap; it replaces earlier debt."""
+    return min(DEBT_CAP_MS, int(factor * max(0, need - asleep)))
 
 
 def check_sleep_chain(sleeps: list[dict]) -> list[str]:
@@ -44,14 +41,16 @@ def check_sleep_chain(sleeps: list[dict]) -> list[str]:
     prev_main, prev_nap, debt_hits, debt_cases, nap_hits, nap_cases = None, None, 0, 0, 0, 0
     misses = []
     for s in scored:
-        sc = s["score"]
-        needed = sc["sleep_needed"]
+        needed = s["score"]["sleep_needed"]
         if prev_main is not None:
-            expect = debt_after(need_ms(prev_main["score"]["sleep_needed"]), asleep_ms(prev_main["score"]["stage_summary"]))
+            options = [debt_after(need_ms(prev_main["score"]["sleep_needed"]), asleep_ms(prev_main["score"]["stage_summary"]), f)
+                       for f in DEBT_FACTORS]
+            got = needed["need_from_sleep_debt_milli"]
             debt_cases += 1
-            debt_hits += needed["need_from_sleep_debt_milli"] == expect
-            if needed["need_from_sleep_debt_milli"] != expect:
-                misses.append(f"debt expected {expect} got {needed['need_from_sleep_debt_milli']}")
+            if any(abs(got - o) <= 1 for o in options):  # halves round either way
+                debt_hits += 1
+            else:
+                misses.append(f"debt expected {' or '.join(map(str, options))} got {got}")
         if prev_nap is not None:
             nap_cases += 1
             nap_hits += -needed["need_from_recent_nap_milli"] == asleep_ms(prev_nap["score"]["stage_summary"])
@@ -59,129 +58,34 @@ def check_sleep_chain(sleeps: list[dict]) -> list[str]:
             prev_nap = s
         else:
             prev_main, prev_nap = s, None
-    lines.append(f"debt = half the shortfall of the last main sleep, capped: {debt_hits} of {debt_cases} exact")
+    lines.append(f"debt = 1/2 or 9/14 of the last scored main sleep's shortfall, capped: {debt_hits} of {debt_cases} within 1 ms")
     lines.append(f"nap credit = the nap's asleep time: {nap_hits} of {nap_cases} exact")
     lines.extend(misses)
     return lines
 
 
-def sp_m(sufficiency: float, efficiency: float, consistency: float | None, stress_share: float) -> float:
-    """Frozen candidate SP-M: sufficiency, efficiency, consistency and calm sleep, with consistency dropped when missing."""
-    has_consistency = bool(consistency)
-    total = 0.4 * sufficiency + 0.2 * efficiency + 0.2 * (100 - stress_share) + (0.2 * consistency if has_consistency else 0)
-    return total / (0.8 + (0.2 if has_consistency else 0))
-
-
-def stress_rows(sleeps: list[dict], stress_csv: str) -> list[dict]:
-    """SP-M on separate main sleeps with their own stress reading. Nap cycles have one combined reading, so they are out of scope here."""
-    rows = []
-    by_cycle = {}
-    for s in sleeps:
-        by_cycle.setdefault(s["cycle_id"], []).append(s)
-    with open(stress_csv, encoding="utf-8") as f:
-        readings = {r["sleep_cycle_start"]: r for r in csv.DictReader(f)}
-    for group in by_cycle.values():
-        if len(group) != 1 or group[0]["nap"]:
-            continue
-        s = group[0]
-        reading = readings.get(local_start(s))
-        if not reading:
-            continue
-        low, medium, high = (float(reading[k]) for k in ("low_min", "medium_min", "high_min"))
-        share = 100 * (medium + high) / (low + medium + high)
-        score = s["score"]
-        predicted = sp_m(100 * min(1, asleep_ms(score["stage_summary"]) / need_ms(score["sleep_needed"])), score["sleep_efficiency_percentage"],
-                         score["sleep_consistency_percentage"], share)
-        rows.append({"start": local_start(s), "predicted": predicted, "actual": score["sleep_performance_percentage"]})
-    return rows
-
-
-def local_start(s: dict) -> str:
-    moment = dt.datetime.fromisoformat(s["start"].replace("Z", "+00:00"))
-    sign = -1 if s["timezone_offset"].startswith("-") else 1
-    hours, minutes = s["timezone_offset"].lstrip("+-").split(":")
-    return (moment + sign * dt.timedelta(hours=int(hours), minutes=int(minutes))).strftime("%Y-%m-%d %H:%M:%S")
-
-
-ROUND2_FROM = "2026-11-06T00:00:00Z"  # sleeps starting after this did not shape the round-2 candidates
-B_START_BASELINE, BASELINE_STEP = 27834334, 284.5
-ROUND3_FROM = "2026-11-07T06:00:00Z"  # round-3 candidates were fitted on sleeps up to 7 Nov
-ROUND4_FROM = "2026-11-09T07:00:00Z"  # SP-U came from the round-4 search over sleeps up to 9 Nov
-ROUND5_FROM = "2026-11-11T15:00:00Z"  # BL-UTC2 refit after BL-UTC was 1 ms off on 11 Nov
-
-
-def round2(sleeps: list[dict], cycles: list[dict], stress_csv: str | None) -> list[dict]:
-    """Frozen round-2 candidates, evaluated on sleeps the candidates had not seen."""
-    readings = {}
-    if stress_csv:
-        with open(stress_csv, encoding="utf-8") as f:
-            readings = {r["sleep_cycle_start"]: r for r in csv.DictReader(f)}
-    ordered = sorted(sleeps, key=lambda s: s["start"])
-    out = []
-    for i, s in enumerate(ordered):
-        if s["start"] <= ROUND2_FROM or not s.get("score"):
-            continue
-        sc, needed = s["score"], s["score"]["sleep_needed"]
-        add = lambda model, predicted, actual, tolerance: out.append(
-            {"start": local_start(s), "model": model, "predicted": predicted, "actual": actual, "ok": abs(predicted - actual) <= tolerance})
-        main = next((p for p in reversed(ordered[:i]) if not p["nap"] and p.get("score")), None)
-        if main:
-            n, m, d = need_ms(main["score"]["sleep_needed"]), asleep_ms(main["score"]["stage_summary"]), main["score"]["sleep_needed"]["need_from_sleep_debt_milli"]
-            add("debt replace", max(0, (n - m) // 2), needed["need_from_sleep_debt_milli"], 0)
-            add("debt add", max(0, d + (n - m) // 2), needed["need_from_sleep_debt_milli"], 0)
-            add("debt d+(N-d-m)/2", max(0, d + (n - d - m) // 2), needed["need_from_sleep_debt_milli"], 0)
-        k = i - 1  # B is the second record
-        add("BL-L baseline", B_START_BASELINE - math.floor(BASELINE_STEP * k), needed["baseline_milli"], 0)
-        if s["start"] > ROUND3_FROM:
-            # BL-UTC: same slope, counted in UTC days of the sleep start since 2 Nov (exact on all five sleeps it was found on)
-            days = (dt.date.fromisoformat(s["start"][:10]) - dt.date(2026, 11, 2)).days
-            add("BL-UTC baseline", B_START_BASELINE - math.floor(BASELINE_STEP * days), needed["baseline_milli"], 1)
-            if s["start"] > ROUND5_FROM:  # middle of the slope interval 284.41668-284.43748 that rounds all 8 baselines exactly
-                add("BL-UTC2 baseline", round(B_START_BASELINE - 284.42708 * days), needed["baseline_milli"], 0)
-        before = [c for c in cycles if c.get("end") == s["start"] and c.get("score")]
-        if before:
-            st = before[0]["score"]["strain"]
-            actual = needed["need_from_recent_strain_milli"]
-            add("SN-PE", 25995.162137 * st ** 0.728090984 * math.exp(0.167421361 * st), actual, 0.01 * actual)
-            add("SN-Q", 18968.446118 * st ** 2 - 179627.389611 * st + 606847.675475, actual, 0.01 * actual)
-        u = 100 * min(1, asleep_ms(sc["stage_summary"]) / need_ms(needed))
-        add("SP-L", 53.8 + 0.412 * u, sc["sleep_performance_percentage"], 0.5)
-        if s["start"] > ROUND4_FROM:  # SP-U uses the uncapped ratio, unlike u above
-            ratio = asleep_ms(sc["stage_summary"]) / need_ms(needed)
-            add("SP-U", 96.502423 - 5.465709 * ratio ** -2.791345, sc["sleep_performance_percentage"], 0.5)
-        if s["start"] > "2026-11-14T12:00:00Z":
-            ratio = asleep_ms(sc["stage_summary"]) / need_ms(needed)
-            c = sc["sleep_consistency_percentage"] or 80
-            add("SP-C2 (marge 2)", 94.81929 - 4.67893 * ratio ** -2.88390 + 0.23588 * (c - 80), sc["sleep_performance_percentage"], 2)
-        reading = readings.get(local_start(s))
-        if reading and sc["sleep_consistency_percentage"]:
-            low, medium, high = (float(reading[x]) for x in ("low_min", "medium_min", "high_min"))
-            q = (sc["sleep_efficiency_percentage"] + sc["sleep_consistency_percentage"] + 100 - 100 * medium / (low + medium + high)) / 3
-            add("SP-M2", min(100, max(0, q + 0.5 + 0.375 * (u - q))), sc["sleep_performance_percentage"], 0.5)
-            if s["start"] > ROUND3_FROM:
-                h = 100 * medium / (low + medium + high)
-                add("SP-C", -45.758877 + 0.415875 * u + 1.155941 * sc["sleep_consistency_percentage"], sc["sleep_performance_percentage"], 0.5)
-                add("SP-MS", 64.583259 + 0.468086 * u - 1.481097 * h, sc["sleep_performance_percentage"], 0.5)
-        add("efficiency = asleep / in bed", 100 * asleep_ms(sc["stage_summary"]) / sc["stage_summary"]["total_in_bed_time_milli"],
-            sc["sleep_efficiency_percentage"], 0.001)
-    return out
-
-
-def frozen_on_api(sleeps: list[dict], recoveries: list[dict]) -> list[dict]:
-    """Recheck the frozen candidates on the API's exact inputs. These are the same nights, so this is not a test on new data."""
+def check_formulas(sleeps: list[dict], cycles: list[dict]) -> list[str]:
+    """The formulas in use (re/score_formulas.py) on every scored main sleep, against their practical tolerances."""
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-    from score_predictions import RECOVERY_MODELS, SLEEP_MODELS
-    rows = []
-    by_id = {s["id"]: s for s in sleeps}
-    for s in sleeps:
-        inputs = {"asleep": asleep_ms(s["score"]["stage_summary"]) / MS_PER_MIN, "need": need_ms(s["score"]["sleep_needed"]) / MS_PER_MIN}
-        for name, f in SLEEP_MODELS.items():
-            rows.append({"model": name, "predicted": f(inputs), "actual": s["score"]["sleep_performance_percentage"]})
-    for r in recoveries:
-        inputs = {"asleep": asleep_ms(by_id[r["sleep_id"]]["score"]["stage_summary"]) / MS_PER_MIN, "hrv": r["score"]["hrv_rmssd_milli"]}
-        for name, f in RECOVERY_MODELS.items():
-            rows.append({"model": name, "predicted": f(inputs), "actual": r["score"]["recovery_score"]})
-    return rows
+    from score_formulas import baseline_ms, sleep_performance, strain_need_ms
+    when = lambda t: dt.datetime.fromisoformat(t.replace("Z", "+00:00"))
+    base, strain, perf = [], [], []
+    mains = [s for s in sleeps if not s["nap"] and s.get("score")]
+    for i, s in enumerate(mains):
+        sc, needed = s["score"], s["score"]["sleep_needed"]
+        if i:  # the first night precedes the line: WHOOP's baseline settled after it
+            base.append(abs(baseline_ms(when(s["start"])) - needed["baseline_milli"]))
+        before = [c for c in cycles if c.get("end") and c.get("score")
+                  and abs((when(c["end"]) - when(s["start"])).total_seconds()) < 120]
+        if before and needed["need_from_recent_strain_milli"] > 0:
+            strain.append(abs(strain_need_ms(before[0]["score"]["strain"]) - needed["need_from_recent_strain_milli"]))
+        perf.append(abs(sleep_performance(asleep_ms(sc["stage_summary"]), need_ms(needed), sc["sleep_consistency_percentage"])
+                        - sc["sleep_performance_percentage"]))
+
+    def row(name, errs, tol, unit):
+        return f"{name}: {sum(e <= tol for e in errs)} of {len(errs)} within {tol:g}{unit}, largest {max(errs, default=0):.1f}{unit}"
+    return [row("baseline line", base, 5, " ms"), row("recent-strain need (SN-PE)", [e / 1000 for e in strain], 60, " s"),
+            row("sleep performance (SP-C2)", perf, 2, " points")]
 
 
 def main() -> None:
@@ -190,29 +94,12 @@ def main() -> None:
     sleeps = sorted(load("sleeps"), key=lambda r: r["start"])
     for line in check_sleep_chain(sleeps):
         print(line)
-    rows = frozen_on_api(sleeps, load("recoveries"))
-    print("\nfrozen candidates on the API's exact inputs (nights before 6 Nov shaped them; later nights test them):")
-    for model in sorted({r["model"] for r in rows}):
-        mine = [r for r in rows if r["model"] == model]
-        hits = sum(abs(r["predicted"] - r["actual"]) < 0.5 for r in mine)
-        print(f"  {model:8} {hits} of {len(mine)} within rounding; {[round(r['predicted'], 2) for r in mine]}")
-    if len(sys.argv) > 2:
-        print("\nSP-M with app stress hours:")
-        for r in stress_rows(sleeps, sys.argv[2]):
-            print(f"  predicted {r['predicted']:.2f}  WHOOP {r['actual']:.0f}  {'in rounding' if abs(r['predicted'] - r['actual']) < 0.5 else 'MISS'}")
-    rows2 = round2(sleeps, load("cycles"), sys.argv[2] if len(sys.argv) > 2 else None)
-    print("\nround-2 candidates on sleeps they had not seen:" + ("" if rows2 else " none yet"))
-    for r in rows2:
-        print(f"  {r['start']}  {r['model']:30} predicted {r['predicted']:.4f}  WHOOP {r['actual']}  {'PASS' if r['ok'] else 'MISS'}")
-    print("\nnext-debt prediction after the newest main sleep:")
+    print("\nformulas in use, on every scored night (the fit includes these nights; see re/noop_compare.py for out-of-sample):")
+    for line in check_formulas(sleeps, load("cycles")):
+        print(f"  {line}")
     last = [s for s in sleeps if not s["nap"] and s.get("score")][-1]["score"]
-    expect = debt_after(need_ms(last["sleep_needed"]), asleep_ms(last["stage_summary"]))
-    print(f"  {expect} ms = {expect / MS_PER_MIN:.2f} min")
-    print("\nefficiency against asleep / in bed:")
-    for s in sleeps:
-        stage = s["score"]["stage_summary"]
-        ratio = 100 * asleep_ms(stage) / stage["total_in_bed_time_milli"]
-        print(f"  reported {s['score']['sleep_efficiency_percentage']:.4f}  ratio {ratio:.4f}  difference {s['score']['sleep_efficiency_percentage'] - ratio:+.4f}")
+    need, asleep = need_ms(last["sleep_needed"]), asleep_ms(last["stage_summary"])
+    print("\nnext night's debt: " + " or ".join(f"{debt_after(need, asleep, f)} ms" for f in DEBT_FACTORS))
 
 
 if __name__ == "__main__":

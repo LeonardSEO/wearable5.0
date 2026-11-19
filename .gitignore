@@ -30,3 +30,7 @@ Package.resolved
 kotlin/build/
 kotlin/.gradle/
 .kotlin/
+
+# Instructions for AI coding agents: kept locally, not published
+AGENTS.md
+CLAUDE.md

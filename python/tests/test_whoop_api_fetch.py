@@ -107,7 +107,7 @@ class ApiChecks(unittest.TestCase):
     def test_debt_is_half_the_shortfall_held_across_a_nap_with_nap_credit(self):
         chain = [self.sleep(False, 300, (1001, 0, 0, 0)), self.sleep(True, 200, (900, 350, 5, 0)), self.sleep(False, 400, (900, 350, 5, -200))]
         lines = self.checks().check_sleep_chain(chain)
-        self.assertIn("debt = half the shortfall of the last main sleep, capped: 2 of 2 exact", lines)
+        self.assertIn("debt = 1/2 or 9/14 of the last scored main sleep's shortfall, capped: 2 of 2 within 1 ms", lines)
         self.assertIn("nap credit = the nap's asleep time: 1 of 1 exact", lines)
 
     def test_debt_stops_at_the_cap(self):
@@ -116,10 +116,15 @@ class ApiChecks(unittest.TestCase):
         self.assertEqual(checks.debt_after(10_000_000, 2_000_000), 4_000_000)
 
     def test_reports_a_debt_that_breaks_the_rule(self):
-        chain = [self.sleep(False, 300, (1000, 0, 0, 0)), self.sleep(False, 400, (900, 351, 0, 0))]
+        chain = [self.sleep(False, 300, (1000, 0, 0, 0)), self.sleep(False, 400, (900, 352, 0, 0))]
         lines = self.checks().check_sleep_chain(chain)
-        self.assertIn("debt = half the shortfall of the last main sleep, capped: 0 of 1 exact", lines)
-        self.assertTrue(any("expected 350 got 351" in line for line in lines))
+        self.assertIn("debt = 1/2 or 9/14 of the last scored main sleep's shortfall, capped: 0 of 1 within 1 ms", lines)
+        self.assertTrue(any("expected 350 or 450 got 352" in line for line in lines))
+
+    def test_the_nine_fourteenths_branch_counts_as_holding(self):
+        chain = [self.sleep(False, 300, (1000, 0, 0, 0)), self.sleep(False, 400, (900, 450, 0, 0))]
+        lines = self.checks().check_sleep_chain(chain)
+        self.assertIn("debt = 1/2 or 9/14 of the last scored main sleep's shortfall, capped: 1 of 1 within 1 ms", lines)
 
 
 class VerifyFindings(unittest.TestCase):
@@ -147,45 +152,6 @@ class VerifyFindings(unittest.TestCase):
 
     def test_a_claim_with_no_cases_does_not_count_as_holding(self):
         self.assertFalse(self.results(self.export_sleeps)["nap credit = the nap's asleep time"])
-
-
-class Round2(unittest.TestCase):
-    def test_only_sleeps_after_the_freeze_are_scored(self):
-        spec = importlib.util.spec_from_file_location("api_checks", os.path.join(os.path.dirname(__file__), "..", "..", "re", "api_checks.py"))
-        checks = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(checks)
-        old = ApiChecks.sleep(False, 60000 * 300, (60000 * 400, 0, 0, 0))
-        new = ApiChecks.sleep(False, 60000 * 300, (27834334, 3000000, 0, 0))  # second record: k = 0
-        for s, start in ((old, "2026-11-05T22:00:00Z"), (new, "2026-11-06T22:00:00Z")):
-            s.update({"start": start, "timezone_offset": "+01:00", "id": start})
-            s["score"].update({"sleep_performance_percentage": 80.0, "sleep_efficiency_percentage": 96.0, "sleep_consistency_percentage": 0})
-        rows = {r["model"]: r for r in checks.round2([old, new], [], None)}
-        self.assertTrue(rows["debt replace"]["ok"])
-        self.assertTrue(rows["BL-L baseline"]["ok"])
-        self.assertEqual({r["start"] for r in checks.round2([old, new], [], None)}, {"2026-11-06 23:00:00"})
-
-
-class FrozenOnApi(unittest.TestCase):
-    def test_sp_m_drops_consistency_when_missing(self):
-        spec = importlib.util.spec_from_file_location("api_checks", os.path.join(os.path.dirname(__file__), "..", "..", "re", "api_checks.py"))
-        checks = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(checks)
-        self.assertAlmostEqual(checks.sp_m(100, 100, None, 0), 100)
-        self.assertAlmostEqual(checks.sp_m(50, 90, 0, 10), (20 + 18 + 18) / 0.8)
-        self.assertAlmostEqual(checks.sp_m(50, 90, 80, 10), 20 + 18 + 18 + 16)
-
-    def test_uses_exact_inputs_and_links_recovery_to_its_own_sleep(self):
-        spec = importlib.util.spec_from_file_location("api_checks", os.path.join(os.path.dirname(__file__), "..", "..", "re", "api_checks.py"))
-        checks = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(checks)
-        sleep = ApiChecks.sleep(False, 60000 * 400, (60000 * 400, 0, 0, 0))
-        sleep["id"] = "s1"
-        sleep["score"]["sleep_performance_percentage"] = 93.0
-        rows = checks.frozen_on_api([sleep], [{"sleep_id": "s1", "score": {"hrv_rmssd_milli": 40.0, "recovery_score": 40.0}}])
-        by_model = {r["model"]: r for r in rows}
-        self.assertAlmostEqual(by_model["R-SLEEP"]["predicted"], 0.13 * 400 - 11.17)
-        self.assertAlmostEqual(by_model["R-HRV"]["predicted"], 119.5 - 2.25 * 40)
-        self.assertEqual(by_model["SP-Q"]["actual"], 93.0)
 
 
 if __name__ == "__main__":
