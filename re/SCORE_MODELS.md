@@ -5,7 +5,7 @@ way. Code: `re/score_formulas.py`. Head-to-head with NOOP: `re/noop_compare.py`.
 
 ## Formulas in use
 
-Code: `re/score_formulas.py`. Verdicts follow FINDINGS: these are **Measured** on one wearer, 12 to 16 nights, short of the 27-night
+Code: `re/score_formulas.py`. Verdicts follow FINDINGS: these are **Measured** on one wearer, 18 to 22 nights, short of the 27-night
 bar for a score model. Every count below is out-of-sample (leave-one-out with the constants refitted per fold, a rule frozen before
 the data, or a prediction registered before the night and scored after it), except the baseline and recent-strain rows, whose
 constants were fitted on these nights; their errors are milliseconds and seconds, and the need's minutes come from the debt chain. Personal constants belong to this wearer; a client
@@ -13,29 +13,30 @@ fills those slots from its own baselines. The structure and the other constants 
 
 | Score | Formula | Out-of-sample result |
 |---|---|---|
-| Sleep need | baseline + debt + recent-strain need − nap asleep | 6.9 min mean against WHOOP's total, chained from its own previous need (13 nights) |
-| — baseline | 27834333.7 − 284.3152 k ms, k = UTC days of the onset (personal) | within 4.7 ms on 15 nights, mean 0.9 ms |
+| Sleep need | baseline + debt + recent-strain need − nap asleep | 8.9 min mean against WHOOP's total, chained from its own previous need (19 nights) |
+| — baseline | 27834331.1 − 283.8850 k ms, k = UTC days of the onset (personal; refit 25 Nov) | within 2.8 ms on 21 nights, leave-one-out within 3.4 ms. The previous night's value minus 283 or 284 per UTC day is within 1 ms |
 | — debt | min(7668000, f (need − asleep)) of the last scored main sleep, f = 1/2 or 9/14 | shortfall and cap exact on 16 of 16; which f applies is open |
 | — recent-strain need (SN-PE) | 25995.162137 s^0.728090984 e^(0.167421361 s), s = day strain of the cycle ending at onset | within 16.2 s on 15 nights; 5 of 5 registered nights within 60 s |
 | — nap credit | − the nap's asleep time | exact |
 | Sleep performance (SP-C2) | 94.81929 − 4.67893 x^−2.88390 + 0.23588 (consistency − 80), x = asleep / need, consistency 0 counts as 80 | leave-one-out 15 of 16 within 2 points, mean 1.25; the miss is the one night with long high stress. 4 of 4 registered nights within 2 |
-| Recovery (REC-RHR) | 100 (HRV/B)^1.066 exp(0.07735 (SP − S̄)/10 − 0.08547 high-stress min/60 − 0.05156 (RHR − 59.08)), B = exp((5.0265 ln 103.2555 + Σ ln HRV) / (5.0265 + n)) over earlier nights, S̄ their mean SP; the HRV prior and the RHR reference are personal | without stress input, leave-one-out 8 of 12 within 3 points, mean 4.1; refitting all six constants per fold 5 of 12, mean 5.8. 1 of 1 registered night within 3 |
+| Recovery (REC-L) | 100 / (1 + e^−z), z = 1.57883 + 2.45494 ln(HRV/B) + 0.20044 (SP − S̄)/10 − 0.11481 (RHR − 60), B = exp((5.0265 ln 103.2555 + Σ ln HRV) / (5.0265 + n)) over earlier nights, S̄ their mean SP; the HRV prior and the resting-HR reference of 60 are personal | leave-one-out 10 of 18 within 3 points, mean 4.25; refitting all six constants per fold 7 of 18, mean 4.96. The logistic form was chosen on 25 Nov after the multiplicative form missed high on three nights, so these counts are out-of-sample for its constants, not its form; the clean test starts with the night of 25→26 Nov |
 | Day strain (DS-E) | 0.78115 L^0.40855, L = Σ over minutes with mean HR ≥ 94 of e^(0.065 (HR − 100)), strap HR | nested leave-one-out 8 of 9 cycles without skiing or weightlifting within 0.3, mean 0.13; all 11 cycles mean 0.73. Muscular days read 1.3 to 1.8 low |
 | Workout zones (ZR-1) | 40/60/70/80/90 % of heart-rate reserve, resting HR 58 (personal), WHOOP's maximum HR | 99.2 % of seconds in WHOOP's zone on the 2 workouts it was chosen on; 96.2 to 99.3 % on the 3 later ones. The frozen bar of 99 % per new workout holds on 1 of 3 |
 
 Leads, not yet confirmed on new nights: the strap's resting HR reads 4.6 bpm below WHOOP's (SD 1.5, 12 nights; 1.2 bpm error after
 the offset); the band-state sleep onset lags WHOOP's by 14.1 min (SD 1.5).
 
-## Registered before the night, scored after
+## Frozen before the night, scored after
 
 | Model | Nights within tolerance |
 |---|---|
-| Debt shortfall | exact on every registered night; the 1/2 factor was wrong on the nights that took 9/14 |
-| Baseline | within 5 ms on every registered night |
-| SN-PE | 5 of 5 within 60 s |
-| SP-C2 | 4 of 4 within 2 points |
-| REC-PS (no RHR term) | 0 of 4 within 3; replaced by REC-RHR |
-| REC-RHR | 1 of 1 within 3 |
+| Debt | 1/2 or 9/14 of the shortfall, within 1 ms, on every night; which factor applies stays open (both occur after high- and low-REM nights) |
+| Baseline | the previous night's value minus 283 or 284 per UTC day: within 1 ms on every night. The fitted line drifts to 7–9 ms on the latest nights |
+| SN-PE | 11 of 11 within 60 s |
+| SP-C2 | 8 of 9 within 2 points; the miss (+6.8) is a night with consistency 67 |
+| REC-PS (no RHR term) | 0 of 4 within 3; retired 17 Nov |
+| REC-RHR (multiplicative, with RHR) | 4 of 7 within 3; the three misses all ran high (+3.7, +7.0, +14.3) as HRV rose; retired 25 Nov |
+| REC-L | frozen 25 Nov; scored from the night of 25→26 Nov |
 
 ## Head-to-head with NOOP
 
@@ -46,9 +47,9 @@ model; both start from zero debt and leave out the first 3 nights. NOOP's Effort
 
 | Score | NOOP, mean off WHOOP | This repository, mean off WHOOP | Same |
 |---|---|---|---|
-| Recovery | Charge with its own Rest: 11.9 (3 within 3). With WHOOP's sleep performance: 14.4 (0 within 3) | REC-RHR: 4.1 (8 within 3). All constants refitted per fold: 5.8 | 12 nights |
-| Sleep performance | Rest: 10.1 (1 within 2) | SP-C2 on its own need: 1.5 (9 within 2) | 13 nights |
-| Sleep need | 17.0 min (7 within 15 min) | 6.9 min (10 within 15 min) | 13 nights |
+| Recovery | Charge with its own Rest: 11.7 (3 within 3). With WHOOP's sleep performance: 14.3 (0 within 3) | REC-L: 4.25 (10 within 3). All constants refitted per fold: 4.96 | 18 nights |
+| Sleep performance | Rest: 10.5 (1 within 2) | SP-C2 on its own need: 1.83 (11 within 2) | 19 nights |
+| Sleep need | 14.1 min (13 within 15 min) | 8.9 min (12 within 15 min) | 19 nights |
 | Day strain | Effort: 2.46 (0 within 0.3) | DS-E: 0.73 | 11 cycles |
 | Day strain without skiing or weightlifting | Effort: 2.30 (0 within 0.3) | DS-E: 0.13 (8 within 0.3) | 9 cycles |
 | Workout zones, time in a different zone than WHOOP | %HRmax 50/60/70/80/90: 54 % | ZR-1: 2.5 % | 3 workouts after ZR-1 was frozen |

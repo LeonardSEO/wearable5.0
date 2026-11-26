@@ -49,7 +49,7 @@ exist but the bar fixed in advance (`CRITERIA` in `re/validate_own_strap.py`, 5 
 | **Resting heart rate** | Failed | 4.6 bpm too low, r = 0.76, 12 nights, bar is 3. Nearly all of it is a constant offset: 1.2 bpm after the shift (lead), §18 | own strap |
 | **WHOOP's heart-rate zones: 40/60/70/80/90 % of heart rate reserve** | Measured | 99.2 % of seconds on the 2 workouts the rule was chosen on; 96.2–99.3 % on 3 later workouts, so the frozen 99 % bar holds on 1 of 3. NOOP's zones misplace 54 % of the same time, §18 | own strap + official API |
 | **Sleep need, sleep debt and nap credit rules** | Measured | shortfall, cap and nap credit exact on 16 of 16 nights; debt is 1/2 or 9/14 of the shortfall and which one applies is open, §18 | official API |
-| **WHOOP's recovery, strain and sleep performance formulas** | Measured | out-of-sample: recovery 4.1 and sleep performance 1.5 points from WHOOP, day strain 0.73, on 11–16 nights; NOOP 11.9, 10.1 and 2.46 on the same nights, §18 | own strap + official API |
+| **WHOOP's recovery, strain and sleep performance formulas** | Measured | out-of-sample: recovery 4.3 and sleep performance 1.8 points from WHOOP, day strain 0.73, on 11–22 nights; NOOP 11.7, 10.5 and 2.46 on the same nights, §18 | own strap + official API |
 | Sleep stages | Open | not attempted; the export holds per-stage minutes | |
 | R21 gyro scale, R22 v9 channels, R26 sample units | Open | README D9, H5 | |
 
@@ -470,26 +470,27 @@ WHOOP's naps are left out. `python re/validate_own_strap.py <strap data> --api=<
 ### Score formulas and NOOP on the same nights
 
 The rules and constants are in [re/SCORE_MODELS.md](re/SCORE_MODELS.md) ("Formulas in use") and `re/score_formulas.py`. Every count here is
-out-of-sample: leave-one-out with the constants refitted per fold, or a rule frozen before the data. The exception is sleep need: its baseline and recent-strain constants were fitted on these nights, but they account for at most seconds of its error (baseline within 5 ms, strain need within 16 s); its minutes come from the debt chain. One wearer, 12 to 16 nights, so these
+out-of-sample: leave-one-out with the constants refitted per fold, or a rule frozen before the data. The exception is sleep need: its baseline and recent-strain constants were fitted on these nights, but they account for at most seconds of its error (baseline within 3 ms, strain need within 17 s); its minutes come from the debt chain. One wearer, 18 to 22 nights, so these
 are Measured, short of the 27-night bar for a score model.
 
-- **Sleep performance** (SP-C2, a power of asleep/need plus consistency): leave-one-out 15 of 16 nights within 2 points, mean 1.25.
-  The miss is the one night with long high stress. 4 of 4 nights registered in advance landed within 2.
-- **Recovery** (REC-RHR: HRV against a shrunken own baseline, sleep against its own mean, resting HR): 8 of 12 nights within 3, mean
-  4.1, without any stress input. With all six constants refitted per fold, mean 5.8. An earlier form without resting HR came out 16 to
-  21 too high on four registered nights in a row.
+- **Sleep performance** (SP-C2, a power of asleep/need plus consistency): leave-one-out 17 of 22 nights within 2 points, mean 1.54.
+  8 of 9 nights scored after the formula was frozen landed within 2.
+- **Recovery** (REC-L: a logistic over HRV against a shrunken own baseline, sleep against its own mean, and resting HR): 10 of 18
+  nights within 3, mean 4.25, without any stress input; with all six constants refitted per fold, mean 4.96. Two earlier forms ran
+  high on unseen nights: without resting HR by 16 to 21 points, and with it, but multiplicative, by up to 14 as HRV rose. The
+  logistic flattens the top; it was chosen after those misses and is frozen from 25 Nov.
 - **Day strain** (DS-E, a power of exponentially weighted minutes above 94 bpm): nested leave-one-out 8 of 9 cycles without skiing or
   weightlifting within 0.3, mean 0.13; on all 11 cycles mean 0.73. Muscular days read low.
-- **Sleep need**, chained from its own previous value: 6.9 min mean from WHOOP's total on 13 nights.
+- **Sleep need**, chained from its own previous value: 8.9 min mean from WHOOP's total on 19 nights.
 
 `re/noop_compare.py` runs NOOP's own scorers (`main` at `2a1de760`) on the same nights. NOOP gets what its app uses, plus WHOOP's
 consistency and maximum HR where it needs them. Each side uses its own sleep-need model.
 
 | Score | NOOP, mean from WHOOP | This repository |
 |---|---:|---:|
-| Recovery, 12 nights | 11.9 (Charge with its own Rest); 14.4 with WHOOP's sleep performance | 4.1 |
-| Sleep performance, 13 nights | 10.1 (Rest) | 1.5 |
-| Sleep need, 13 nights | 17.0 min | 6.9 min |
+| Recovery, 18 nights | 11.7 (Charge with its own Rest); 14.3 with WHOOP's sleep performance | 4.3 |
+| Sleep performance, 19 nights | 10.5 (Rest) | 1.8 |
+| Sleep need, 19 nights | 14.1 min | 8.9 min |
 | Day strain, 11 cycles | 2.46 (Effort × 21/100) | 0.73 |
 | Day strain, 9 cycles without skiing or weightlifting | 2.30 | 0.13 |
 | Workout zones, 3 workouts after the rule was frozen | 54 % of the time in another zone | 2.5 % |

@@ -8,13 +8,13 @@ the evidence, and where it goes. NOOP's rules apply to all of it: facts only, no
 
 NOOP's own scorers and this repository's formulas, run on the same nights, cycles and workouts of one WHOOP 5.0 and scored against
 WHOOP's values for them. NOOP's code is called unchanged through `re/noop_scores`. Every number of ours is out-of-sample: leave-one-out
-with the constants refitted per fold, or a rule frozen before the data. The exception is sleep need: its baseline and recent-strain constants were fitted on these nights, but they account for at most seconds of its error (baseline within 5 ms, strain need within 16 s); its minutes come from the debt chain.
+with the constants refitted per fold, or a rule frozen before the data. The exception is sleep need: its baseline and recent-strain constants were fitted on these nights, but they account for at most seconds of its error (baseline within 3 ms, strain need within 17 s); its minutes come from the debt chain.
 
 | Score | NOOP, mean off WHOOP | This repository, mean off WHOOP | Same |
 |---|---|---|---|
-| Recovery | Charge: **11.9** points (3 of 12 within 3) | **4.1** (8 of 12 within 3); 5.8 with every constant refitted per fold | 12 nights |
-| Sleep performance | Rest: **10.1** points (1 of 13 within 2) | **1.5** (9 of 13 within 2) | 13 nights |
-| Sleep need | **17.0** min (7 of 13 within 15 min) | **6.9** min (10 of 13 within 15 min) | 13 nights |
+| Recovery | Charge: **11.7** points (3 of 18 within 3) | **4.3** (10 of 18 within 3); 5.0 with every constant refitted per fold | 18 nights |
+| Sleep performance | Rest: **10.5** points (1 of 19 within 2) | **1.8** (11 of 19 within 2) | 19 nights |
+| Sleep need | **14.1** min (13 of 19 within 15 min) | **8.9** min (12 of 19 within 15 min) | 19 nights |
 | Day strain | Effort: **2.46** (0 of 11 within 0.3) | **0.73**; **0.13** on the 9 cycles without skiing or weightlifting (8 within 0.3) | 11 cycles |
 | Workout zones | **54 %** of workout time in a different zone than WHOOP | **2.5 %** | 3 workouts |
 
@@ -24,12 +24,12 @@ How it was run, so it can be checked:
   upstream NOOP checkout (instructions in the script).
 - NOOP gets what its app uses: HRV, resting HR, respiration and skin temperature per night, sleep totals for Rest, and per-second
   strap heart rate. Where it gets WHOOP's own value instead (sleep consistency, maximum HR), that favours NOOP. With WHOOP's sleep
-  performance in place of Rest, Charge is 14.4 off.
+  performance in place of Rest, Charge is 14.3 off.
 - Each side uses its own sleep-need model. Both start from zero debt, skip days without a sleep record, get the same naps, and leave
   out the first 3 nights.
 - Effort is on NOOP's 0–100 scale and is multiplied by 21/100 here.
-- The WHOOP side comes from the owner's own data through WHOOP's official developer API, read-only. Scope: one wearer, 12 to 16
-  nights, 11 cycles, 5 workouts.
+- The WHOOP side comes from the owner's own data through WHOOP's official developer API, read-only. Scope: one wearer, 18 to 22
+  nights, 11 cycles, 5 workouts; strain and zones stop where the strap data does (14 Nov).
 
 ## Score changes NOOP can make
 
@@ -39,9 +39,9 @@ this wearer; NOOP fills those slots from its own per-user baselines. The structu
 | # | Change in NOOP | Evidence | Where in NOOP |
 |---|---|---|---|
 | S1 | Zones on heart-rate reserve: 40/60/70/80/90 % of (max HR − resting HR) above resting HR, with time below 40 % as zone 0 | 2.5 % of workout time misplaced against NOOP's 54 % on 3 workouts the rule had not seen; 96.2–99.3 % of seconds in WHOOP's zone per workout | `HRZones.swift` (`zoneEdges` are % of max HR from 50 %) |
-| S2 | Sleep need = baseline + debt + recent-strain need − nap asleep. Debt = min(7668000 ms, f × (need − asleep)) of the last scored main sleep, f = 1/2 or 9/14; a nap or a day without a sleep record leaves it unchanged. Recent-strain need = 25995.16 s^0.72809 e^(0.16742 s) ms for day strain s. Baseline is personal | 6.9 min off WHOOP's total against 17.0. Shortfall, cap and nap credit exact on every night (`re/verify_findings.py`); which factor applies is open | `SleepDebt.swift` (fixed 8 h, 55 % carry), `Rest.personalizedNeedHours` |
-| S3 | Sleep performance = 94.82 − 4.679 x^−2.884 + 0.2359 (consistency − 80), x = asleep / need | 1.5 points off against Rest's 10.1; leave-one-out on WHOOP's own need 15 of 16 nights within 2 | `AnalyticsEngine.Rest.composite` |
-| S4 | Recovery = 100 (HRV / B)^1.066 × exp(0.0774 (SP − mean SP)/10 − 0.0516 (RHR − RHR ref)), B a shrunken running mean of ln HRV. The HRV prior and the RHR reference are personal | 4.1 points off against Charge's 11.9; 5.8 even with all constants refitted per fold | `RecoveryScorer.recovery` |
+| S2 | Sleep need = baseline + debt + recent-strain need − nap asleep. Debt = min(7668000 ms, f × (need − asleep)) of the last scored main sleep, f = 1/2 or 9/14; a nap or a day without a sleep record leaves it unchanged. Recent-strain need = 25995.16 s^0.72809 e^(0.16742 s) ms for day strain s. Baseline is personal | 8.9 min off WHOOP's total against 14.1. Shortfall, cap and nap credit exact on every night (`re/verify_findings.py`); which factor applies is open | `SleepDebt.swift` (fixed 8 h, 55 % carry), `Rest.personalizedNeedHours` |
+| S3 | Sleep performance = 94.82 − 4.679 x^−2.884 + 0.2359 (consistency − 80), x = asleep / need | 1.8 points off against Rest's 10.5; leave-one-out on WHOOP's own need 17 of 22 nights within 2 | `AnalyticsEngine.Rest.composite` |
+| S4 | Recovery = 100 / (1 + e^−z), z = 1.579 + 2.455 ln(HRV / B) + 0.200 (SP − mean SP)/10 − 0.115 (RHR − 60), B a shrunken running mean of ln HRV. The HRV prior and the resting-HR reference of 60 are personal | 4.3 points off against Charge's 11.7; 5.0 even with all constants refitted per fold | `RecoveryScorer.recovery` |
 | S5 | Day strain = 0.781 L^0.4086, L = Σ over minutes with mean HR ≥ 94 of e^(0.065 (HR − 100)) | 0.73 off against Effort's 2.46; 0.13 against 2.30 on cardio days. Skiing and weightlifting days read 1.3–1.8 low | `StrainScorer.strain` |
 
 ## Protocol: ready now

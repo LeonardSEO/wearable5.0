@@ -187,13 +187,13 @@ def main() -> None:
     res["sp_ours"] = summary("ours SP-C2 on our own need, leave-one-out", sp_loo(own)(scored), 2)
     res["sp_ours_whoop_need"] = summary("ours SP-C2 on WHOOP's need, leave-one-out, every night", sp_loo(whoops)(range(len(mains))), 2)
 
-    # recovery: REC-RHR without stress input, sleep score from our own need (frozen SP-C2)
+    # recovery: REC-L without stress input, sleep score from our own need (frozen SP-C2)
     rows = [(s, rec[s["id"]]) for s in mains if s["id"] in rec]
     own_sp = {s["id"]: sleep_performance(asleep(s), need[i], cons[i]) for i, s in enumerate(mains)}
     y = np.array([r["recovery_score"] for _, r in rows])
 
     def rec_pred(p, free):
-        a_, b_, d_, r0 = p[:4]
+        c_, a_, b_, d_ = p[:4]
         m0, w = (abs(p[4]), abs(p[5])) if free else (HRV_PRIOR, HRV_PRIOR_WEIGHT)
         out_ = []
         for i, (s, r) in enumerate(rows):
@@ -201,12 +201,12 @@ def main() -> None:
             sps = [own_sp[x["id"]] for x, _ in rows[:i]]
             base = math.exp((w * math.log(m0) + sum(map(math.log, h))) / (w + len(h)))
             ref = sum(sps) / len(sps) if sps else own_sp[s["id"]]
-            z = a_ * math.log(r["hrv_rmssd_milli"] / base) + b_ * (own_sp[s["id"]] - ref) / 10 - d_ * (r["resting_heart_rate"] - r0)
-            out_.append(min(100, max(0, 100 * math.exp(min(z, 5)))))
+            z = c_ + a_ * math.log(r["hrv_rmssd_milli"] / base) + b_ * (own_sp[s["id"]] - ref) / 10 - d_ * (r["resting_heart_rate"] - 60)
+            out_.append(100 / (1 + math.exp(-max(min(z, 30), -30))))  # REC-L, re/score_formulas.py
         return np.array(out_)
 
     def rec_loo(free):
-        x0 = [1.07, 0.08, 0.05, 59] + ([103.0, 5.0] if free else [])
+        x0 = [1.6, 2.5, 0.2, 0.11] + ([103.0, 5.0] if free else [])
         fit = lambda keep: least_squares(lambda p: (rec_pred(p, free) - y)[keep], x0, max_nfev=20000).x
         return [(rec_pred(fit([j for j in range(len(rows)) if j != i]), free)[i], y[i]) for i in range(FIRST_RECOVERY, len(rows))]
 
@@ -217,8 +217,8 @@ def main() -> None:
                                        [(out["chargeOwnRest"][i], whoop_rec[mains[i]["id"]]) for i in idx_rec if out["chargeOwnRest"][i] is not None], 3)
     res["rec_noop_whoop_sp"] = summary("NOOP Charge with WHOOP's sleep performance",
                                        [(out["charge"][i], whoop_rec[mains[i]["id"]]) for i in idx_rec if out["charge"][i] is not None], 3)
-    res["rec_ours"] = summary("ours REC-RHR, leave-one-out, 4 weights refitted per fold", rec_loo(False), 3)
-    res["rec_ours_strict"] = summary("ours REC-RHR, leave-one-out, all 6 constants refitted", rec_loo(True), 3)
+    res["rec_ours"] = summary("ours REC-L, leave-one-out, 4 constants refitted per fold", rec_loo(False), 3)
+    res["rec_ours_strict"] = summary("ours REC-L, leave-one-out, all 6 constants refitted", rec_loo(True), 3)
 
     # day strain: DS-E nested leave-one-out (threshold chosen inside each fold)
     def ds(p, mins, t):

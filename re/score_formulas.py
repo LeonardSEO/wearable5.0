@@ -13,8 +13,8 @@ REM_SWITCH_MS = 6_800_000  # frozen choice between 1/2 and 9/14; falsified on lo
 
 
 def baseline_ms(sleep_start_utc: dt.datetime) -> float:
-    """Within about 1 ms: falls 284.3 ms per UTC calendar day of the sleep start."""
-    return 27834333.7 - 284.3152 * (sleep_start_utc.date() - dt.date(2026, 11, 2)).days
+    """Personal line, refit 25 Nov on 21 nights: falls 283.9 ms per UTC calendar day of the sleep start; at most 2.8 ms off."""
+    return 27834331.1 - 283.8850 * (sleep_start_utc.date() - dt.date(2026, 11, 2)).days
 
 
 def debt_ms(need: int, asleep: int, rem: int) -> int:
@@ -49,18 +49,17 @@ def zone_seconds(second_hr: list[int], rest: int = 57, hr_max: int = 189) -> lis
     return z
 
 
-def recovery_lead(history: list[tuple[float, float]], hrv: float, sleep_perf: float, rhr: float,
-                  high_stress_min: float = 0) -> float:
-    """Lead only (REC-RHR, refit 17 Nov): HRV against a baseline that starts near a population value and shrinks to the
-    own mean, times sleep, stress and resting-HR terms. history = (hrv, sleep_performance) of every earlier night,
-    calibrating nights included. rhr is on WHOOP's scale: the strap's resting HR reads about 4.6 bpm lower, so add 4.6.
-    The RHR weight was learned from the four high-RHR nights only."""
+def recovery_lead(history: list[tuple[float, float]], hrv: float, sleep_perf: float, rhr: float) -> float:
+    """REC-L (refit and frozen 25 Nov): a logistic over HRV against a baseline that starts near a population value and shrinks
+    to the own mean, sleep against its own running mean, and resting HR. The logistic flattens the top, where the earlier
+    multiplicative form ran high as HRV rose. history = (hrv, sleep_performance) of every earlier night, calibrating nights
+    included. rhr is on WHOOP's scale: the strap's resting HR reads about 4.6 bpm lower, so add 4.6. Personal: the HRV prior
+    (103.26, weight 5.03) and the resting-HR reference of 60 folded into the intercept."""
     n = len(history)
     base = math.exp((5.0265 * math.log(103.2555) + sum(math.log(h) for h, _ in history)) / (5.0265 + n))
     s_ref = sum(s for _, s in history) / n if n else sleep_perf
-    z = (1.066 * math.log(hrv / base) + 0.07735 * (sleep_perf - s_ref) / 10 - 0.08547 * high_stress_min / 60
-         - 0.05156 * (rhr - 59.08321))
-    return min(100.0, max(0.0, 100 * math.exp(z)))
+    z = 1.57883 + 2.45494 * math.log(hrv / base) + 0.20044 * (sleep_perf - s_ref) / 10 - 0.11481 * (rhr - 60)
+    return 100 / (1 + math.exp(-z))
 
 
 def _self_test(folder: str) -> None:
@@ -70,7 +69,7 @@ def _self_test(folder: str) -> None:
         need = v["baseline"] + v["debt"] + v["strain_need"] + v["nap_need"]
         asleep = v["light"] + v["deep"] + v["rem"]
         assert abs(sleep_performance(asleep, need, v["consistency"]) - v["performance"]) <= 2, r["start_utc"]
-        assert abs(baseline_ms(dt.datetime.fromisoformat(r["start_utc"])) - v["baseline"]) <= 1.5, r["start_utc"]
+        assert abs(baseline_ms(dt.datetime.fromisoformat(r["start_utc"])) - v["baseline"]) <= 3, r["start_utc"]
     hr = {r["minute_utc"]: float(r["mean_hr"]) for r in csv.DictReader(open(f"{folder}/hr_per_minute_utc.csv"))}
     for c in csv.DictReader(open(f"{folder}/cycles.csv")):
         if c["open"] == "1" or c["start_utc"][:10] in ("2026-11-01", "2026-11-05"):  # open cycle; the two cycles with muscular workouts
@@ -83,7 +82,7 @@ def _self_test(folder: str) -> None:
         assert abs(day_strain(mins) - float(c["strain"])) <= 0.3, c["start_utc"]
     assert debt_ms(30_000_000, 20_000_000, 5_000_000) == 5_000_000 and debt_ms(30_000_000, 20_000_000, 7_000_000) == 6_428_571
     assert debt_ms(40_000_000, 20_000_000, 0) == DEBT_CAP_MS and debt_ms(20_000_000, 25_000_000, 0) == 0
-    assert recovery_lead([], 103.2555, 80, 59.08321) == 100.0
+    assert abs(recovery_lead([], 103.2555, 80, 60) - 100 / (1 + math.exp(-1.57883))) < 1e-9
     print("all formulas within tolerance")
 
 

@@ -36,10 +36,10 @@
 ## At a glance
 
 <p align="center">
-  <img src="docs/headtohead.svg" width="820" alt="How far each score lands from WHOOP, which is the zero line, as a percentage of each score's scale. Recovery: this repository 4.1 %, NOOP 11.9 %. Sleep performance: 1.5 % against 10.1 %. Day strain: 3.5 % against 11.7 %. Sleep need: 1.2 % against 2.9 %. Workout zones: 2.5 % against 53.9 %.">
+  <img src="docs/headtohead.svg" width="820" alt="How far each score lands from WHOOP, which is the zero line, as a percentage of each score's scale. Recovery: this repository 4.3 %, NOOP 11.7 %. Sleep performance: 1.8 % against 10.5 %. Day strain: 3.5 % against 11.7 %. Sleep need: 1.5 % against 2.4 %. Workout zones: 2.5 % against 53.9 %.">
 </p>
 
-Scope, stated plainly: one WHOOP 5.0 wearer; 12 to 16 nights, 11 cycles and 5 workouts with WHOOP's scores from the official
+Scope, stated plainly: one WHOOP 5.0 wearer; 18 to 22 nights, 11 cycles and 5 workouts (strain and zones stop where the strap data does, 14 Nov) with WHOOP's scores from the official
 developer API; NOOP `main` at `2a1de760`. NOOP's code runs unchanged. Every number of ours is out-of-sample: leave-one-out with
 the constants refitted per fold, or a rule frozen before the data. The one exception is sleep need, whose baseline and
 recent-strain constants were fitted on these nights; they account for seconds of its error at most. Full method and every
@@ -53,9 +53,9 @@ NOOP descriptions are read from its source at `2a1de760`. Each row links to the 
 
 | | NOOP today | This repository | Mean off WHOOP, NOOP → ours |
 |---|---|---|---|
-| **Recovery** | Charge: logistic (k = 1.6) over weighted z-scores: HRV 0.55, resting HR 0.20, sleep 0.15, respiration 0.05, skin temperature 0.05 | HRV against a shrunken own baseline, sleep against its own mean, and resting HR ([`recovery_lead`](re/score_formulas.py)) | 11.9 → **4.1** points |
-| **Sleep performance** | Rest: 0.50 duration against need + 0.20 efficiency + 0.20 deep and REM share + 0.10 consistency | A power of asleep/need plus consistency ([`sleep_performance`](re/score_formulas.py)) | 10.1 → **1.5** points |
-| **Sleep need** | 8 h (raised for long sleepers) plus 55 % of unmet need carried forward | Baseline + debt + recent-strain need − nap; debt is 1/2 or 9/14 of the last scored shortfall, capped at 7,668,000 ms ([`debt_ms`, `strain_need_ms`](re/score_formulas.py)) | 17.0 → **6.9** min |
+| **Recovery** | Charge: logistic (k = 1.6) over weighted z-scores: HRV 0.55, resting HR 0.20, sleep 0.15, respiration 0.05, skin temperature 0.05 | A logistic over HRV against a shrunken own baseline, sleep against its own mean, and resting HR ([`recovery_lead`](re/score_formulas.py)) | 11.7 → **4.3** points |
+| **Sleep performance** | Rest: 0.50 duration against need + 0.20 efficiency + 0.20 deep and REM share + 0.10 consistency | A power of asleep/need plus consistency ([`sleep_performance`](re/score_formulas.py)) | 10.5 → **1.8** points |
+| **Sleep need** | 8 h (raised for long sleepers) plus 55 % of unmet need carried forward | Baseline + debt + recent-strain need − nap; debt is 1/2 or 9/14 of the last scored shortfall, capped at 7,668,000 ms ([`debt_ms`, `strain_need_ms`](re/score_formulas.py)) | 14.1 → **8.9** min |
 | **Day strain** | Edwards TRIMP on 50–90 % HRR zones, then 100 · ln(TRIMP + 1) / ln 7201 | A power of exponentially weighted minutes above 94 bpm ([`day_strain`](re/score_formulas.py)) | 2.46 → **0.73**; 2.30 → **0.13** without skiing or weightlifting |
 | **Workout zones** | 50/60/70/80/90 % of maximum HR | 40/60/70/80/90 % of heart-rate reserve, frozen before the workouts it was tested on ([ZR-1, `re/hrr_zones.py`](re/hrr_zones.py)) | 54 % → **2.5 %** of workout time in another zone |
 
@@ -123,7 +123,7 @@ flowchart LR
   SLEEP --> NEED
   SLEEP --> SP["Sleep performance<br/>(SP-C2)"]
   NEED --> SP
-  HRV --> REC["Recovery<br/>(REC-RHR)"]
+  HRV --> REC["Recovery<br/>(REC-L)"]
   RHR --> REC
   SP --> REC
 ```
@@ -287,7 +287,7 @@ and closer to WHOOP than NOOP on every score ([above](#what-noop-does-today-and-
 |---|---|---|
 | Which debt factor applies, 1/2 or 9/14 | Shortfall and cap exact on every night; REM, stage shares, strain and earlier debt do not separate the two | More nights where the factor changes |
 | Stress from heart rate | Not attempted standalone; WHOOP's sleep stress is in the app only | Owner-logged stress minutes as labels |
-| The 27-night bar for a score model | 12–16 nights now, all out-of-sample | More nights |
+| The 27-night bar for a score model | 18–22 nights now, all out-of-sample | More nights |
 
 ### Evidence levels for the protocol
 
